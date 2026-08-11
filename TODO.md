@@ -2,7 +2,7 @@
 
 Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-core` first (PRD §10), since every other component consumes its output. See `ARCHITECTURE.md` for the technical design.
 
-> **Status (2026-08-11):** Phases 0, 1a, 1b, and 1c are **complete**: 47 passing tests, clean build, MySQL migrated (all five tables), and 34,078 GeoNames cities imported and searchable. Next up: Phase 1d snapshot persistence (profile CRUD, compute-once storage, export/delete).
+> **Status (2026-08-11):** Phases 0, 1a, 1b, 1c, and 1d are **complete**: 68 passing tests, clean build, and the full profile API verified end-to-end (compute-once snapshots, write-once versioning, export, hard delete). Next up: Phase 1e UI (onboarding, chart wheel, profile management).
 
 ---
 
@@ -53,11 +53,11 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 ## Phase 1d — Database & snapshots
 
 - [x] Prisma schema + migrations for PRD §6 tables: `profile`, `geo_city`, `astro_snapshot`, `numero_snapshot`, `reading` — schema in `prisma/schema.prisma` (enums, write-once versioning via `@@unique([profileId, version])`, cascade deletes); migration `20260811072216_init` applied
-- [ ] Write-once snapshot rule: no UPDATE path; editing birth data creates a new snapshot version
-- [ ] Snapshot records `engine`, `engine_version`, `content_version`
-- [ ] Compute-once flow: chart calculated exactly once at profile creation/edit, read forever after
-- [ ] Profile export (full JSON) and hard delete
-- [ ] Multi-profile CRUD (list, create, view, delete)
+- [x] Write-once snapshot rule: no UPDATE path; editing birth data creates a new snapshot version — no mutation code path exists, and a Prisma client guard in `lib/db.ts` throws on any snapshot update/delete (cascade on profile hard-delete is the only way a snapshot dies)
+- [x] Snapshot records `engine`, `engine_version`, `content_version` — engine name/version self-reported by the ephemeris provider (`astronomy-engine` 2.1.19); `content_version` from `lib/versions.ts` ("0" until the Phase 1f library exists)
+- [x] Compute-once flow: chart calculated exactly once at profile creation/edit, read forever after — `lib/snapshots.ts` service: compute happens only in POST/PUT `/api/profiles`; presentational edits (display name, city label) update the profile row without recompute; all reads are pure DB
+- [x] Profile export (full JSON) and hard delete — `GET /api/profiles/[id]/export` (every snapshot version + readings, download headers); `DELETE /api/profiles/[id]` with DB-level cascade
+- [x] Multi-profile CRUD (list, create, view, delete) — `app/api/profiles/` routes, zod-validated (`lib/validation.ts`); view supports `?version=N` history since old versions stay readable forever
 
 ## Phase 1e — UI
 

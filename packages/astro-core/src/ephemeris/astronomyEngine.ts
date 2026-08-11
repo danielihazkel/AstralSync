@@ -25,7 +25,7 @@ function longitudeOfDate(planet: Planet, utc: Date): number {
 
 export const astronomyEngineProvider: EphemerisProvider = {
   name: "astronomy-engine",
-  version: "2",
+  version: "2.1.19",
 
   eclipticLongitude: longitudeOfDate,
 
