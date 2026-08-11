@@ -2,7 +2,7 @@
 
 Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-core` first (PRD §10), since every other component consumes its output. See `ARCHITECTURE.md` for the technical design.
 
-> **Status (2026-08-11):** Phases 0, 1a, 1b, and 1c are built with 47 passing tests (`npm test`) and a clean `npm run build`. The full Prisma schema (all five PRD §6 tables) is written and the client generates. **Waiting on you:** put real MySQL credentials in `.env`, then run `npm run db:migrate` followed by `npm run geo:import`. Next up: Phase 1d snapshot persistence.
+> **Status (2026-08-11):** Phases 0, 1a, 1b, and 1c are **complete**: 47 passing tests, clean build, MySQL migrated (all five tables), and 34,078 GeoNames cities imported and searchable. Next up: Phase 1d snapshot persistence (profile CRUD, compute-once storage, export/delete).
 
 ---
 
@@ -12,7 +12,7 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 - [x] Create Next.js app (App Router, TypeScript) at repo root — Next 16, minimal shell + engine smoke-test page
 - [x] Set up workspace packages: `packages/astro-core`, `packages/numero-core` (framework-free TypeScript, no Next.js imports)
 - [x] Configure test runner (Vitest) for both core packages — root `vitest.config.mts`, `npm test`
-- [ ] Connect to local MySQL; set up Prisma with migration tooling (`DATABASE_URL` in `.env`) — *Prisma 6 installed, full schema written (`prisma/schema.prisma`), client generated, `.env`/`.env.example` created; **run `npm run db:migrate` once real credentials are in `.env`***
+- [x] Connect to local MySQL; set up Prisma with migration tooling (`DATABASE_URL` in `.env`) — Prisma 6, database `astralsync` created, initial migration applied
 - [ ] Optional: `docker-compose.yml` (app + MySQL) for one-command startup
 
 ## Phase 1a — `astro-core` (build first)
@@ -43,7 +43,7 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 
 ## Phase 1c — Geolocation & timezone (fully offline)
 
-- [ ] Download GeoNames `cities15000` dataset; write import script into MySQL `geo_city` table — *script ready (`npm run geo:import`, idempotent); **run it after `db:migrate`***
+- [x] Download GeoNames `cities15000` dataset; write import script into MySQL `geo_city` table — `npm run geo:import` (idempotent); 34,078 cities imported and prefix-search verified against the live DB
 - [x] City search API route: local prefix/`LIKE` query with name index (no external API) — `app/api/cities/route.ts`, population-ranked, includes each city's IANA zone
 - [x] `geo-tz` lat/lng → IANA timezone lookup — `lib/tz.ts` (`timezoneFor`), tested offline
 - [x] Historical UTC offset resolution for the birth moment (IANA tz database, incl. DST) — `resolveBirthMoment` with DST gap/fold handling (Temporal "compatible" semantics)
@@ -52,7 +52,7 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 
 ## Phase 1d — Database & snapshots
 
-- [ ] Prisma schema + migrations for PRD §6 tables: `profile`, `geo_city`, `astro_snapshot`, `numero_snapshot`, `reading` — *schema complete in `prisma/schema.prisma` (enums, write-once versioning via `@@unique([profileId, version])`, cascade deletes); initial migration pending credentials*
+- [x] Prisma schema + migrations for PRD §6 tables: `profile`, `geo_city`, `astro_snapshot`, `numero_snapshot`, `reading` — schema in `prisma/schema.prisma` (enums, write-once versioning via `@@unique([profileId, version])`, cascade deletes); migration `20260811072216_init` applied
 - [ ] Write-once snapshot rule: no UPDATE path; editing birth data creates a new snapshot version
 - [ ] Snapshot records `engine`, `engine_version`, `content_version`
 - [ ] Compute-once flow: chart calculated exactly once at profile creation/edit, read forever after
