@@ -75,6 +75,7 @@ model Profile {
 
   astroSnapshots  AstroSnapshot[]
   numeroSnapshots NumeroSnapshot[]
+  hebrewSnapshots HebrewSnapshot[]
 
   @@map("profile")
 }
@@ -120,6 +121,35 @@ model NumeroSnapshot {
 
   @@unique([profileId, version])
   @@map("numero_snapshot")
+}
+
+// Write-once, same versioning rule as astro_snapshot. Third snapshot of a
+// version (Phase 2b); pre-feature versions may lack a row — the latest
+// version is lazily backfilled on view, historical versions never are.
+model HebrewSnapshot {
+  id              Int      @id @default(autoincrement())
+  profileId       Int      @map("profile_id")
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  version         Int
+  /// Effective (sunset-adjusted) Hebrew date, transliterated, e.g. "15 Cheshvan 5769".
+  hebrewDate      String   @map("hebrew_date") @db.VarChar(40)
+  /// Content key; Adar I/II collapsed to "adar".
+  monthKey        String   @map("month_key") @db.VarChar(12)
+  dayPlanet       String   @map("day_planet") @db.VarChar(12)
+  /// Null for unknown birth time or the polar no-sunset fallback.
+  hourPlanet      String?  @map("hour_planet") @db.VarChar(12)
+  dateGematriaInt Int      @map("date_gematria_int")
+  /// Full MazalChart (hebrew-core schemaVersion 1).
+  mazalJson       Json     @map("mazal_json")
+  /// { dateGematria, katanName } — katanName null unless the profile has a Hebrew name.
+  gematriaJson    Json     @map("gematria_json")
+  engine          String   @db.VarChar(32)
+  engineVersion   String   @map("engine_version") @db.VarChar(16)
+  contentVersion  String   @map("content_version") @db.VarChar(16)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([profileId, version])
+  @@map("hebrew_snapshot")
 }
 
 // Optional synthesis, generated once per snapshot pair and stored forever.

@@ -1,9 +1,12 @@
+import type { Profile } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { CONTENT_VERSION } from "./versions";
 import {
   buildSnapshotRows,
   computeAstro,
+  computeHebrew,
   computeNumero,
+  profileRowToBirthData,
   resolveChartMoment,
   type ProfileBirthData,
 } from "./snapshots";
@@ -104,10 +107,65 @@ describe("computeNumero", () => {
   });
 });
 
+describe("computeHebrew", () => {
+  it("computes the Mazal chart from the same instant as the astro chart", () => {
+    const h = computeHebrew(base);
+    // 1990-06-15 Berlin, 14:30 CEST (12:30Z) — daytime, sunset 19:31Z.
+    expect(h.mazal.hebrewDate.civil).toMatchObject({
+      day: 22,
+      monthName: "Sivan",
+      year: 5750,
+      weekday: 5, // Friday
+    });
+    expect(h.mazal.hebrewDate.afterSunset).toBe(false);
+    expect(h.mazal.input.utc).toBe("1990-06-15T12:30:00.000Z");
+    expect(h.mazal.mazal).toMatchObject({ month: "sivan", mazal: "teomim" });
+    expect(h.mazal.dayPlanet.planet).toBe("venus");
+  });
+
+  it("keys date gematria to the effective Hebrew date (day 22 master kept)", () => {
+    const h = computeHebrew(base);
+    // day 22 (master, kept) + year 5750 → 17 → 8; 22+8 = 30 → 3.
+    expect(h.dateGematria.derivation.components[0]).toMatchObject({
+      part: "day",
+      raw: 22,
+      reduced: 22,
+    });
+    expect(h.dateGematria.value).toBe(3);
+  });
+
+  it("adds a mispar katan name reading only for Hebrew names", () => {
+    expect(computeHebrew(base).katanName).toBeNull();
+    expect(computeHebrew({ ...base, fullBirthName: null }).katanName).toBeNull();
+    const h = computeHebrew({
+      ...base,
+      fullBirthName: "דוד כהן",
+      nameScript: "hebrew",
+    });
+    expect(h.katanName?.system).toBe("gematria");
+    expect(h.katanName?.variant).toBe("katan");
+  });
+
+  it("suppresses the planetary hour and flags the date for unknown time", () => {
+    const h = computeHebrew({ ...base, birthTime: null, timeCertainty: "unknown" });
+    expect(h.mazal.planetaryHour).toBeNull();
+    expect(h.mazal.hebrewDate.ambiguity).toBe("unknown_time");
+    expect(h.mazal.hebrewDate.effective).toEqual(h.mazal.hebrewDate.civil);
+  });
+});
+
 describe("buildSnapshotRows", () => {
   const astro = computeAstro(base, "placidus");
   const numero = computeNumero(base);
-  const { astroRow, numeroRow } = buildSnapshotRows(7, 3, astro, numero, "placidus");
+  const hebrew = computeHebrew(base);
+  const { astroRow, numeroRow, hebrewRow } = buildSnapshotRows(
+    7,
+    3,
+    astro,
+    numero,
+    hebrew,
+    "placidus",
+  );
 
   it("copies scalar columns from the chart", () => {
     expect(astroRow.profileId).toBe(7);
@@ -148,5 +206,79 @@ describe("buildSnapshotRows", () => {
     expect(derivation.lifePath).toBeTruthy();
     expect(derivation.destiny).toBeTruthy();
     expect(derivation.soulUrge).toBeTruthy();
+  });
+
+  it("denormalizes the Hebrew snapshot columns from the Mazal chart", () => {
+    expect(hebrewRow.profileId).toBe(7);
+    expect(hebrewRow.version).toBe(3);
+    expect(hebrewRow.hebrewDate).toBe("22 Sivan 5750");
+    expect(hebrewRow.monthKey).toBe("sivan");
+    expect(hebrewRow.dayPlanet).toBe("venus");
+    expect(hebrewRow.hourPlanet).toBe(hebrew.mazal.planetaryHour?.planet);
+    expect(hebrewRow.dateGematriaInt).toBe(3);
+    expect(hebrewRow.engine).toBe("@hebcal/core");
+    expect(hebrewRow.engineVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(hebrewRow.contentVersion).toBe(CONTENT_VERSION);
+    const gematria = hebrewRow.gematriaJson as Record<string, unknown>;
+    expect(gematria.dateGematria).toBeTruthy();
+    expect(gematria.katanName).toBeNull(); // Latin name — no gematria reading
+    expect((hebrewRow.mazalJson as Record<string, unknown>).schemaVersion).toBe(1);
+  });
+
+  it("nulls the hour planet column for unknown time", () => {
+    const unknown: ProfileBirthData = {
+      ...base,
+      birthTime: null,
+      timeCertainty: "unknown",
+    };
+    const rows = buildSnapshotRows(
+      7,
+      4,
+      computeAstro(unknown, "placidus"),
+      computeNumero(unknown),
+      computeHebrew(unknown),
+      "placidus",
+    );
+    expect(rows.hebrewRow.hourPlanet).toBeNull();
+  });
+});
+
+describe("profileRowToBirthData (lazy backfill input)", () => {
+  const row: Profile = {
+    id: 7,
+    displayName: "Ada",
+    fullBirthName: "Ada King Lovelace",
+    nameScript: "latin",
+    birthDate: new Date(Date.UTC(1990, 5, 15)),
+    birthTime: "14:30",
+    timeCertainty: "exact",
+    birthCityGeonameId: null,
+    birthLat: 52.52,
+    birthLng: 13.4,
+    tzIana: "Europe/Berlin",
+    utcOffsetMinutes: 120,
+    offsetOverridden: false,
+    createdAt: new Date(),
+  };
+
+  it("round-trips a stored profile into the computation shape", () => {
+    expect(profileRowToBirthData(row)).toEqual(base);
+  });
+
+  it("maps an unknown time to a null birthTime", () => {
+    const d = profileRowToBirthData({
+      ...row,
+      birthTime: null,
+      timeCertainty: "unknown",
+    });
+    expect(d.birthTime).toBeNull();
+    expect(d.timeCertainty).toBe("unknown");
+  });
+
+  it("restores the manual offset override only when the flag is set", () => {
+    expect(
+      profileRowToBirthData({ ...row, offsetOverridden: true }).overrideOffsetMinutes,
+    ).toBe(120);
+    expect(profileRowToBirthData(row).overrideOffsetMinutes).toBeNull();
   });
 });

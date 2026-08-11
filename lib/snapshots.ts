@@ -3,11 +3,14 @@ import {
   type ChartSnapshot,
   type HouseSystem,
 } from "@astralsync/astro-core";
+import { buildMazalChart, type MazalChart } from "@astralsync/hebrew-core";
 import {
   lifePath,
   expression,
   soulUrge,
   gematriaExpression,
+  hebrewDateGematria,
+  type HebrewDateGematriaResult,
   type LifePathResult,
   type NameNumberResult,
   type NumerologySystem,
@@ -16,6 +19,7 @@ import {
   Prisma,
   type AstroSnapshot,
   type GeoCity,
+  type HebrewSnapshot,
   type NumeroSnapshot,
   type Profile,
   type Reading,
@@ -146,9 +150,45 @@ export function computeNumero(d: ProfileBirthData): NumeroResult {
   };
 }
 
+export interface HebrewResult {
+  mazal: MazalChart;
+  dateGematria: HebrewDateGematriaResult;
+  /** Mispar katan name reading; null unless the profile has a Hebrew name. */
+  katanName: NameNumberResult | null;
+}
+
+/**
+ * Birth data → Hebrew (Mazal) results. Reuses the chart moment resolution,
+ * so the sunset comparison sees the same UTC instant as the astro chart
+ * (including the local-noon convention and the manual offset override).
+ * Date gematria is keyed to the effective (sunset-adjusted) Hebrew date.
+ */
+export function computeHebrew(d: ProfileBirthData): HebrewResult {
+  const moment = resolveChartMoment(d);
+  const mazal = buildMazalChart({
+    civilDate: d.birthDate,
+    utc: moment.utc,
+    latitude: d.birthLat,
+    longitude: d.birthLng,
+    tzId: d.tzIana,
+    timeCertainty: d.timeCertainty,
+  });
+  const dateGematria = hebrewDateGematria({
+    day: mazal.hebrewDate.effective.day,
+    year: mazal.hebrewDate.effective.year,
+  });
+  const name = d.fullBirthName?.trim();
+  const katanName =
+    name && d.nameScript === "hebrew"
+      ? gematriaExpression(name, "katan")
+      : null;
+  return { mazal, dateGematria, katanName };
+}
+
 export interface SnapshotRows {
   astroRow: Prisma.AstroSnapshotUncheckedCreateInput;
   numeroRow: Prisma.NumeroSnapshotUncheckedCreateInput;
+  hebrewRow: Prisma.HebrewSnapshotUncheckedCreateInput;
 }
 
 /**
@@ -157,15 +197,42 @@ export interface SnapshotRows {
  * their own column) plus the tz warnings from moment resolution — the UI
  * must be able to render exclusively from these two JSON columns.
  */
+function buildHebrewRow(
+  profileId: number,
+  version: number,
+  hebrew: HebrewResult,
+): Prisma.HebrewSnapshotUncheckedCreateInput {
+  const effective = hebrew.mazal.hebrewDate.effective;
+  return {
+    profileId,
+    version,
+    hebrewDate: `${effective.day} ${effective.monthName} ${effective.year}`,
+    monthKey: effective.monthKey,
+    dayPlanet: hebrew.mazal.dayPlanet.planet,
+    hourPlanet: hebrew.mazal.planetaryHour?.planet ?? null,
+    dateGematriaInt: hebrew.dateGematria.value,
+    mazalJson: hebrew.mazal as unknown as Prisma.InputJsonValue,
+    gematriaJson: {
+      dateGematria: hebrew.dateGematria,
+      katanName: hebrew.katanName,
+    } as unknown as Prisma.InputJsonValue,
+    engine: hebrew.mazal.engine.name,
+    engineVersion: hebrew.mazal.engine.version,
+    contentVersion: CONTENT_VERSION,
+  };
+}
+
 export function buildSnapshotRows(
   profileId: number,
   version: number,
   astro: AstroResult,
   numero: NumeroResult,
+  hebrew: HebrewResult,
   requestedHouseSystem: HouseSystem,
 ): SnapshotRows {
   const { aspects, ...chartSansAspects } = astro.chart;
   return {
+    hebrewRow: buildHebrewRow(profileId, version, hebrew),
     astroRow: {
       profileId,
       version,
@@ -276,6 +343,9 @@ export interface ProfileView {
   profile: ReturnType<typeof serializeProfile>;
   astro: ReturnType<typeof serializeAstro>;
   numero: ReturnType<typeof serializeNumero>;
+  /** Null for versions computed before the Hebrew feature (Phase 2b): only
+   *  the latest version is lazily backfilled, history stays as-is. */
+  hebrew: ReturnType<typeof serializeHebrew> | null;
 }
 
 function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
@@ -332,6 +402,24 @@ function serializeAstro(s: AstroSnapshot & { readings?: Reading[] }) {
   };
 }
 
+function serializeHebrew(s: HebrewSnapshot) {
+  return {
+    snapshotId: s.id,
+    version: s.version,
+    hebrewDate: s.hebrewDate,
+    monthKey: s.monthKey,
+    dayPlanet: s.dayPlanet,
+    hourPlanet: s.hourPlanet,
+    dateGematria: s.dateGematriaInt,
+    mazal: s.mazalJson,
+    gematria: s.gematriaJson,
+    engine: s.engine,
+    engineVersion: s.engineVersion,
+    contentVersion: s.contentVersion,
+    createdAt: s.createdAt,
+  };
+}
+
 function serializeNumero(s: NumeroSnapshot) {
   return {
     snapshotId: s.id,
@@ -358,20 +446,23 @@ export async function createProfile(input: ProfileInput): Promise<ProfileView> {
   const d = toProfileBirthData(input, tz);
   const astro = computeAstro(d, input.houseSystem);
   const numero = computeNumero(d);
+  const hebrew = computeHebrew(d);
 
   const id = await prisma.$transaction(async (tx) => {
     const profile = await tx.profile.create({
       data: profileColumns(input, tz, astro.offsetMinutes),
     });
-    const { astroRow, numeroRow } = buildSnapshotRows(
+    const { astroRow, numeroRow, hebrewRow } = buildSnapshotRows(
       profile.id,
       1,
       astro,
       numero,
+      hebrew,
       input.houseSystem,
     );
     await tx.astroSnapshot.create({ data: astroRow });
     await tx.numeroSnapshot.create({ data: numeroRow });
+    await tx.hebrewSnapshot.create({ data: hebrewRow });
     return profile.id;
   });
   return (await getProfileView(id)) as ProfileView;
@@ -405,6 +496,7 @@ export async function editProfile(
   const d = toProfileBirthData(input, tz);
   const astro = computeAstro(d, input.houseSystem);
   const numero = computeNumero(d);
+  const hebrew = computeHebrew(d);
 
   await prisma.$transaction(async (tx) => {
     const latest = await tx.astroSnapshot.findFirst({
@@ -417,15 +509,17 @@ export async function editProfile(
       where: { id },
       data: profileColumns(input, tz, astro.offsetMinutes),
     });
-    const { astroRow, numeroRow } = buildSnapshotRows(
+    const { astroRow, numeroRow, hebrewRow } = buildSnapshotRows(
       id,
       version,
       astro,
       numero,
+      hebrew,
       input.houseSystem,
     );
     await tx.astroSnapshot.create({ data: astroRow });
     await tx.numeroSnapshot.create({ data: numeroRow });
+    await tx.hebrewSnapshot.create({ data: hebrewRow });
   });
   return getProfileView(id);
 }
@@ -466,11 +560,81 @@ export async function getProfileView(
         });
   if (!astro || !numero) return null;
 
+  // Keyed to the astro version actually being viewed; null for versions that
+  // predate the Hebrew feature and were never backfilled.
+  const hebrew = await prisma.hebrewSnapshot.findUnique({
+    where: { profileId_version: { profileId: id, version: astro.version } },
+  });
+
   return {
     profile: serializeProfile(profile),
     astro: serializeAstro(astro),
     numero: serializeNumero(numero),
+    hebrew: hebrew ? serializeHebrew(hebrew) : null,
   };
+}
+
+/** Stored profile row → the pure computation shape (for lazy backfill). */
+export function profileRowToBirthData(p: Profile): ProfileBirthData {
+  const [year, month, day] = dateOnly(p.birthDate).split("-").map(Number);
+  return {
+    fullBirthName: p.fullBirthName,
+    nameScript: p.nameScript,
+    birthDate: { year, month, day },
+    birthTime: p.birthTime
+      ? {
+          hour: Number(p.birthTime.slice(0, 2)),
+          minute: Number(p.birthTime.slice(3, 5)),
+        }
+      : null,
+    timeCertainty: p.timeCertainty,
+    birthLat: p.birthLat,
+    birthLng: p.birthLng,
+    tzIana: p.tzIana,
+    overrideOffsetMinutes: p.offsetOverridden ? p.utcOffsetMinutes : null,
+  };
+}
+
+/**
+ * Lazy backfill for pre-feature profiles: create-on-view, latest version
+ * only. This is a write-once create — never an update — so the guard in
+ * lib/db.ts is untouched; historical versions never get a Hebrew row and
+ * render a "not computed for this version" notice instead. `getProfileView`
+ * stays a pure read: callers invoke this explicitly before viewing.
+ */
+export async function ensureHebrewSnapshot(profileId: number): Promise<void> {
+  const latestAstro = await prisma.astroSnapshot.findFirst({
+    where: { profileId },
+    orderBy: { version: "desc" },
+    select: { version: true },
+  });
+  if (!latestAstro) return;
+  const existing = await prisma.hebrewSnapshot.findUnique({
+    where: {
+      profileId_version: { profileId, version: latestAstro.version },
+    },
+    select: { id: true },
+  });
+  if (existing) return;
+  const profile = await prisma.profile.findUnique({ where: { id: profileId } });
+  if (!profile) return;
+
+  const hebrew = computeHebrew(profileRowToBirthData(profile));
+  try {
+    await prisma.hebrewSnapshot.create({
+      data: buildHebrewRow(profileId, latestAstro.version, hebrew),
+    });
+  } catch (e) {
+    // A concurrent view won the race — the unique constraint makes the
+    // create idempotent, which is exactly what we want.
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return;
+    }
+    throw e;
+  }
 }
 
 export async function listProfiles() {
@@ -519,11 +683,13 @@ export async function exportProfile(id: number) {
         include: { readings: true },
       },
       numeroSnapshots: { orderBy: { version: "asc" } },
+      hebrewSnapshots: { orderBy: { version: "asc" } },
     },
   });
   if (!profile) return null;
 
-  const { astroSnapshots, numeroSnapshots, birthCity, ...columns } = profile;
+  const { astroSnapshots, numeroSnapshots, hebrewSnapshots, birthCity, ...columns } =
+    profile;
   return {
     exportVersion: 1,
     exportedAt: new Date().toISOString(),
@@ -531,6 +697,8 @@ export async function exportProfile(id: number) {
     birthCity,
     astroSnapshots: astroSnapshots.map(({ readings: _r, ...s }) => s),
     numeroSnapshots,
+    // Additive (exportVersion stays 1); sparse for pre-feature versions.
+    hebrewSnapshots,
     readings: astroSnapshots.flatMap((s) => s.readings),
   };
 }

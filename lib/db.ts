@@ -4,7 +4,11 @@ import { PrismaClient } from "@prisma/client";
 // row, never an UPDATE. This client-level guard makes the rule structural —
 // snapshot rows can only be created here, and only deleted by the DB-level
 // cascade when their profile is hard-deleted.
-const WRITE_ONCE_MODELS = new Set(["AstroSnapshot", "NumeroSnapshot"]);
+const WRITE_ONCE_MODELS = new Set([
+  "AstroSnapshot",
+  "NumeroSnapshot",
+  "HebrewSnapshot",
+]);
 const BLOCKED_OPERATIONS = new Set([
   "update",
   "updateMany",
