@@ -2,7 +2,7 @@
 
 Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-core` first (PRD §10), since every other component consumes its output. See `ARCHITECTURE.md` for the technical design.
 
-> **Status (2026-08-11):** Phases 0 and 1a–1g are **complete**: 153 passing tests, clean build, full UI verified end-to-end, and the app now ships as an installable PWA (manifest + icons + hand-written service worker; visited charts reload offline). Desktop verification done headlessly (manifest/headers/offline page); in-browser install + offline flow on desktop and mobile remains a quick manual pass (steps in the Phase 1g notes). `experimental.useOffline` deliberately skipped (connectivity retry UI, not asset caching). v1 scope is done — remaining work is Phase 2/3. Phase 2 is now broken down into 2a–2d below; the "do not start in v1" gate is lifted.
+> **Status (2026-08-11):** Phases 0 and 1a–1g are **complete**: 153 passing tests, clean build, full UI verified end-to-end, and the app now ships as an installable PWA (manifest + icons + hand-written service worker; visited charts reload offline). Desktop verification done headlessly (manifest/headers/offline page); in-browser install + offline flow on desktop and mobile remains a quick manual pass (steps in the Phase 1g notes). `experimental.useOffline` deliberately skipped (connectivity retry UI, not asset caching). v1 scope is done — remaining work is Phase 2/3/4. Phase 2 (Hebrew chart & reading) is broken down into 2a–2d below; the synastry/transits phase (now Phase 3) into 3a–3d; the "do not start in v1" gate is lifted.
 
 ---
 
@@ -76,7 +76,7 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 - [x] Define content file format: Markdown/JSON keyed by placement, versioned in-repo under `content/` — Markdown + flat frontmatter, keys derived from paths (`content/README.md` is the authoring guide); full PRD §5 taxonomy supported by the loader from day one
 - [x] Content loader that resolves snapshot placements → entries; snapshot stores `content_version` — `lib/content.ts` (`loadContentIndex`/`resolveReading`, cached, graceful on unauthored keys); `CONTENT_VERSION` bumped to "1"; readings resolve live against the current tree, with a provenance note when a snapshot's stamp differs (pre-1f "0" snapshots included)
 - [x] Author v1 entries (~40): 12 Sun signs + 12 Moon signs + 12 Ascendant signs scoped to Big Three, Life Path (1–9, 11, 22, 33), element dominance (4) — 52 entries under `content/en/`, lint-enforced by `lib/content.lint.test.ts` (coverage, format, size band, Markdown subset)
-- [x] Synthesized reading from template intersection (dominant element/modality × Life Path) — element-only in v1 per PRD §5's scope cut (`lib/synthesis.ts` composes entry essences; `lib/dominance.ts` computes dominance with Sun→Moon→canonical tie-break); *modality dominance entries deferred to the Phase 2 matrix, `SIGN_MODALITIES` already defined*
+- [x] Synthesized reading from template intersection (dominant element/modality × Life Path) — element-only in v1 per PRD §5's scope cut (`lib/synthesis.ts` composes entry essences; `lib/dominance.ts` computes dominance with Sun→Moon→canonical tie-break); *modality dominance entries deferred to the Phase 3 matrix, `SIGN_MODALITIES` already defined*
 - [x] Optional LLM synthesis hook (Ollama/local or API): once per snapshot, stored in `reading`, **off by default** — `READING_LLM` env contract (`.env.example`), `lib/llm.ts` + POST `/api/profiles/[id]/reading`; once-only enforced by a DB unique on `(astro_snapshot_id, generator)`; LLM failure returns 502 and never degrades the rest of the app; rendered in the new Reading tab via a dependency-free XSS-safe Markdown renderer
 
 ## Phase 1g — PWA packaging
@@ -87,11 +87,51 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 
 ---
 
-## Phase 2 — Synastry, transits & the full interpretation matrix
+## Phase 2 — Hebrew chart & reading (Mazal)
 
-Ordered like Phase 1: engine primitives first (`astro-core`), since both transits (2b) and synastry (2c) consume them; transits before synastry because they are the smaller UI delta and validate the cross-aspect primitive plus the two-ring wheel geometry that synastry's bi-wheel reuses. The content matrix (2d) has no engine dependency and can proceed in parallel at any point — `resolveReading` already degrades gracefully on unauthored keys, so each tier enriches shipped features as it lands.
+Post-PRD addition. Jewish/Mazalot astrology plus Hebrew-calendar numerology, delivered in Hebrew (content only — app chrome stays English; the PRD §7 localization exclusion is untouched). Ordered like Phase 1: engine primitives first (`hebrew-core` + `numero-core` extensions), then the write-once snapshot, then content, then UI. Content authoring (2c) can proceed in parallel once 2a's tables fix the key taxonomy — `resolveHebrewReading` degrades gracefully on unauthored keys, same as `resolveReading`.
 
-### Phase 2a — Cross-chart engine primitives (build first)
+### Phase 2a — `hebrew-core` engine + gematria extensions (build first)
+
+- [ ] **New workspace package `packages/hebrew-core`** — framework-free like `astro-core`; single dependency `@hebcal/core` (`HDate` conversion incl. leap-year Adar I/II, `renderGematriya`, `GeoLocation`/`Zmanim` NOAA sunrise/sunset); engine name/version self-reported for snapshot metadata; GPL-2.0 license noted in the package README (unhosted app — re-evaluate at the Phase 4 gate)
+- [ ] **Sunset-aware Hebrew birth date** — `src/hebrewDate.ts`: `hebrewBirthDate(MazalInput): HebrewBirthDate` with `civil` vs sunset-adjusted `effective` dates, `afterSunset`, stored `sunsetUtc`, and machine-readable `ambiguity` (`unknown_time` uses a daylight convention mirroring the local-noon solar convention; `approx_time_near_sunset` within ±60 min; `no_sunset_polar` graceful fallback); `HDate` always constructed from explicit y/m/d, never a raw `Date`
+- [ ] **Month mazal + Sefer Yetzirah tables** — `src/mazalot.ts` (Nisan→taleh/Aries … Adar→dagim/Pisces; Adar I/II collapse to the `adar` key, display name preserved) and `src/seferYetzirah.ts` (letter, letter name, tribe, faculty per month)
+- [ ] **Day-of-week ruling planet** — `src/dayPlanet.ts` (Sunday=Sun … Saturday=Saturn per Talmud Shabbat 156a), keyed to the sunset-adjusted `effective` weekday; `day_planet_ambiguous` flag when date ambiguity flips the weekday
+- [ ] **Planetary hour of birth** — `src/planetaryHours.ts`: unequal day/night twelfths from `Zmanim` sunrise/sunset (adjacent-day fetch for night hours), continuous Chaldean cycle (Saturn→Jupiter→Mars→Sun→Venus→Mercury→Moon) anchored at Sunday's first daylight hour = Sun; `null` for unknown time, `uncertain` flag for approx
+- [ ] **`buildMazalChart` composition** — `src/chart.ts` + `src/types.ts` (`MazalChart` schemaVersion 1 with input echo, `uncertainties[]`, engine metadata — same shape philosophy as `ChartSnapshot`); exported from `src/index.ts`; package added to the root Vitest workspace
+- [ ] **Mispar katan** — `packages/numero-core/src/gematria.ts`: `MISPAR_KATAN_VALUES` derived from `GEMATRIA_VALUES` (zeros dropped: י=1, ק=1 …); `gematriaExpression(name, variant)` with optional `variant?: "hechrachi" | "katan"` on `NameNumberResult` (`system` stays `"gematria"` — no Prisma enum change)
+- [ ] **Hebrew date gematria** — new `packages/numero-core/src/hebrewDateGematria.ts`: `hebrewDateGematria({day, year})` — day and year reduced independently then summed and reduced, reusing `reduceSteps`/`isMaster` (masters 11/22/33 preserved), full derivation like `LifePathResult`
+- [ ] **Tests**: golden Gregorian↔Hebrew pairs incl. after-sunset flip, Adar I/II leap year, exact gematriya string, near-sunset approx flag — `packages/hebrew-core/test/hebrewDate.test.ts`; hour partition sums/Chaldean anchor/midnight-crossing night hour — `test/planetaryHours.test.ts`; table completeness + Adar collapse — `test/mazalot.test.ts`; date-gematria masters + katan name cases — `packages/numero-core/test/hebrewDateGematria.test.ts` + `test/names.test.ts`
+
+### Phase 2b — `hebrew_snapshot` persistence & profile view
+
+- [ ] **Prisma model `HebrewSnapshot`** — third write-once snapshot (`@@unique([profileId, version])`, cascade delete, `mazalJson`/`gematriaJson`, denormalized `hebrewDate`/`monthKey`/`dayPlanet`/`hourPlanet`/`dateGematriaInt` columns, engine + `content_version`) — migration `add_hebrew_snapshot`; extend the write-once guard in `lib/db.ts`
+- [ ] **Compute wiring** — `lib/snapshots.ts`: `computeHebrew(d: ProfileBirthData)` (mazal chart + date gematria + katan name result when `nameScript === "hebrew"`, reusing `resolveChartMoment` for the UTC instant); `buildSnapshotRows` returns a `hebrewRow`; `createProfile`/`editProfile` write all three rows per version in one transaction — `computationChanged` already covers every Hebrew input, no change
+- [ ] **Lazy backfill for pre-feature profiles** — `ensureHebrewSnapshot(profileId)` in `lib/snapshots.ts`: create-on-view for the **latest** version only (a write-once create, guard-compatible; `getProfileView` stays a pure read — callers invoke it explicitly); historical `?version=N` rows are never backfilled and render a "not computed for this version" notice
+- [ ] **View + export** — `ProfileView.hebrew` via `serializeHebrew` (mirrors `serializeAstro`); `HebrewView`/`StoredMazal` in `lib/view-types.ts`; `exportProfile` gains `hebrewSnapshots` (additive; `exportVersion` stays 1)
+- [ ] **Tests**: three rows per version, `ensureHebrewSnapshot` idempotence, old-version null hebrew — extend `lib/snapshots.test.ts`
+
+### Phase 2c — Hebrew content library & locale-aware loader (parallelizable after 2a)
+
+- [ ] **Locale-aware loader** — `lib/content.ts`: `ContentLocale` (`"en" | "he"`), `contentRoot(locale)` replacing the fixed `content/en` root (per-root `indexCache` already copes), `LOCALE_DIRECTION` metadata; new categories `mazal_month`, `day_planet`, `hour_planet`, `sefer_yetzirah`, `hebrew_date_gematria`, `name_gematria` added to `CONTENT_CATEGORIES`
+- [ ] **Author `content/he/` (62 entries, Hebrew language)** — 12 `mazal_month` (Adar entry covers Adar I/II), 7 `day_planet` + 7 `hour_planet` (Shabbat 156a temperaments), 12 `sefer_yetzirah`, 12 `hebrew_date_gematria` (1–9, 11, 22, 33), 12 `name_gematria`; ASCII keys, Hebrew titles/bodies; authoring notes added to `content/README.md`
+- [ ] **`resolveHebrewReading`** — new `lib/hebrewReading.ts`: slots `hebrew_date` (rendered data, no entry) / `month_mazal` / `day_planet` / `hour_planet` (skipped when null) / `sefer_yetzirah` / `date_gematria` / `name_gematria` (skipped without a Hebrew name), Hebrew `source` strings, `dir: "rtl"`, `missingKeys` degradation and `stale` provenance matching `resolveReading`
+- [ ] **Lint + version contract** — extend `lib/content.lint.test.ts` with per-locale coverage and a Hebrew-script body check (`/[֐-׿]/`); `CONTENT_VERSION` unchanged (new entries never bump, per `lib/versions.ts`)
+- [ ] **Tests**: slot composition, suppression paths, RTL metadata — `lib/hebrewReading.test.ts`
+
+### Phase 2d — Mazal tab UI
+
+- [ ] **Mazal tab** (Chart / Reading / Numerology / **Mazal** / Details) — `components/profile/ProfileTabs.tsx` + new `components/mazal/MazalPanel.tsx`: summary card (gematriya Hebrew date incl. born-after-sunset note, month mazal with zodiac glyph from `glyphs.tsx`, day planet, hour planet with day/night + index, Sefer Yetzirah letter/tribe/faculty) in English chrome, then Hebrew reading sections in `<section lang="he" dir="rtl">`
+- [ ] **Shared Markdown renderer** — reuse the XSS-safe renderer from the Reading tab for Hebrew bodies (extract from `components/profile/ReadingPanel.tsx` into a shared component if not already standalone)
+- [ ] **Uncertainty + ambiguity chips** — driven by `mazal.uncertainties` (both candidate dates shown for sunset ambiguity; hour suppressed for unknown time), reusing the existing badge pattern; "not computed for this version" state for un-backfilled history
+- [ ] **Labels** — `CLASSICAL_PLANET_LABELS`, `HEBREW_MONTH_LABELS`, `HEBREW_WEEKDAY_LABELS` in `components/format.ts`; page wiring in `app/profiles/[id]/page.tsx` (`ensureHebrewSnapshot` + `resolveHebrewReading` passed to `ProfileTabs`)
+- [ ] **Tests + verification**: panel render states (full / unknown-time suppression / legacy-version notice); full `npm test` + build; manual RTL pass in-browser
+
+## Phase 3 — Synastry, transits & the full interpretation matrix
+
+Ordered like Phase 1: engine primitives first (`astro-core`), since both transits (3b) and synastry (3c) consume them; transits before synastry because they are the smaller UI delta and validate the cross-aspect primitive plus the two-ring wheel geometry that synastry's bi-wheel reuses. The content matrix (3d) has no engine dependency and can proceed in parallel at any point — `resolveReading` already degrades gracefully on unauthored keys, so each tier enriches shipped features as it lands.
+
+### Phase 3a — Cross-chart engine primitives (build first)
 
 - [ ] Cross-chart aspect detection: aspects between chart A's placements and chart B's placements (full A×B grid, same-planet pairs included — e.g. transit Sun conjunct natal Sun) — new `packages/astro-core/src/crossAspects.ts`, reusing `separation` (`src/angles.ts`) and `maxOrb` (`src/aspects.ts`)
 - [ ] `CrossAspect` output type distinguishing which chart each body belongs to (`a` = moving/partner chart, `b` = natal/reference chart) — `src/types.ts`; no `ChartSnapshot` change (cross-chart results are never stored; schemaVersion stays 1)
@@ -101,41 +141,42 @@ Ordered like Phase 1: engine primitives first (`astro-core`), since both transit
 - [ ] **Cross-aspect tests**: A×B grid completeness vs. the self-join case, same-planet conjunction, orb-boundary inclusion/exclusion under both orb configs, determinism — `packages/astro-core/test/crossAspects.test.ts`
 - [ ] **Positions golden test**: placements at fixed reference instants matching the existing golden fixtures; retrograde flag at a known station date — extend `test/golden.test.ts`
 
-### Phase 2b — Daily transits dashboard
+### Phase 3b — Daily transits dashboard
 
 - [ ] Transit read service: load the profile's stored natal snapshot, compute current placements (`positions.ts`) and cross aspects vs. natal — new `lib/transits.ts`; **never persisted** (PRD §9: the only ongoing computation; the write-once guard in `lib/db.ts` stays untouched — transits are ephemeral reads, not snapshots)
-- [ ] `GET /api/transits/[id]`: transiting placements + cross aspects + natal-house overlay + `computedAt`/engine metadata; zod-validated optional `at` ISO instant (defaults to now; testing hook, not exposed in UI) — `app/api/transits/[id]/route.ts`, schema in `lib/validation.ts`; served `Cache-Control: no-store` (server-side keeps the single source of truth per PRD §4.2; no offline transits is the accepted tradeoff — `public/sw.js` already never intercepts `/api/*`; client-side compute re-evaluated at the Phase 3 gate)
-- [ ] Transits tab (Chart / Reading / Numerology / **Transits** / Details) — `components/profile/ProfileTabs.tsx` + new `components/transits/TransitsPanel.tsx`: positions table with retrograde markers, cross-aspect list sorted by orb tightness, "as of" timestamp with refresh (today-only UI)
+- [ ] `GET /api/transits/[id]`: transiting placements + cross aspects + natal-house overlay + `computedAt`/engine metadata; zod-validated optional `at` ISO instant (defaults to now; testing hook, not exposed in UI) — `app/api/transits/[id]/route.ts`, schema in `lib/validation.ts`; served `Cache-Control: no-store` (server-side keeps the single source of truth per PRD §4.2; no offline transits is the accepted tradeoff — `public/sw.js` already never intercepts `/api/*`; client-side compute re-evaluated at the Phase 4 gate)
+- [ ] Transits tab (Chart / Reading / Numerology / Mazal / **Transits** / Details) — `components/profile/ProfileTabs.tsx` + new `components/transits/TransitsPanel.tsx`: positions table with retrograde markers, cross-aspect list sorted by orb tightness, "as of" timestamp with refresh (today-only UI)
 - [ ] Transit wheel overlay: natal wheel with transiting glyphs on an outer ring and inter-ring cross-aspect chords — extend `components/chart/geometry.ts` (second glyph ring, per-ring `spreadClusters`, inter-ring chord radii); glyph swap point stays `glyphs.tsx`
 - [ ] Unknown/approx-time handling: suppress the natal-house overlay for solar charts; badge cross aspects to the natal Moon when its degree is uncertain — reuse snapshot `uncertainties` + the existing uncertainty badge component
 - [ ] Offline notice: a clear "transits need a live connection" state in the tab instead of a broken fetch — guard in `TransitsPanel`
 - [ ] Document the ephemeral-read data flow in `ARCHITECTURE.md` §4 (compute-once applies to natal snapshots; transits recompute on every read, never stored)
 - [ ] **Tests**: `lib/transits.test.ts` with fixed `at` instants (deterministic fixtures); zod rejection of malformed `at`; `no-store` header on the route; outer-ring cases in `components/chart/geometry.test.ts`
 
-### Phase 2c — Synastry
+### Phase 3c — Synastry
 
 - [ ] Synastry read service: load two profiles' current astro snapshots, compute cross aspects (natal orbs) + mutual house overlays (A-in-B's houses and B-in-A's, each side skipped when solar) — new `lib/synastry.ts`; ephemeral read over two write-once snapshots — **no schema change, nothing persisted** (deterministic recompute from immutable inputs)
 - [ ] Pair selection: pick two profiles from the existing list on `/` (`app/page.tsx`), landing on a shareable server-rendered `app/synastry/page.tsx` (`?a=<id>&b=<id>`, params zod-validated); the page calls `lib/synastry.ts` directly — no new API route needed
-- [ ] Bi-wheel: person A's houses + planets on the inner wheel, person B's planets on an outer ring, cross-aspect chords between rings — reuse the 2b two-ring geometry in `components/chart/geometry.ts`; new `components/synastry/BiWheel.tsx` with hover/tap/focus parity with the existing placement detail card
+- [ ] Bi-wheel: person A's houses + planets on the inner wheel, person B's planets on an outer ring, cross-aspect chords between rings — reuse the 3b two-ring geometry in `components/chart/geometry.ts`; new `components/synastry/BiWheel.tsx` with hover/tap/focus parity with the existing placement detail card
 - [ ] Cross-aspect list view: sorted by orb, grouped by planet pair, glyph labels — `components/synastry/`
 - [ ] Solar/uncertain handling: sign-and-aspect-only synastry when either chart lacks houses, with the standard notice; uncertainty badges carried through per side
-- [ ] Recognize `synastry_aspect` as a loader category (`CONTENT_CATEGORIES` in `lib/content.ts`) so entries can land incrementally; authoring deferred to the optional 2d tier — until then the aspect list ships without prose (existing `missingKeys` degradation)
+- [ ] Recognize `synastry_aspect` as a loader category (`CONTENT_CATEGORIES` in `lib/content.ts`) so entries can land incrementally; authoring deferred to the optional 3d tier — until then the aspect list ships without prose (existing `missingKeys` degradation)
 - [ ] **Tests**: `lib/synastry.test.ts` fixtures (two known charts → expected cross aspects), solar-side suppression, param validation; bi-wheel ring/chord cases in `geometry.test.ts`
 
-### Phase 2d — Interpretation matrix (staged tiers — parallelizable with 2a–2c)
+### Phase 3d — Interpretation matrix (staged tiers — parallelizable with 3a–3c)
 
 - [ ] **Tier 1 — modality dominance (3 entries)**: `content/en/modality_dominance/`; add `modalityDominance()` beside `elementDominance()` (`SIGN_MODALITIES` already defined in `lib/dominance.ts`); extend `lib/synthesis.ts` to the full element × modality × Life Path intersection (PRD §3.4) and add the modality slot to `resolveReading` (`lib/content.ts`) — smallest tier, unlocks the deferred synthesis path
 - [ ] **Tier 2 — natal aspects (~50 entries)**: `content/en/aspect/` keyed `<planetA>-<planetB>-<type>.md` (canonical pair order = `PLANETS` order in `packages/astro-core/src/types.ts`); author pairs involving Sun, Moon, Venus, Mars across all five types first, then Mercury; wire the chart's tightest 3–5 aspects into `resolveReading` as new sections
 - [ ] **Tier 3 — planet_in_sign fill-in (96 new entries)**: Mercury/Venus/Mars first (personal planets, wired into the reading), then Jupiter/Saturn, then outer planets authored with generational framing — `content/en/planet_in_sign/`
 - [ ] **Tier 4 — planet_in_house (120 entries)**: `content/en/planet_in_house/<planet>-<house>.md`; resolved only for housed (non-solar) charts behind the existing house-null guard in `resolveReading`
 - [ ] **Tier 5 — numerology completion (26 entries)**: `content/en/destiny/` and `content/en/soul_urge/` (1–9, 11, 22, 33 each) — listed in PRD §5, absent from v1; `CONTENT_CATEGORIES` already includes both; surface in the Numerology panel and the Reading tab
-- [ ] *(optional)* **Tier 6 — `synastry_aspect` starter set (~12 entries)**: Sun/Moon/Venus/Mars pair combinations, keyed like Tier 2 — turns the 2c aspect list into prose
+- [ ] *(optional)* **Tier 6 — `synastry_aspect` starter set (~12 entries)**: Sun/Moon/Venus/Mars pair combinations, keyed like Tier 2 — turns the 3c aspect list into prose
 - [ ] Extend `lib/content.lint.test.ts` coverage expectations tier-by-tier as each tier lands (coverage, format, size band, per `content/README.md`)
 - [ ] `CONTENT_VERSION` (`lib/versions.ts`): bump **only** when existing entries are rewritten — new entries alone never bump, per the documented contract; the existing provenance note handles snapshot drift
 
-## Phase 3 (public deployment gate — deferred)
+## Phase 4 (public deployment gate — deferred)
 
 - Authentication / user accounts
+- License review before distribution: `@hebcal/core` (`hebrew-core`) is GPL-2.0 — fine unhosted, re-evaluate here
 - Hosted MySQL/Postgres migration
 - Privacy hardening: encryption at rest, retention policy, GDPR-style deletion
 - Rate limiting; re-evaluate client-side vs. server-side calculation for static hosting
