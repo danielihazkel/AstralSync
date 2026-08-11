@@ -12,6 +12,8 @@ content/
   en/                one directory per language; keys are locale-free, so
                      localization means adding a sibling tree (e.g. es/)
     <category>/<file>.md
+  he/                Hebrew (Mazal) library, Phase 2c — ASCII keys, Hebrew
+                     titles and bodies; rendered RTL (LOCALE_DIRECTION)
 ```
 
 The library is read once per server process and cached — restart `next dev`
@@ -34,6 +36,12 @@ become key segments.
 | `life_path`          | `life_path/<n>`                  | `life_path/11.md` |
 | `destiny`            | `destiny/<n>`                    | `destiny/5.md` |
 | `soul_urge`          | `soul_urge/<n>`                  | `soul_urge/22.md` |
+| `mazal_month`        | `mazal_month/<month>`            | `mazal_month/nisan.md` |
+| `day_planet`         | `day_planet/<planet>`            | `day_planet/saturn.md` |
+| `hour_planet`        | `hour_planet/<planet>`           | `hour_planet/venus.md` |
+| `sefer_yetzirah`     | `sefer_yetzirah/<month>`         | `sefer_yetzirah/adar.md` |
+| `hebrew_date_gematria` | `hebrew_date_gematria/<n>`     | `hebrew_date_gematria/22.md` |
+| `name_gematria`      | `name_gematria/<n>`              | `name_gematria/7.md` |
 
 Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
@@ -41,6 +49,26 @@ taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
 **v1 scope (52 entries):** Sun in sign ×12, Moon in sign ×12,
 `ascendant_sign` ×12, `life_path` 1–9/11/22/33 (×12), `element_dominance` ×4.
+
+**Hebrew scope (62 entries under `he/`, Phase 2c):** `mazal_month` ×12 (the
+single `adar` entry covers Adar I/II), `day_planet` ×7 + `hour_planet` ×7
+(Shabbat 156a temperaments), `sefer_yetzirah` ×12 (Gra recension per
+Kaplan's edition — the same table as `packages/hebrew-core`),
+`hebrew_date_gematria` ×12 and `name_gematria` ×12 (1–9, 11, 22, 33). Month
+and planet segments use the `hebrew-core` keys (`HebrewMonthKey`,
+`ClassicalPlanet`).
+
+### Hebrew authoring notes
+
+- Keys stay ASCII (they come from the snapshot); titles and bodies are
+  Hebrew. The lint enforces Hebrew script in every `he/` body.
+- Same voice rules as English, adapted: strengths **and** a friction point,
+  actionable close, no fortune-telling. Gendered second person is avoided —
+  use "ילידי החודש" / "מי שנולד…" phrasing instead.
+- Traditional sources (Shabbat 156a, Sefer Yetzirah ch. 5, month/holiday
+  symbolism) inform the ideas; the sentences are original, never copied.
+- No `essence` field — the Hebrew reading composes sections directly and has
+  no template-synthesis slot.
 
 ## Entry format
 

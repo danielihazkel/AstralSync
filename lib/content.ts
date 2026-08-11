@@ -27,6 +27,13 @@ export const CONTENT_CATEGORIES = [
   "life_path",
   "destiny",
   "soul_urge",
+  // Hebrew (Mazal) categories, Phase 2c — authored under content/he.
+  "mazal_month",
+  "day_planet",
+  "hour_planet",
+  "sefer_yetzirah",
+  "hebrew_date_gematria",
+  "name_gematria",
 ] as const;
 
 export type ContentCategory = (typeof CONTENT_CATEGORIES)[number];
@@ -99,7 +106,21 @@ export function parseEntryFile(raw: string, relPath: string): ContentEntry {
   return { key, category, title, essence: fields.get("essence") ?? null, bodyMd };
 }
 
-const DEFAULT_ROOT = path.join(process.cwd(), "content", "en");
+export type ContentLocale = "en" | "he";
+
+/** Text direction per locale — the UI sets `dir` from this, never guesses. */
+export const LOCALE_DIRECTION: Record<ContentLocale, "ltr" | "rtl"> = {
+  en: "ltr",
+  he: "rtl",
+};
+
+/** Root of a locale's content tree. Keys are locale-free (content/README.md),
+ *  so localization is a sibling tree with the same key taxonomy. */
+export function contentRoot(locale: ContentLocale): string {
+  return path.join(process.cwd(), "content", locale);
+}
+
+const DEFAULT_ROOT = contentRoot("en");
 
 /** Process-lifetime cache per root — content is in-repo and immutable at
  *  runtime (restart the server to pick up edits). */
