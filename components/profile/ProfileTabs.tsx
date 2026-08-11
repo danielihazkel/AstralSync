@@ -13,11 +13,19 @@ import type {
 import ChartWheel from "@/components/chart/ChartWheel";
 import MazalPanel from "@/components/mazal/MazalPanel";
 import NumerologyPanel from "@/components/numerology/NumerologyPanel";
+import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
 import styles from "./profile.module.css";
 
-const TABS = ["Chart", "Reading", "Numerology", "Mazal", "Details"] as const;
+const TABS = [
+  "Chart",
+  "Reading",
+  "Numerology",
+  "Mazal",
+  "Transits",
+  "Details",
+] as const;
 type Tab = (typeof TABS)[number];
 
 export default function ProfileTabs({
@@ -91,6 +99,15 @@ export default function ProfileTabs({
             profileId={profile.id}
             version={astro.version}
             llmEnabled={llmEnabled}
+          />
+        </div>
+      )}
+      {tab === "Transits" && (
+        <div role="tabpanel" aria-label="Transits">
+          <TransitsPanel
+            profileId={profile.id}
+            chart={chart}
+            isLatest={isLatest}
           />
         </div>
       )}

@@ -120,6 +120,14 @@ export const profileInputSchema = profileInputBase
 
 export type ProfileInput = z.infer<typeof profileInputSchema>;
 
+/** GET /api/transits/[id] query. `at` is a testing hook (fixed-instant
+ *  transits), not exposed in the UI; defaults to now when absent. */
+export const transitQuerySchema = z.object({
+  at: z.iso.datetime({ offset: true }).optional(),
+});
+
+export type TransitQuery = z.infer<typeof transitQuerySchema>;
+
 /** Parsed input → the pure computation shape used by lib/snapshots.ts. */
 export function toProfileBirthData(
   input: ProfileInput,

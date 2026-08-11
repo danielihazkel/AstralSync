@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChart, separation } from "../src";
+import { buildChart, positionsAt, separation } from "../src";
 
 /**
  * Golden chart tests (PRD §8).
@@ -63,6 +63,49 @@ describe("golden charts", () => {
 
     expect(chart.bigThree.ascendant).toBe("cancer");
     expect(separation(chart.houses!.ascendant, 90 + 11.63)).toBeLessThan(1.5);
+  });
+});
+
+describe("positions at an instant", () => {
+  it("matches the equinox Sun and carries no houses", () => {
+    const utc = new Date(Date.UTC(2020, 2, 20, 3, 49, 36));
+    const positions = positionsAt(utc);
+    const sun = positions.find((p) => p.planet === "sun")!;
+    expect(separation(sun.longitude, 0)).toBeLessThan(0.05);
+    for (const p of positions) {
+      expect(p.house).toBeNull();
+      expect(p.degreeInSign).toBeGreaterThanOrEqual(0);
+      expect(p.degreeInSign).toBeLessThan(30);
+    }
+  });
+
+  it("matches the J2000 Sun longitude (~280.46°)", () => {
+    const positions = positionsAt(new Date(Date.UTC(2000, 0, 1, 12, 0, 0)));
+    const sun = positions.find((p) => p.planet === "sun")!;
+    expect(sun.longitude).toBeGreaterThan(280.0);
+    expect(sun.longitude).toBeLessThan(281.0);
+    expect(sun.sign).toBe("capricorn");
+  });
+
+  it("agrees exactly with buildChart placements at the same instant", () => {
+    const utc = new Date(Date.UTC(2023, 4, 1, 0, 0, 0));
+    const positions = positionsAt(utc);
+    const chart = buildChart({ utc, latitude: 0, longitude: 0 });
+    for (const p of positions) {
+      const cp = chart.placements.find((c) => c.planet === p.planet)!;
+      expect(p.longitude).toBe(cp.longitude);
+      expect(p.retrograde).toBe(cp.retrograde);
+    }
+  });
+
+  it("flags Mercury retrograde at the 2023 station windows, never the luminaries", () => {
+    const rx = positionsAt(new Date(Date.UTC(2023, 4, 1, 0, 0, 0)));
+    expect(rx.find((p) => p.planet === "mercury")!.retrograde).toBe(true);
+    expect(rx.find((p) => p.planet === "sun")!.retrograde).toBe(false);
+    expect(rx.find((p) => p.planet === "moon")!.retrograde).toBe(false);
+
+    const direct = positionsAt(new Date(Date.UTC(2023, 2, 1, 0, 0, 0)));
+    expect(direct.find((p) => p.planet === "mercury")!.retrograde).toBe(false);
   });
 });
 

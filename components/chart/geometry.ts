@@ -1,6 +1,8 @@
 import {
   SIGNS,
   type AspectType,
+  type CrossAspect,
+  type Placement,
   type Planet,
   type Sign,
 } from "@astralsync/astro-core";
@@ -263,4 +265,92 @@ export function layoutWheel(
   }));
 
   return { size, center, radii, signs, houses, angles, planets, aspects };
+}
+
+/** Width of the annular band reserved for transiting bodies. */
+export const TRANSIT_RING_WIDTH = 40;
+
+export interface TransitWheelLayout {
+  size: number;
+  /** Center of the full-size wheel (overlay coordinates). */
+  center: Point;
+  /** Natal wheel laid out at `size − 2·TRANSIT_RING_WIDTH`. Render it inside
+   *  `translate(baseOffset, baseOffset)` so its center lands on `center` —
+   *  the sign-sector paths are baked strings, so the renderer translates the
+   *  whole group rather than this module shifting every coordinate. */
+  base: WheelLayout;
+  baseOffset: number;
+  /** Outer boundary circle of the transit band, centered on `center`. */
+  ringRadius: number;
+  /** Transiting bodies in the outer band (full-size coordinates). */
+  planets: WheelLayout["planets"];
+  /** Inter-ring chords: transit body (band inner edge) → natal body (hub). */
+  crossAspects: {
+    a: Planet;
+    b: Planet;
+    type: AspectType;
+    orb: number;
+    from: Point;
+    to: Point;
+  }[];
+}
+
+/**
+ * Two-ring transit wheel: the natal wheel shrunk to free an outer annulus,
+ * transiting glyphs in the band, and cross-aspect chords diving from the
+ * band's inner edge to the natal hub (visually distinct from natal aspects,
+ * which stay hub-to-hub). Both rings share the natal rotation so longitudes
+ * align radially; a solar natal anchors 0° Aries as usual.
+ */
+export function layoutTransitWheel(
+  natal: WheelChart,
+  transit: { placements: Placement[]; crossAspects: CrossAspect[] },
+  size: number = DEFAULT_WHEEL_SIZE,
+): TransitWheelLayout {
+  const base = layoutWheel(natal, size - 2 * TRANSIT_RING_WIDTH);
+  const center: Point = { x: size / 2, y: size / 2 };
+  const rotation = wheelRotation(natal);
+
+  const rawAngles = transit.placements.map((p) =>
+    longitudeToScreenAngle(p.longitude, rotation),
+  );
+  // Fanned per-ring: transit glyphs dodge each other, not the natal ring.
+  const displayAngles = spreadClusters(rawAngles, GLYPH_MIN_SEPARATION);
+  const planets = transit.placements.map((p, i) => ({
+    planet: p.planet,
+    angle: rawAngles[i],
+    displayAngle: displayAngles[i],
+    glyphPoint: polarToXY(center, base.radii.outer + 22, displayAngles[i]),
+    tickFrom: polarToXY(center, base.radii.outer, rawAngles[i]),
+    tickTo: polarToXY(center, base.radii.outer + 7, rawAngles[i]),
+    retrograde: p.retrograde,
+  }));
+
+  const natalAngleByPlanet = new Map(
+    natal.placements.map((p) => [
+      p.planet,
+      longitudeToScreenAngle(p.longitude, rotation),
+    ]),
+  );
+  const transitAngleByPlanet = new Map(
+    transit.placements.map((p, i) => [p.planet, rawAngles[i]]),
+  );
+  const crossAspects = transit.crossAspects.map((c) => ({
+    a: c.a,
+    b: c.b,
+    type: c.type,
+    orb: c.orb,
+    from: polarToXY(center, base.radii.outer, transitAngleByPlanet.get(c.a) ?? 0),
+    to: polarToXY(center, base.radii.hub, natalAngleByPlanet.get(c.b) ?? 0),
+  }));
+
+  return {
+    size,
+    center,
+    base,
+    baseOffset: TRANSIT_RING_WIDTH,
+    ringRadius: base.radii.outer + TRANSIT_RING_WIDTH - 4,
+    planets,
+    crossAspects,
+  };
 }

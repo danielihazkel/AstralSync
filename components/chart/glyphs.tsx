@@ -1,4 +1,4 @@
-import type { Planet, Sign } from "@astralsync/astro-core";
+import type { AspectType, Planet, Sign } from "@astralsync/astro-core";
 
 /**
  * Astrological glyphs, rendered as SVG <text> using the Unicode astrological
@@ -39,6 +39,15 @@ export const SIGN_GLYPH_CHARS: Record<Sign, string> = {
 };
 
 export const RETROGRADE_CHAR = "℞";
+
+/** Chord colors shared by the natal wheel and the transit overlay. */
+export const ASPECT_COLOR: Record<AspectType, string> = {
+  conjunction: "var(--aspect-conjunction)",
+  trine: "var(--aspect-trine)",
+  sextile: "var(--aspect-sextile)",
+  square: "var(--aspect-square)",
+  opposition: "var(--aspect-opposition)",
+};
 
 const GLYPH_FONT =
   '"Segoe UI Symbol", "Noto Sans Symbols", "Apple Symbols", serif';

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { AspectType, Planet } from "@astralsync/astro-core";
+import type { Planet } from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
 import {
   ASPECT_NAMES,
@@ -10,18 +10,15 @@ import {
   formatDegreeInSign,
 } from "@/components/format";
 import { layoutWheel } from "./geometry";
-import { Glyph, PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "./glyphs";
+import {
+  ASPECT_COLOR,
+  Glyph,
+  PLANET_GLYPH_CHARS,
+  SIGN_GLYPH_CHARS,
+} from "./glyphs";
 import PlacementDetail, { type Selection } from "./PlacementDetail";
 import SolarChartNotice from "./SolarChartNotice";
 import styles from "./chart.module.css";
-
-const ASPECT_COLOR: Record<AspectType, string> = {
-  conjunction: "var(--aspect-conjunction)",
-  trine: "var(--aspect-trine)",
-  sextile: "var(--aspect-sextile)",
-  square: "var(--aspect-square)",
-  opposition: "var(--aspect-opposition)",
-};
 
 function planetAriaLabel(chart: WheelChart, planet: Planet): string {
   const p = chart.placements.find((pl) => pl.planet === planet)!;

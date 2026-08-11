@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { profileInputSchema, toProfileBirthData } from "./validation";
+import {
+  profileInputSchema,
+  toProfileBirthData,
+  transitQuerySchema,
+} from "./validation";
 
 const valid = {
   displayName: "Albert",
@@ -141,5 +145,24 @@ describe("toProfileBirthData", () => {
       toProfileBirthData(profileInputSchema.parse(valid), "Europe/Berlin")
         .hebrewBirthName,
     ).toBeNull();
+  });
+});
+
+describe("transitQuerySchema", () => {
+  it("accepts an absent `at` and full ISO instants with Z or offset", () => {
+    expect(transitQuerySchema.safeParse({}).success).toBe(true);
+    expect(
+      transitQuerySchema.safeParse({ at: "2026-08-11T12:00:00Z" }).success,
+    ).toBe(true);
+    expect(
+      transitQuerySchema.safeParse({ at: "2026-08-11T12:00:00+03:00" }).success,
+    ).toBe(true);
+  });
+
+  it("rejects non-ISO and date-only values", () => {
+    expect(transitQuerySchema.safeParse({ at: "today" }).success).toBe(false);
+    expect(transitQuerySchema.safeParse({ at: "2026-08-11" }).success).toBe(
+      false,
+    );
   });
 });

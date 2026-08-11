@@ -109,6 +109,23 @@ export interface Aspect {
   orb: number;
 }
 
+/** An aspect between two different charts: `a` belongs to the moving/partner
+ *  chart, `b` to the natal/reference chart. Same-planet pairs are meaningful
+ *  here (e.g. transit Sun conjunct natal Sun). Never stored in ChartSnapshot —
+ *  cross-chart results are ephemeral reads. */
+export interface CrossAspect {
+  a: Planet;
+  b: Planet;
+  type: AspectType;
+  /** Exact angle of this aspect type (0, 60, 90, 120, 180). */
+  angle: number;
+  /** Deviation from exact, degrees. */
+  orb: number;
+}
+
+/** Tighter orbs for transit reading; synastry keeps DEFAULT_ORBS. */
+export const DEFAULT_TRANSIT_ORBS: OrbConfig = { luminary: 3, default: 2 };
+
 export interface Houses {
   /** The system actually used (may differ from requested after fallback). */
   system: HouseSystem;

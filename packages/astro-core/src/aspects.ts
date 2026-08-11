@@ -2,7 +2,7 @@ import { separation } from "./angles";
 import type { Aspect, AspectType, OrbConfig, Placement, Planet } from "./types";
 import { DEFAULT_ORBS } from "./types";
 
-const MAJOR_ASPECTS: { type: AspectType; angle: number }[] = [
+export const MAJOR_ASPECTS: { type: AspectType; angle: number }[] = [
   { type: "conjunction", angle: 0 },
   { type: "sextile", angle: 60 },
   { type: "square", angle: 90 },

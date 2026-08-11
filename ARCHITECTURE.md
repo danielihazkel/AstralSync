@@ -52,6 +52,7 @@ AstralSync/
 2. On save, the server computes the astro and numero snapshots **exactly once** and stores them.
 3. Every subsequent view renders from the stored JSON. **Zero recomputation** — the performance strategy is caching, not optimization (target < 200ms end-to-end for the one-time calculation).
 4. **Immutability rule:** snapshots are write-once. Editing birth data (or changing house system) creates a *new* snapshot version; old versions are preserved.
+5. **The one exception — transits (PRD §9):** the Transits tab recomputes current placements and cross aspects against the *latest* natal snapshot on every read (`GET /api/transits/[id]`, served `Cache-Control: no-store`). Nothing is persisted — the write-once guard is untouched because the flow never writes — and by design there are no offline transits: the tab shows a "needs a live connection" notice instead.
 
 ## 5. Data model (MySQL, PRD §6)
 

@@ -3,6 +3,8 @@ import type { WheelChart } from "@/lib/view-types";
 import {
   DEFAULT_WHEEL_SIZE,
   GLYPH_MIN_SEPARATION,
+  TRANSIT_RING_WIDTH,
+  layoutTransitWheel,
   layoutWheel,
   longitudeToScreenAngle,
   norm360,
@@ -183,5 +185,101 @@ describe("layoutWheel", () => {
     expect(solar.houses).toBeNull();
     expect(solar.angles).toBeNull();
     expect(solar.size).toBe(DEFAULT_WHEEL_SIZE);
+  });
+});
+
+describe("layoutTransitWheel", () => {
+  const transit = {
+    placements: [
+      {
+        planet: "mars" as const,
+        longitude: 200,
+        sign: "libra" as const,
+        degreeInSign: 20,
+        house: 4,
+        retrograde: true,
+      },
+      {
+        planet: "venus" as const,
+        longitude: 130,
+        sign: "leo" as const,
+        degreeInSign: 10,
+        house: 2,
+        retrograde: false,
+      },
+    ],
+    crossAspects: [
+      {
+        a: "mars" as const,
+        b: "sun" as const,
+        type: "square" as const,
+        angle: 90,
+        orb: 1.1,
+      },
+    ],
+  };
+  const chart = makeChart();
+  const layout = layoutTransitWheel(chart, transit);
+
+  it("shrinks the base wheel and centers it under the translate offset", () => {
+    expect(layout.base.size).toBe(DEFAULT_WHEEL_SIZE - 2 * TRANSIT_RING_WIDTH);
+    expect(layout.base.center.x + layout.baseOffset).toBeCloseTo(
+      layout.center.x,
+      6,
+    );
+    expect(layout.size).toBe(DEFAULT_WHEEL_SIZE);
+  });
+
+  it("places transit glyphs in the band outside the natal wheel", () => {
+    for (const p of layout.planets) {
+      const r = dist(p.glyphPoint, layout.center);
+      expect(r).toBeGreaterThan(layout.base.radii.outer);
+      expect(r).toBeLessThan(layout.ringRadius);
+    }
+    expect(layout.planets.find((p) => p.planet === "mars")!.retrograde).toBe(
+      true,
+    );
+  });
+
+  it("fans transit glyphs per-ring without disturbing the natal ring", () => {
+    const crowded = layoutTransitWheel(chart, {
+      ...transit,
+      placements: [
+        transit.placements[0],
+        { ...transit.placements[1], longitude: 202 },
+      ],
+    });
+    const [a, b] = crowded.planets.map((p) => p.displayAngle);
+    expect(Math.min(norm360(a - b), norm360(b - a))).toBeGreaterThanOrEqual(
+      GLYPH_MIN_SEPARATION - 1e-6,
+    );
+    expect(crowded.base.planets.map((p) => p.displayAngle)).toEqual(
+      layout.base.planets.map((p) => p.displayAngle),
+    );
+  });
+
+  it("runs cross-aspect chords from the band's inner edge to the natal hub", () => {
+    expect(layout.crossAspects).toHaveLength(1);
+    const c = layout.crossAspects[0];
+    expect(dist(c.from, layout.center)).toBeCloseTo(layout.base.radii.outer, 6);
+    expect(dist(c.to, layout.center)).toBeCloseTo(layout.base.radii.hub, 6);
+    // The natal endpoint sits at the natal Sun's true angle.
+    const rot = wheelRotation(chart);
+    const sunAngle = longitudeToScreenAngle(280, rot);
+    expect(
+      dist(c.to, polarToXY(layout.center, layout.base.radii.hub, sunAngle)),
+    ).toBeCloseTo(0, 6);
+  });
+
+  it("lays out a solar natal (0° Aries anchor, no houses)", () => {
+    const solar = layoutTransitWheel(
+      makeChart({ houses: null, isSolarChart: true }),
+      transit,
+    );
+    expect(solar.base.houses).toBeNull();
+    // 0° Aries at 180°: transit venus at 130° lands at screen angle 310.
+    expect(
+      solar.planets.find((p) => p.planet === "venus")!.angle,
+    ).toBeCloseTo(310, 6);
   });
 });
