@@ -103,10 +103,13 @@ city label is presentational and does not recompute anything.
   all snapshots/readings are removed at the database level. Export first if
   you want a record.
 
-### AI reading synthesis (optional, off by default)
+### AI reading synthesis (optional)
 
-Set `READING_LLM` in `.env` (see `.env.example`) to `ollama` (local) or `api`
-(any OpenAI-compatible endpoint). When enabled, the Reading tab offers a
+`.env.example` ships preconfigured for OpenAI (`READING_LLM=api`,
+`gpt-4o-mini`) — paste your OpenAI API key into `READING_LLM_API_KEY` to
+enable it; without a key the feature stays off. You can also point
+`READING_LLM` at `ollama` (local) or any other OpenAI-compatible endpoint
+via `READING_LLM_BASE_URL`. When enabled, the Reading tab offers a
 one-click generation — **once per snapshot**, stored permanently, enforced by
 a database constraint. LLM failures never degrade the rest of the app.
 
