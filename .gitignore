@@ -12,3 +12,6 @@ next-env.d.ts
 .DS_Store
 Thumbs.db
 npm-debug.log*
+
+# Profile exports contain personal birth data — never commit them.
+astralsync-profile-*.json
