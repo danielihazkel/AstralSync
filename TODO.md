@@ -2,7 +2,7 @@
 
 Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-core` first (PRD §10), since every other component consumes its output. See `ARCHITECTURE.md` for the technical design.
 
-> **Status (2026-08-11):** Phases 0 and 1a–1g are **complete**: 153 passing tests, clean build, full UI verified end-to-end, and the app now ships as an installable PWA (manifest + icons + hand-written service worker; visited charts reload offline). Desktop verification done headlessly (manifest/headers/offline page); in-browser install + offline flow on desktop and mobile remains a quick manual pass (steps in the Phase 1g notes). `experimental.useOffline` deliberately skipped (connectivity retry UI, not asset caching). v1 scope is done — remaining work is Phase 2/3.
+> **Status (2026-08-11):** Phases 0 and 1a–1g are **complete**: 153 passing tests, clean build, full UI verified end-to-end, and the app now ships as an installable PWA (manifest + icons + hand-written service worker; visited charts reload offline). Desktop verification done headlessly (manifest/headers/offline page); in-browser install + offline flow on desktop and mobile remains a quick manual pass (steps in the Phase 1g notes). `experimental.useOffline` deliberately skipped (connectivity retry UI, not asset caching). v1 scope is done — remaining work is Phase 2/3. Phase 2 is now broken down into 2a–2d below; the "do not start in v1" gate is lifted.
 
 ---
 
@@ -87,11 +87,51 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 
 ---
 
-## Phase 2 (deferred — do not start in v1)
+## Phase 2 — Synastry, transits & the full interpretation matrix
 
-- Synastry: dual-chart overlay from two stored profiles
-- Daily transits dashboard (current positions vs. natal snapshot)
-- Full interpretation matrix (planet-in-sign ×120, planet-in-house ×120, ~50 aspects, modality dominance)
+Ordered like Phase 1: engine primitives first (`astro-core`), since both transits (2b) and synastry (2c) consume them; transits before synastry because they are the smaller UI delta and validate the cross-aspect primitive plus the two-ring wheel geometry that synastry's bi-wheel reuses. The content matrix (2d) has no engine dependency and can proceed in parallel at any point — `resolveReading` already degrades gracefully on unauthored keys, so each tier enriches shipped features as it lands.
+
+### Phase 2a — Cross-chart engine primitives (build first)
+
+- [ ] Cross-chart aspect detection: aspects between chart A's placements and chart B's placements (full A×B grid, same-planet pairs included — e.g. transit Sun conjunct natal Sun) — new `packages/astro-core/src/crossAspects.ts`, reusing `separation` (`src/angles.ts`) and `maxOrb` (`src/aspects.ts`)
+- [ ] `CrossAspect` output type distinguishing which chart each body belongs to (`a` = moving/partner chart, `b` = natal/reference chart) — `src/types.ts`; no `ChartSnapshot` change (cross-chart results are never stored; schemaVersion stays 1)
+- [ ] Tighter transit orb defaults (transits read best near 3° luminaries / 2° default), expressed as the existing `OrbConfig` — `DEFAULT_TRANSIT_ORBS` in `src/types.ts`; synastry keeps the natal defaults
+- [ ] Lean positions-at-instant helper: placements (longitude, sign, degree-in-sign, retrograde, `house: null`) for any UTC instant, without houses/angles — new `src/positions.ts` wrapping the existing ephemeris interface (`src/ephemeris/`), exported from `src/index.ts`
+- [ ] Cross-chart house overlay: locate chart B's planets in chart A's houses from A's stored cusps — reuse the already-exported `houseOf(longitude, cusps)` (`src/houses.ts`); null when A is solar; serves both "her Sun in his 7th" (synastry) and "transiting Saturn in the natal 4th" (transits)
+- [ ] **Cross-aspect tests**: A×B grid completeness vs. the self-join case, same-planet conjunction, orb-boundary inclusion/exclusion under both orb configs, determinism — `packages/astro-core/test/crossAspects.test.ts`
+- [ ] **Positions golden test**: placements at fixed reference instants matching the existing golden fixtures; retrograde flag at a known station date — extend `test/golden.test.ts`
+
+### Phase 2b — Daily transits dashboard
+
+- [ ] Transit read service: load the profile's stored natal snapshot, compute current placements (`positions.ts`) and cross aspects vs. natal — new `lib/transits.ts`; **never persisted** (PRD §9: the only ongoing computation; the write-once guard in `lib/db.ts` stays untouched — transits are ephemeral reads, not snapshots)
+- [ ] `GET /api/transits/[id]`: transiting placements + cross aspects + natal-house overlay + `computedAt`/engine metadata; zod-validated optional `at` ISO instant (defaults to now; testing hook, not exposed in UI) — `app/api/transits/[id]/route.ts`, schema in `lib/validation.ts`; served `Cache-Control: no-store` (server-side keeps the single source of truth per PRD §4.2; no offline transits is the accepted tradeoff — `public/sw.js` already never intercepts `/api/*`; client-side compute re-evaluated at the Phase 3 gate)
+- [ ] Transits tab (Chart / Reading / Numerology / **Transits** / Details) — `components/profile/ProfileTabs.tsx` + new `components/transits/TransitsPanel.tsx`: positions table with retrograde markers, cross-aspect list sorted by orb tightness, "as of" timestamp with refresh (today-only UI)
+- [ ] Transit wheel overlay: natal wheel with transiting glyphs on an outer ring and inter-ring cross-aspect chords — extend `components/chart/geometry.ts` (second glyph ring, per-ring `spreadClusters`, inter-ring chord radii); glyph swap point stays `glyphs.tsx`
+- [ ] Unknown/approx-time handling: suppress the natal-house overlay for solar charts; badge cross aspects to the natal Moon when its degree is uncertain — reuse snapshot `uncertainties` + the existing uncertainty badge component
+- [ ] Offline notice: a clear "transits need a live connection" state in the tab instead of a broken fetch — guard in `TransitsPanel`
+- [ ] Document the ephemeral-read data flow in `ARCHITECTURE.md` §4 (compute-once applies to natal snapshots; transits recompute on every read, never stored)
+- [ ] **Tests**: `lib/transits.test.ts` with fixed `at` instants (deterministic fixtures); zod rejection of malformed `at`; `no-store` header on the route; outer-ring cases in `components/chart/geometry.test.ts`
+
+### Phase 2c — Synastry
+
+- [ ] Synastry read service: load two profiles' current astro snapshots, compute cross aspects (natal orbs) + mutual house overlays (A-in-B's houses and B-in-A's, each side skipped when solar) — new `lib/synastry.ts`; ephemeral read over two write-once snapshots — **no schema change, nothing persisted** (deterministic recompute from immutable inputs)
+- [ ] Pair selection: pick two profiles from the existing list on `/` (`app/page.tsx`), landing on a shareable server-rendered `app/synastry/page.tsx` (`?a=<id>&b=<id>`, params zod-validated); the page calls `lib/synastry.ts` directly — no new API route needed
+- [ ] Bi-wheel: person A's houses + planets on the inner wheel, person B's planets on an outer ring, cross-aspect chords between rings — reuse the 2b two-ring geometry in `components/chart/geometry.ts`; new `components/synastry/BiWheel.tsx` with hover/tap/focus parity with the existing placement detail card
+- [ ] Cross-aspect list view: sorted by orb, grouped by planet pair, glyph labels — `components/synastry/`
+- [ ] Solar/uncertain handling: sign-and-aspect-only synastry when either chart lacks houses, with the standard notice; uncertainty badges carried through per side
+- [ ] Recognize `synastry_aspect` as a loader category (`CONTENT_CATEGORIES` in `lib/content.ts`) so entries can land incrementally; authoring deferred to the optional 2d tier — until then the aspect list ships without prose (existing `missingKeys` degradation)
+- [ ] **Tests**: `lib/synastry.test.ts` fixtures (two known charts → expected cross aspects), solar-side suppression, param validation; bi-wheel ring/chord cases in `geometry.test.ts`
+
+### Phase 2d — Interpretation matrix (staged tiers — parallelizable with 2a–2c)
+
+- [ ] **Tier 1 — modality dominance (3 entries)**: `content/en/modality_dominance/`; add `modalityDominance()` beside `elementDominance()` (`SIGN_MODALITIES` already defined in `lib/dominance.ts`); extend `lib/synthesis.ts` to the full element × modality × Life Path intersection (PRD §3.4) and add the modality slot to `resolveReading` (`lib/content.ts`) — smallest tier, unlocks the deferred synthesis path
+- [ ] **Tier 2 — natal aspects (~50 entries)**: `content/en/aspect/` keyed `<planetA>-<planetB>-<type>.md` (canonical pair order = `PLANETS` order in `packages/astro-core/src/types.ts`); author pairs involving Sun, Moon, Venus, Mars across all five types first, then Mercury; wire the chart's tightest 3–5 aspects into `resolveReading` as new sections
+- [ ] **Tier 3 — planet_in_sign fill-in (96 new entries)**: Mercury/Venus/Mars first (personal planets, wired into the reading), then Jupiter/Saturn, then outer planets authored with generational framing — `content/en/planet_in_sign/`
+- [ ] **Tier 4 — planet_in_house (120 entries)**: `content/en/planet_in_house/<planet>-<house>.md`; resolved only for housed (non-solar) charts behind the existing house-null guard in `resolveReading`
+- [ ] **Tier 5 — numerology completion (26 entries)**: `content/en/destiny/` and `content/en/soul_urge/` (1–9, 11, 22, 33 each) — listed in PRD §5, absent from v1; `CONTENT_CATEGORIES` already includes both; surface in the Numerology panel and the Reading tab
+- [ ] *(optional)* **Tier 6 — `synastry_aspect` starter set (~12 entries)**: Sun/Moon/Venus/Mars pair combinations, keyed like Tier 2 — turns the 2c aspect list into prose
+- [ ] Extend `lib/content.lint.test.ts` coverage expectations tier-by-tier as each tier lands (coverage, format, size band, per `content/README.md`)
+- [ ] `CONTENT_VERSION` (`lib/versions.ts`): bump **only** when existing entries are rewritten — new entries alone never bump, per the documented contract; the existing provenance note handles snapshot drift
 
 ## Phase 3 (public deployment gate — deferred)
 
