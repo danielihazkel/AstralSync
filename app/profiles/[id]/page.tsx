@@ -1,9 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveReading } from "@/lib/content";
+import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
-import { getProfileView, listSnapshotVersions } from "@/lib/snapshots";
-import { toWheelChart } from "@/lib/view-types";
+import {
+  ensureHebrewSnapshot,
+  getProfileView,
+  listSnapshotVersions,
+} from "@/lib/snapshots";
+import {
+  toStoredHebrewGematria,
+  toStoredMazal,
+  toWheelChart,
+} from "@/lib/view-types";
 import {
   TIME_CERTAINTY_LABELS,
   TZ_WARNING_COPY,
@@ -38,6 +47,9 @@ export default async function ProfilePage({
     rawVersion === undefined ? undefined : parsePositiveInt(rawVersion);
   if (version === null) notFound();
 
+  // Lazy backfill for pre-feature profiles (latest version only, write-once
+  // create, no-op after the first view) — getProfileView stays a pure read.
+  await ensureHebrewSnapshot(id);
   const [view, versions] = await Promise.all([
     getProfileView(id, version),
     listSnapshotVersions(id),
@@ -57,6 +69,14 @@ export default async function ProfilePage({
     view.astro.contentVersion,
   );
   const llmEnabled = llmClientFromEnv() !== null;
+  // Null for historical versions computed before the Mazal feature.
+  const hebrewReading = view.hebrew
+    ? resolveHebrewReading(
+        toStoredMazal(view.hebrew),
+        toStoredHebrewGematria(view.hebrew),
+        view.hebrew.contentVersion,
+      )
+    : null;
 
   return (
     <main>
@@ -115,6 +135,8 @@ export default async function ProfilePage({
         versions={versions}
         isLatest={isLatest}
         reading={reading}
+        hebrew={view.hebrew}
+        hebrewReading={hebrewReading}
         llmEnabled={llmEnabled}
       />
     </main>

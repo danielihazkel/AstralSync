@@ -2,19 +2,22 @@
 
 import { useState } from "react";
 import type { ResolvedReading } from "@/lib/content";
+import type { ResolvedHebrewReading } from "@/lib/hebrewReading";
 import type {
   AstroView,
+  HebrewView,
   NumeroView,
   ProfileData,
   WheelChart,
 } from "@/lib/view-types";
 import ChartWheel from "@/components/chart/ChartWheel";
+import MazalPanel from "@/components/mazal/MazalPanel";
 import NumerologyPanel from "@/components/numerology/NumerologyPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
 import styles from "./profile.module.css";
 
-const TABS = ["Chart", "Reading", "Numerology", "Details"] as const;
+const TABS = ["Chart", "Reading", "Numerology", "Mazal", "Details"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function ProfileTabs({
@@ -25,6 +28,8 @@ export default function ProfileTabs({
   versions,
   isLatest,
   reading,
+  hebrew,
+  hebrewReading,
   llmEnabled,
 }: {
   profile: ProfileData;
@@ -34,6 +39,8 @@ export default function ProfileTabs({
   versions: SnapshotVersionInfo[];
   isLatest: boolean;
   reading: ResolvedReading;
+  hebrew: HebrewView | null;
+  hebrewReading: ResolvedHebrewReading | null;
   llmEnabled: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("Chart");
@@ -74,6 +81,11 @@ export default function ProfileTabs({
       {tab === "Numerology" && (
         <div role="tabpanel" aria-label="Numerology">
           <NumerologyPanel numero={numero} profileId={profile.id} />
+        </div>
+      )}
+      {tab === "Mazal" && (
+        <div role="tabpanel" aria-label="Mazal">
+          <MazalPanel hebrew={hebrew} reading={hebrewReading} />
         </div>
       )}
       {tab === "Details" && (

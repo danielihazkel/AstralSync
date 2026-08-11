@@ -1,0 +1,114 @@
+.panel {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+}
+
+.summaryCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.25rem;
+  font-size: 0.92rem;
+}
+
+.summaryGrid dt {
+  color: var(--text-muted);
+}
+
+.summaryGrid dd {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.hebrewDate {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--heading);
+  direction: rtl;
+}
+
+.glyph {
+  color: var(--accent);
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols", "Apple Symbols", serif;
+}
+
+.masterBadge {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.05rem 0.55rem;
+  font-size: 0.75rem;
+  color: var(--accent-bright);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chip {
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  font-size: 0.82rem;
+  color: var(--warning, #b98a2f);
+}
+
+.notice {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.hebrewSection {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.hebrewTitle {
+  font-size: 1.05rem;
+  margin-bottom: 0.2rem;
+}
+
+.hebrewSource {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 0.7rem;
+}
+
+.hebrewBody {
+  font-size: 0.98rem;
+  line-height: 1.75;
+  display: grid;
+  gap: 0.7rem;
+}
+
+@media (max-width: 640px) {
+  .summaryGrid {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .summaryGrid dt {
+    margin-top: 0.5rem;
+  }
+}

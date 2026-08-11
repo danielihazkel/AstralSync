@@ -4,6 +4,7 @@ import type {
   Planet,
   Sign,
 } from "@astralsync/astro-core";
+import type { ClassicalPlanet, HebrewMonthKey } from "@astralsync/hebrew-core";
 import type { TzWarning } from "@/lib/tz";
 
 /** Pure display formatters and label maps shared across the UI. */
@@ -35,6 +36,43 @@ export const PLANET_NAMES: Record<Planet, string> = {
   neptune: "Neptune",
   pluto: "Pluto",
 };
+
+/** The seven classical planets of the Mazal chart (English chrome). */
+export const CLASSICAL_PLANET_LABELS: Record<ClassicalPlanet, string> = {
+  sun: "Sun",
+  moon: "Moon",
+  mercury: "Mercury",
+  venus: "Venus",
+  mars: "Mars",
+  jupiter: "Jupiter",
+  saturn: "Saturn",
+};
+
+export const HEBREW_MONTH_LABELS: Record<HebrewMonthKey, string> = {
+  nisan: "Nisan",
+  iyyar: "Iyyar",
+  sivan: "Sivan",
+  tamuz: "Tamuz",
+  av: "Av",
+  elul: "Elul",
+  tishrei: "Tishrei",
+  cheshvan: "Cheshvan",
+  kislev: "Kislev",
+  tevet: "Tevet",
+  shvat: "Shvat",
+  adar: "Adar",
+};
+
+/** Index 0 = Sunday, matching hebrew-core's weekday numbering. */
+export const HEBREW_WEEKDAY_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Shabbat",
+] as const;
 
 export const ASPECT_NAMES: Record<AspectType, string> = {
   conjunction: "Conjunction",
