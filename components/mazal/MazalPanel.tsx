@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import type { Sign } from "@astralsync/astro-core";
 import type { ResolvedHebrewReading } from "@/lib/hebrewReading";
 import type { HebrewView } from "@/lib/view-types";
@@ -9,19 +11,54 @@ import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs"
 import { buildMazalSummary } from "./mazalSummary";
 import styles from "./mazal.module.css";
 
+function dateOnly(value: Date | string): string {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
 /**
  * The Mazal tab: an English-chrome summary card over the stored Hebrew
- * snapshot, then the Hebrew reading sections rendered RTL. `hebrew` is null
- * only for historical versions computed before the feature — the latest
- * version is lazily backfilled on view (Phase 2b).
+ * snapshot, then the Hebrew reading sections rendered RTL, then the stored
+ * AI synthesis (or its once-only generate button — same UX contract as the
+ * Reading tab). `hebrew` is null only for historical versions computed
+ * before the feature — the latest version is lazily backfilled on view.
  */
 export default function MazalPanel({
   hebrew,
   reading,
+  profileId,
+  version,
+  llmEnabled,
 }: {
   hebrew: HebrewView | null;
   reading: ResolvedHebrewReading | null;
+  profileId: number;
+  version: number;
+  llmEnabled: boolean;
 }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+
+  async function generate() {
+    setBusy(true);
+    setGenError(null);
+    const res = await fetch(`/api/profiles/${profileId}/hebrew-reading`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version }),
+    }).catch(() => null);
+    setBusy(false);
+    if (res?.ok || res?.status === 409) {
+      // 409 ⇒ generated concurrently or hook toggled — refresh shows reality.
+      router.refresh();
+      return;
+    }
+    setGenError(
+      res?.status === 502
+        ? "The language model isn't reachable right now. Your chart and readings are unaffected — try again once it's running."
+        : "Could not generate the reading.",
+    );
+  }
   if (hebrew === null || reading === null) {
     return (
       <p className={styles.notice}>
@@ -145,6 +182,34 @@ export default function MazalPanel({
           </div>
         </section>
       ))}
+
+      {hebrew.llmReading ? (
+        <section className={styles.hebrewSection} aria-label="AI synthesis">
+          <h3 className={styles.hebrewTitle}>AI synthesis</h3>
+          <p className={styles.hebrewSource}>
+            Generated once by {hebrew.llmReading.modelName ?? "a local model"}{" "}
+            on {dateOnly(hebrew.llmReading.createdAt)} — stored with this
+            snapshot.
+          </p>
+          <div className={styles.hebrewBody} lang="he" dir={reading.dir}>
+            <Markdown md={hebrew.llmReading.bodyMd} />
+          </div>
+        </section>
+      ) : (
+        llmEnabled && (
+          <div className={styles.actionRow}>
+            <button onClick={generate} disabled={busy}>
+              {busy ? "Generating…" : "Generate AI reading"}
+            </button>
+            <span className={styles.muted}>
+              {" "}
+              Written in Hebrew. Runs once for this chart version and is
+              stored permanently.
+            </span>
+            {genError && <p className={styles.error}>{genError}</p>}
+          </div>
+        )
+      )}
     </div>
   );
 }

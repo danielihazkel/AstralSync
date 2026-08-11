@@ -81,6 +81,33 @@ describe("profileInputSchema", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("normalizes legacy hebrew-script payloads into hebrewBirthName", () => {
+    const p = profileInputSchema.parse({
+      ...valid,
+      nameScript: "hebrew",
+      fullBirthName: "דוד כהן",
+    });
+    expect(p.fullBirthName).toBeNull();
+    expect(p.hebrewBirthName).toBe("דוד כהן");
+    expect(p.nameScript).toBe("latin");
+  });
+
+  it("accepts both name fields together, each in its own script", () => {
+    const p = profileInputSchema.parse({
+      ...valid,
+      hebrewBirthName: "דוד כהן",
+    });
+    expect(p.fullBirthName).toBe("Albert Einstein");
+    expect(p.hebrewBirthName).toBe("דוד כהן");
+  });
+
+  it("rejects a hebrewBirthName without Hebrew letters", () => {
+    expect(
+      profileInputSchema.safeParse({ ...valid, hebrewBirthName: "David" })
+        .success,
+    ).toBe(false);
+  });
 });
 
 describe("toProfileBirthData", () => {
@@ -102,5 +129,17 @@ describe("toProfileBirthData", () => {
       "Europe/Berlin",
     );
     expect(d.overrideOffsetMinutes).toBe(53);
+  });
+
+  it("carries the Hebrew name through", () => {
+    const d = toProfileBirthData(
+      profileInputSchema.parse({ ...valid, hebrewBirthName: "דוד כהן" }),
+      "Europe/Berlin",
+    );
+    expect(d.hebrewBirthName).toBe("דוד כהן");
+    expect(
+      toProfileBirthData(profileInputSchema.parse(valid), "Europe/Berlin")
+        .hebrewBirthName,
+    ).toBeNull();
   });
 });

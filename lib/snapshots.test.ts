@@ -13,6 +13,7 @@ import {
 
 const base: ProfileBirthData = {
   fullBirthName: "Ada King Lovelace",
+  hebrewBirthName: null,
   nameScript: "latin",
   birthDate: { year: 1990, month: 6, day: 15 },
   birthTime: { hour: 14, minute: 30 },
@@ -88,21 +89,33 @@ describe("computeNumero", () => {
     expect(n.soulUrge?.system).toBe("pythagorean");
   });
 
-  it("uses gematria without soul urge for Hebrew names", () => {
+  it("uses gematria without soul urge for Hebrew-only profiles", () => {
     const n = computeNumero({
       ...base,
-      fullBirthName: "דוד כהן",
-      nameScript: "hebrew",
+      fullBirthName: null,
+      hebrewBirthName: "דוד כהן",
     });
     expect(n.system).toBe("gematria");
     expect(n.destiny?.system).toBe("gematria");
     expect(n.soulUrge).toBeNull();
+    // The primary destiny IS the gematria result for Hebrew-only profiles.
+    expect(n.hebrewDestiny).toEqual(n.destiny);
+  });
+
+  it("computes both systems when Latin and Hebrew names coexist", () => {
+    const n = computeNumero({ ...base, hebrewBirthName: "דוד כהן" });
+    expect(n.system).toBe("pythagorean");
+    expect(n.destiny?.system).toBe("pythagorean");
+    expect(n.soulUrge?.system).toBe("pythagorean");
+    expect(n.hebrewDestiny?.system).toBe("gematria");
+    expect(n.hebrewDestiny?.variant).toBe("hechrachi");
   });
 
   it("returns null name numbers when no birth name is given", () => {
     const n = computeNumero({ ...base, fullBirthName: null });
     expect(n.destiny).toBeNull();
     expect(n.soulUrge).toBeNull();
+    expect(n.hebrewDestiny).toBeNull();
     expect(n.lifePath.value).toBeGreaterThan(0);
   });
 });
@@ -134,14 +147,9 @@ describe("computeHebrew", () => {
     expect(h.dateGematria.value).toBe(3);
   });
 
-  it("adds a mispar katan name reading only for Hebrew names", () => {
+  it("adds a mispar katan name reading only when a Hebrew name exists", () => {
     expect(computeHebrew(base).katanName).toBeNull();
-    expect(computeHebrew({ ...base, fullBirthName: null }).katanName).toBeNull();
-    const h = computeHebrew({
-      ...base,
-      fullBirthName: "דוד כהן",
-      nameScript: "hebrew",
-    });
+    const h = computeHebrew({ ...base, hebrewBirthName: "דוד כהן" });
     expect(h.katanName?.system).toBe("gematria");
     expect(h.katanName?.variant).toBe("katan");
   });
@@ -206,6 +214,34 @@ describe("buildSnapshotRows", () => {
     expect(derivation.lifePath).toBeTruthy();
     expect(derivation.destiny).toBeTruthy();
     expect(derivation.soulUrge).toBeTruthy();
+    // Explicit null (not undefined) so the stored JSON is self-describing.
+    expect(derivation.hebrewDestiny).toBeNull();
+  });
+
+  it("stores the gematria destiny in derivationJson for both-names profiles", () => {
+    const both: ProfileBirthData = { ...base, hebrewBirthName: "דוד כהן" };
+    const rows = buildSnapshotRows(
+      7,
+      4,
+      computeAstro(both, "placidus"),
+      computeNumero(both),
+      computeHebrew(both),
+      "placidus",
+    );
+    const derivation = rows.numeroRow.derivationJson as Record<
+      string,
+      { system?: string; variant?: string }
+    >;
+    expect(derivation.hebrewDestiny?.system).toBe("gematria");
+    expect(derivation.hebrewDestiny?.variant).toBe("hechrachi");
+    // Numero column semantics unchanged: primary system stays Pythagorean.
+    expect(rows.numeroRow.system).toBe("pythagorean");
+    // The Mazal snapshot's name reading uses the katan variant.
+    const gematria = rows.hebrewRow.gematriaJson as Record<
+      string,
+      { variant?: string }
+    >;
+    expect(gematria.katanName?.variant).toBe("katan");
   });
 
   it("denormalizes the Hebrew snapshot columns from the Mazal chart", () => {
@@ -248,6 +284,7 @@ describe("profileRowToBirthData (lazy backfill input)", () => {
     id: 7,
     displayName: "Ada",
     fullBirthName: "Ada King Lovelace",
+    hebrewBirthName: null,
     nameScript: "latin",
     birthDate: new Date(Date.UTC(1990, 5, 15)),
     birthTime: "14:30",
@@ -280,5 +317,11 @@ describe("profileRowToBirthData (lazy backfill input)", () => {
       profileRowToBirthData({ ...row, offsetOverridden: true }).overrideOffsetMinutes,
     ).toBe(120);
     expect(profileRowToBirthData(row).overrideOffsetMinutes).toBeNull();
+  });
+
+  it("carries the Hebrew name into the computation shape", () => {
+    const d = profileRowToBirthData({ ...row, hebrewBirthName: "דוד כהן" });
+    expect(d.hebrewBirthName).toBe("דוד כהן");
+    expect(profileRowToBirthData(row).hebrewBirthName).toBeNull();
   });
 });

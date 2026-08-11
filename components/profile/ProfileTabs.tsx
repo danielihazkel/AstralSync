@@ -85,7 +85,13 @@ export default function ProfileTabs({
       )}
       {tab === "Mazal" && (
         <div role="tabpanel" aria-label="Mazal">
-          <MazalPanel hebrew={hebrew} reading={hebrewReading} />
+          <MazalPanel
+            hebrew={hebrew}
+            reading={hebrewReading}
+            profileId={profile.id}
+            version={astro.version}
+            llmEnabled={llmEnabled}
+          />
         </div>
       )}
       {tab === "Details" && (

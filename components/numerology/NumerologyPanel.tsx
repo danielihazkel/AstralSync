@@ -14,6 +14,8 @@ interface DerivationJson {
   lifePath: LifePathResult;
   destiny: NameNumberResult | null;
   soulUrge: NameNumberResult | null;
+  /** Absent on snapshots computed before the two-field name split. */
+  hebrewDestiny?: NameNumberResult | null;
 }
 
 /**
@@ -29,6 +31,9 @@ export default function NumerologyPanel({
 }) {
   const derivation = numero.derivation as unknown as DerivationJson;
   const isGematria = numero.system === "gematria";
+  // Both-names case only: for Hebrew-only profiles the primary destiny IS
+  // the gematria result, so a second card would be a duplicate.
+  const hebrewDestiny = isGematria ? null : (derivation.hebrewDestiny ?? null);
 
   return (
     <div className={styles.panel}>
@@ -66,6 +71,17 @@ export default function NumerologyPanel({
             </span>
           </div>
         )}
+        {hebrewDestiny && (
+          <div className={styles.numberCard}>
+            <span className={styles.numberLabel}>Destiny (gematria)</span>
+            <span className={styles.numberValue}>
+              {hebrewDestiny.value}
+              {hebrewDestiny.isMaster && (
+                <span className={styles.masterBadge}>master number</span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       <LifePathDerivation result={derivation.lifePath} />
@@ -86,8 +102,14 @@ export default function NumerologyPanel({
           result={derivation.soulUrge}
         />
       )}
+      {hebrewDestiny && (
+        <NameDerivation
+          title="Destiny — Hebrew gematria, letter by letter"
+          result={hebrewDestiny}
+        />
+      )}
 
-      {isGematria && (
+      {(isGematria || hebrewDestiny) && (
         <p className={styles.note}>
           Soul Urge is not offered for Hebrew names: unvocalized Hebrew
           doesn&apos;t mark vowels, so a vowels-only number would be guesswork.

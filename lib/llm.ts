@@ -1,4 +1,5 @@
 import type { ResolvedReading } from "./content";
+import type { ResolvedHebrewReading } from "./hebrewReading";
 
 /**
  * Optional LLM synthesis hook (PRD §5): a single combined reading per
@@ -139,4 +140,31 @@ export function buildReadingPrompt(
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/**
+ * Prompt for the Mazal-tab synthesis: the resolveHebrewReading sections are
+ * already Hebrew (including the data-rendered date section), so the whole
+ * prompt — instructions included — is Hebrew and asks for Hebrew output.
+ * Like buildReadingPrompt, it carries no birth details beyond what the
+ * sections themselves state. Suppressed slots (planetary hour on unknown
+ * time, name gematria without a Hebrew name) are simply absent — no caveat
+ * flags needed.
+ */
+export function buildHebrewReadingPrompt(resolved: ResolvedHebrewReading): string {
+  const sections = resolved.sections
+    .map((s) => `### ${s.title} (${s.source})\n${s.bodyMd}`)
+    .join("\n\n");
+
+  return [
+    "אתה כותב קריאה אחת משולבת עבור אפליקציית אסטרולוגיה יהודית (מזלות) ונומרולוגיה.",
+    "למטה מופיעים פרקי הפרשנות החלים על המפה העברית הזו.",
+    "ארוג אותם לקריאה אחת מקורית בעברית בלבד, באורך של כ־300 עד 400 מילים, בפורמט Markdown",
+    "(פסקאות, אפשר **הדגשה** ו־*הטיה*; בלי כותרות, בלי HTML, בלי קישורים).",
+    "שלב ואחד את הרעיונות במקום לסכם כל פרק בנפרד: הצבע על החיזוקים והמתחים שביניהם.",
+    "פנה אל הקוראים בגוף שני מכבד ונייטרלי ככל האפשר מבחינה מגדרית.",
+    "היה קונקרטי ומאוזן — גם חוזקות וגם נקודות חיכוך. בלי הבטחות ובלי ניבוי עתידות.",
+    "",
+    sections,
+  ].join("\n");
 }

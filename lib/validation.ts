@@ -18,7 +18,13 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const profileInputBase = z
   .object({
     displayName: z.string().trim().min(1).max(100),
+    /** Latin/transliterated name — Pythagorean numerology. */
     fullBirthName: z.string().trim().min(1).max(200).nullish(),
+    /** Hebrew name — gematria destiny + mispar-katan Mazal reading. May
+     *  coexist with fullBirthName; either may be null. */
+    hebrewBirthName: z.string().trim().min(1).max(200).nullish(),
+    /** Vestigial: the UI only sends "latin" since the two-field name split;
+     *  "hebrew" is accepted for legacy payloads and normalized below. */
     nameScript: z.enum(["latin", "hebrew", "other"]).default("latin"),
     /** "YYYY-MM-DD" local calendar date. */
     birthDate: z.string().regex(DATE_RE, "expected YYYY-MM-DD"),
@@ -89,7 +95,28 @@ export const profileInputSchema = profileInputBase
           "name contains no Latin letters — provide a Latin transliteration for Pythagorean numerology",
       });
     }
-  });
+    if (v.hebrewBirthName && !/[֐-׿]/.test(v.hebrewBirthName)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["hebrewBirthName"],
+        message: "hebrewBirthName must contain Hebrew letters",
+      });
+    }
+  })
+  // Legacy payload normalization: before the two-field split, a Hebrew name
+  // arrived as fullBirthName + nameScript "hebrew". Route it to the dedicated
+  // column so downstream code holds a single invariant — Hebrew lives only in
+  // hebrewBirthName, and fullBirthName is always Latin-compatible.
+  .transform((v) =>
+    v.nameScript === "hebrew" && v.fullBirthName
+      ? {
+          ...v,
+          hebrewBirthName: v.hebrewBirthName ?? v.fullBirthName,
+          fullBirthName: null,
+          nameScript: "latin" as const,
+        }
+      : v,
+  );
 
 export type ProfileInput = z.infer<typeof profileInputSchema>;
 
@@ -101,6 +128,7 @@ export function toProfileBirthData(
   const [year, month, day] = input.birthDate.split("-").map(Number);
   return {
     fullBirthName: input.fullBirthName ?? null,
+    hebrewBirthName: input.hebrewBirthName ?? null,
     nameScript: input.nameScript,
     birthDate: { year, month, day },
     birthTime: input.birthTime

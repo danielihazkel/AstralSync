@@ -18,7 +18,10 @@ export interface WizardDraft {
   offsetOverridden: boolean;
   overrideOffsetMinutes: number | null;
   displayName: string;
+  /** Latin (or to-be-transliterated) name — Pythagorean numerology. */
   fullBirthName: string;
+  /** Hebrew name — gematria; independent of fullBirthName. */
+  hebrewBirthName: string;
   /** Latin transliteration, used when the name is non-Latin and non-Hebrew. */
   transliteration: string;
 }

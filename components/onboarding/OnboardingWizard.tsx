@@ -21,6 +21,7 @@ const EMPTY_DRAFT: WizardDraft = {
   overrideOffsetMinutes: null,
   displayName: "",
   fullBirthName: "",
+  hebrewBirthName: "",
   transliteration: "",
 };
 
@@ -45,9 +46,12 @@ function isRealDate(iso: string): boolean {
 function buildPayload(draft: WizardDraft, houseSystem: HouseSystem) {
   const script = detectScript(draft.fullBirthName);
   let fullBirthName: string | null = draft.fullBirthName.trim() || null;
-  let nameScript: "latin" | "hebrew" | "other" = "latin";
+  let hebrewBirthName: string | null = draft.hebrewBirthName.trim() || null;
   if (script === "hebrew") {
-    nameScript = "hebrew";
+    // Hebrew typed into the main field auto-routes to the dedicated Hebrew
+    // name (stepError blocks the case where both fields hold Hebrew).
+    hebrewBirthName = hebrewBirthName ?? fullBirthName;
+    fullBirthName = null;
   } else if (script === "other") {
     // Non-Latin, non-Hebrew names go through the transliteration path —
     // Pythagorean numerology needs Latin letters. Empty transliteration
@@ -57,7 +61,8 @@ function buildPayload(draft: WizardDraft, houseSystem: HouseSystem) {
   return {
     displayName: draft.displayName.trim(),
     fullBirthName,
-    nameScript,
+    hebrewBirthName,
+    nameScript: "latin" as const,
     birthDate: draft.birthDate,
     birthTime: draft.timeCertainty === "unknown" ? null : draft.birthTime,
     timeCertainty: draft.timeCertainty,
@@ -91,10 +96,19 @@ function stepError(step: number, draft: WizardDraft): string | null {
         return "Set the override offset, or turn the override off.";
       }
       return null;
-    case 4:
-      return draft.displayName.trim()
-        ? null
-        : "Enter a display name for this profile.";
+    case 4: {
+      if (!draft.displayName.trim()) {
+        return "Enter a display name for this profile.";
+      }
+      const hebrew = draft.hebrewBirthName.trim();
+      if (hebrew && !/[֐-׿]/.test(hebrew)) {
+        return "The Hebrew name must contain Hebrew letters.";
+      }
+      if (hebrew && detectScript(draft.fullBirthName) === "hebrew") {
+        return "Hebrew appears in both name fields — keep it in the Hebrew name field only.";
+      }
+      return null;
+    }
     default:
       return null;
   }
@@ -334,12 +348,30 @@ export default function OnboardingWizard({
               machine, and you can skip it — the Life Path number comes from
               the birth date alone.
             </p>
+            <label className={styles.field}>
+              Hebrew name <span className={styles.optional}>optional</span>
+              <input
+                type="text"
+                dir="rtl"
+                lang="he"
+                value={draft.hebrewBirthName}
+                onChange={(e) => patch({ hebrewBirthName: e.target.value })}
+                placeholder="למשל דניאל בן יעקב"
+                maxLength={200}
+              />
+            </label>
+            <p className={styles.hint}>
+              Why we ask: the Hebrew name is used natively for the{" "}
+              <strong>gematria</strong> Destiny number (standard letter values,
+              final forms handled) and the mispar-katan name reading on the
+              Mazal tab. It can accompany the Latin name — you get both
+              systems. Soul Urge is not offered for unvocalized Hebrew.
+            </p>
             {script === "hebrew" && (
               <p className={styles.notice}>
-                Hebrew name detected — numerology will use the{" "}
-                <strong>gematria</strong> system natively (standard letter
-                values, final forms handled). Soul Urge is not offered for
-                unvocalized Hebrew.
+                Hebrew detected in the birth-name field — it will be used as
+                the <strong>Hebrew name</strong> (gematria). Add a Latin name
+                above as well if you also want Pythagorean numerology.
               </p>
             )}
             {script === "other" && (
@@ -390,8 +422,20 @@ export default function OnboardingWizard({
               <dt>Birth name</dt>
               <dd>
                 {payloadPreview.fullBirthName ?? "not provided"}
-                {payloadPreview.fullBirthName &&
-                  ` (${payloadPreview.nameScript === "hebrew" ? "gematria" : "Pythagorean"})`}
+                {payloadPreview.fullBirthName && " (Pythagorean)"}
+              </dd>
+              <dt>Hebrew name</dt>
+              <dd>
+                {payloadPreview.hebrewBirthName ? (
+                  <>
+                    <span lang="he" dir="rtl">
+                      {payloadPreview.hebrewBirthName}
+                    </span>{" "}
+                    (gematria)
+                  </>
+                ) : (
+                  "not provided"
+                )}
               </dd>
             </dl>
             {mode === "edit" && (

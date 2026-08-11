@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ResolvedReading } from "./content";
+import type { ResolvedHebrewReading } from "./hebrewReading";
 import {
+  buildHebrewReadingPrompt,
   buildReadingPrompt,
   llmClientFromEnv,
   LlmUnavailableError,
@@ -99,6 +101,50 @@ describe("buildReadingPrompt", () => {
     expect(buildReadingPrompt(resolved, { isSolarChart: true })).toContain(
       "solar chart",
     );
+  });
+});
+
+const resolvedHebrew: ResolvedHebrewReading = {
+  contentVersion: "1",
+  snapshotContentVersion: "1",
+  stale: false,
+  dir: "rtl",
+  sections: [
+    {
+      slot: "hebrew_date",
+      key: null,
+      title: "התאריך העברי",
+      bodyMd: "כ״ד טֵבֵת תש״ס",
+      source: "1.1.2000",
+    },
+    {
+      slot: "month_mazal",
+      key: "mazal_month/tevet",
+      title: "מזל גדי — חודש טבת",
+      bodyMd: "גוף הפרק על מזל גדי.",
+      source: "חודש טבת — מזל גדי",
+    },
+  ],
+  missingKeys: [],
+};
+
+describe("buildHebrewReadingPrompt", () => {
+  it("writes the instructions in Hebrew and asks for Hebrew output", () => {
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew);
+    expect(prompt).toContain("בעברית בלבד");
+    expect(prompt).toContain("300");
+    expect(prompt).toContain("400");
+    // No English instruction text leaks in from the astro prompt.
+    expect(prompt).not.toContain("Address the reader");
+    expect(prompt).not.toContain("Element distribution");
+  });
+
+  it("includes every section with its title, source, and body", () => {
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew);
+    expect(prompt).toContain("### התאריך העברי (1.1.2000)");
+    expect(prompt).toContain("כ״ד טֵבֵת תש״ס");
+    expect(prompt).toContain("### מזל גדי — חודש טבת (חודש טבת — מזל גדי)");
+    expect(prompt).toContain("גוף הפרק על מזל גדי.");
   });
 });
 

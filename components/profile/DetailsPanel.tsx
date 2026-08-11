@@ -69,6 +69,14 @@ export default function DetailsPanel({
               <dd>{profile.fullBirthName}</dd>
             </>
           )}
+          {profile.hebrewBirthName && (
+            <>
+              <dt>Hebrew name</dt>
+              <dd lang="he" dir="rtl">
+                {profile.hebrewBirthName}
+              </dd>
+            </>
+          )}
           <dt>Computed by</dt>
           <dd>
             {astro.engine} v{astro.engineVersion}

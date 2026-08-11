@@ -23,6 +23,7 @@ import {
   type NumeroSnapshot,
   type Profile,
   type Reading,
+  type ReadingGenerator,
 } from "@prisma/client";
 import { prisma } from "./db";
 import { resolveBirthMoment, timezoneFor, type TzWarning } from "./tz";
@@ -39,7 +40,12 @@ import { CONTENT_VERSION } from "./versions";
 
 /** Validated, computation-relevant profile fields (pre-persistence shape). */
 export interface ProfileBirthData {
+  /** Latin/transliterated name — Pythagorean numerology. */
   fullBirthName: string | null;
+  /** Hebrew name — gematria destiny + mispar-katan Mazal reading. */
+  hebrewBirthName: string | null;
+  /** Vestigial since the two-field name split (validation normalizes
+   *  legacy "hebrew" payloads before this shape is built). */
   nameScript: "latin" | "hebrew" | "other";
   birthDate: { year: number; month: number; day: number };
   /** Null ⇔ timeCertainty is "unknown". */
@@ -116,37 +122,53 @@ export function computeAstro(
 }
 
 export interface NumeroResult {
+  /** Primary system: "gematria" only when exclusively a Hebrew name exists —
+   *  preserves the meaning of legacy snapshot rows bit-for-bit. */
   system: NumerologySystem;
   lifePath: LifePathResult;
+  /** The primary system's destiny. */
   destiny: NameNumberResult | null;
+  /** Pythagorean only — not offered for unvocalized Hebrew. */
   soulUrge: NameNumberResult | null;
+  /** Hechrachi gematria of hebrewBirthName; null without a Hebrew name.
+   *  Equals `destiny` for Hebrew-only profiles. */
+  hebrewDestiny: NameNumberResult | null;
 }
 
 /**
- * Birth data → numerology results. The system follows the name script:
- * Hebrew names use gematria (destiny only — Soul Urge is deliberately not
- * offered for unvocalized Hebrew); everything else uses Pythagorean.
- * Name numbers are null when no birth name was provided (PRD §4.6).
+ * Birth data → numerology results. The two name fields are independent:
+ * the Latin name feeds Pythagorean destiny + Soul Urge, the Hebrew name
+ * feeds gematria — a profile may have both, either, or neither (PRD §4.6).
  */
 export function computeNumero(d: ProfileBirthData): NumeroResult {
   const lp = lifePath(d.birthDate);
-  const name = d.fullBirthName?.trim();
-  if (!name) {
-    return { system: "pythagorean", lifePath: lp, destiny: null, soulUrge: null };
+  const latin = d.fullBirthName?.trim();
+  const hebrew = d.hebrewBirthName?.trim();
+  const hebrewDestiny = hebrew ? gematriaExpression(hebrew) : null;
+  if (latin) {
+    return {
+      system: "pythagorean",
+      lifePath: lp,
+      destiny: expression(latin),
+      soulUrge: soulUrge(latin),
+      hebrewDestiny,
+    };
   }
-  if (d.nameScript === "hebrew") {
+  if (hebrewDestiny) {
     return {
       system: "gematria",
       lifePath: lp,
-      destiny: gematriaExpression(name),
+      destiny: hebrewDestiny,
       soulUrge: null,
+      hebrewDestiny,
     };
   }
   return {
     system: "pythagorean",
     lifePath: lp,
-    destiny: expression(name),
-    soulUrge: soulUrge(name),
+    destiny: null,
+    soulUrge: null,
+    hebrewDestiny: null,
   };
 }
 
@@ -177,11 +199,8 @@ export function computeHebrew(d: ProfileBirthData): HebrewResult {
     day: mazal.hebrewDate.effective.day,
     year: mazal.hebrewDate.effective.year,
   });
-  const name = d.fullBirthName?.trim();
-  const katanName =
-    name && d.nameScript === "hebrew"
-      ? gematriaExpression(name, "katan")
-      : null;
+  const name = d.hebrewBirthName?.trim();
+  const katanName = name ? gematriaExpression(name, "katan") : null;
   return { mazal, dateGematria, katanName };
 }
 
@@ -264,6 +283,7 @@ export function buildSnapshotRows(
         lifePath: numero.lifePath,
         destiny: numero.destiny,
         soulUrge: numero.soulUrge,
+        hebrewDestiny: numero.hebrewDestiny,
       } as unknown as Prisma.InputJsonValue,
     },
   };
@@ -293,6 +313,7 @@ function profileColumns(input: ProfileInput, tz: string, offsetMinutes: number) 
   return {
     displayName: input.displayName,
     fullBirthName: input.fullBirthName ?? null,
+    hebrewBirthName: input.hebrewBirthName ?? null,
     nameScript: input.nameScript,
     // @db.Date column: construct at UTC midnight to avoid local-tz off-by-one.
     birthDate: new Date(Date.UTC(y, m - 1, d)),
@@ -334,6 +355,7 @@ function computationChanged(
     existing.tzIana !== tz ||
     overrideBefore !== overrideAfter ||
     (existing.fullBirthName ?? null) !== (input.fullBirthName ?? null) ||
+    (existing.hebrewBirthName ?? null) !== (input.hebrewBirthName ?? null) ||
     existing.nameScript !== input.nameScript ||
     latestAstro.houseSystem !== input.houseSystem
   );
@@ -353,6 +375,7 @@ function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
     id: p.id,
     displayName: p.displayName,
     fullBirthName: p.fullBirthName,
+    hebrewBirthName: p.hebrewBirthName,
     nameScript: p.nameScript,
     birthDate: dateOnly(p.birthDate),
     birthTime: p.birthTime,
@@ -402,7 +425,10 @@ function serializeAstro(s: AstroSnapshot & { readings?: Reading[] }) {
   };
 }
 
-function serializeHebrew(s: HebrewSnapshot) {
+function serializeHebrew(s: HebrewSnapshot, readings?: Reading[]) {
+  // The hebrew_llm reading physically lives on the astro snapshot row (they
+  // share profileId+version); the caller passes the astro's included readings.
+  const llm = readings?.find((r) => r.generator === "hebrew_llm") ?? null;
   return {
     snapshotId: s.id,
     version: s.version,
@@ -417,6 +443,15 @@ function serializeHebrew(s: HebrewSnapshot) {
     engineVersion: s.engineVersion,
     contentVersion: s.contentVersion,
     createdAt: s.createdAt,
+    /** Stored Hebrew LLM synthesis for this snapshot version, if any. */
+    llmReading: llm
+      ? {
+          bodyMd: llm.bodyMd,
+          modelName: llm.modelName,
+          contentVersion: llm.contentVersion,
+          createdAt: llm.createdAt,
+        }
+      : null,
   };
 }
 
@@ -535,19 +570,21 @@ export async function getProfileView(
   });
   if (!profile) return null;
 
-  const llmReadings = {
-    readings: { where: { generator: "llm" as const } },
+  const withReadings = {
+    readings: {
+      where: { generator: { in: ["llm", "hebrew_llm"] as ReadingGenerator[] } },
+    },
   };
   const astro =
     version != null
       ? await prisma.astroSnapshot.findUnique({
           where: { profileId_version: { profileId: id, version } },
-          include: llmReadings,
+          include: withReadings,
         })
       : await prisma.astroSnapshot.findFirst({
           where: { profileId: id },
           orderBy: { version: "desc" },
-          include: llmReadings,
+          include: withReadings,
         });
   const numero =
     version != null
@@ -570,7 +607,7 @@ export async function getProfileView(
     profile: serializeProfile(profile),
     astro: serializeAstro(astro),
     numero: serializeNumero(numero),
-    hebrew: hebrew ? serializeHebrew(hebrew) : null,
+    hebrew: hebrew ? serializeHebrew(hebrew, astro.readings) : null,
   };
 }
 
@@ -579,6 +616,7 @@ export function profileRowToBirthData(p: Profile): ProfileBirthData {
   const [year, month, day] = dateOnly(p.birthDate).split("-").map(Number);
   return {
     fullBirthName: p.fullBirthName,
+    hebrewBirthName: p.hebrewBirthName,
     nameScript: p.nameScript,
     birthDate: { year, month, day },
     birthTime: p.birthTime

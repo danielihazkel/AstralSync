@@ -7,6 +7,7 @@ const base: ProfileData = {
   id: 1,
   displayName: "Test Person",
   fullBirthName: "Test Full Name",
+  hebrewBirthName: null,
   nameScript: "latin",
   birthDate: "1990-03-04",
   birthTime: "14:30",
@@ -46,6 +47,19 @@ describe("profileToInput", () => {
     );
     expect(overridden.utcOffsetMinutes).toBe(90);
     expect(profileInputSchema.safeParse(overridden).success).toBe(true);
+  });
+
+  it("round-trips a Hebrew name unchanged", () => {
+    const withHebrew = profileToInput(
+      { ...base, hebrewBirthName: "דוד כהן" },
+      "placidus",
+    );
+    const parsed = profileInputSchema.safeParse(withHebrew);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.hebrewBirthName).toBe("דוד כהן");
+      expect(parsed.data.fullBirthName).toBe("Test Full Name");
+    }
   });
 
   it("handles solar-chart profiles (no time, no name, no city)", () => {

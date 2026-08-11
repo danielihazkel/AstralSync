@@ -102,6 +102,16 @@
   gap: 0.7rem;
 }
 
+.actionRow {
+  margin-top: 0.25rem;
+  font-size: 0.92rem;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
 @media (max-width: 640px) {
   .summaryGrid {
     grid-template-columns: 1fr;

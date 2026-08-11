@@ -45,6 +45,7 @@ export default async function EditProfilePage({
       : null,
     displayName: profile.displayName,
     fullBirthName: profile.fullBirthName ?? "",
+    hebrewBirthName: profile.hebrewBirthName ?? "",
     transliteration: "",
     houseSystem: view.astro.houseSystem as HouseSystem,
   };

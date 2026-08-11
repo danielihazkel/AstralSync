@@ -36,6 +36,7 @@ enum NumeroSystem {
 enum ReadingGenerator {
   template
   llm
+  hebrew_llm
 }
 
 // Imported once from GeoNames cities15000 (scripts/import-geonames.mts).
@@ -58,7 +59,13 @@ model GeoCity {
 model Profile {
   id                 Int           @id @default(autoincrement())
   displayName        String        @map("display_name") @db.VarChar(100)
+  /// Latin/transliterated name — Pythagorean numerology. See hebrewBirthName.
   fullBirthName      String?       @map("full_birth_name") @db.VarChar(200)
+  /// Hebrew name — gematria destiny + the mispar-katan Mazal name reading.
+  /// Both names may coexist; either may be null.
+  hebrewBirthName    String?       @map("hebrew_birth_name") @db.VarChar(200)
+  /// Vestigial since the two-field split: the UI only writes "latin" now;
+  /// "hebrew"/"other" remain for legacy rows and old exports.
   nameScript         NameScript    @default(latin) @map("name_script")
   birthDate          DateTime      @map("birth_date") @db.Date
   /// Local wall-clock birth time as "HH:MM"; null when unknown.
