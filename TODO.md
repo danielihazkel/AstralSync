@@ -2,7 +2,7 @@
 
 Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-core` first (PRD §10), since every other component consumes its output. See `ARCHITECTURE.md` for the technical design.
 
-> **Status (2026-08-11):** Phase 0 scaffolding (minus MySQL/Prisma — needs credentials), Phase 1a `astro-core`, and Phase 1b `numero-core` are built with 40 passing tests (`npm test`) and a clean `npm run build`. Next up: Phase 1c geolocation/timezone, which unblocks Prisma setup and the remaining edge-case tests.
+> **Status (2026-08-11):** Phases 0, 1a, 1b, and 1c are built with 47 passing tests (`npm test`) and a clean `npm run build`. The full Prisma schema (all five PRD §6 tables) is written and the client generates. **Waiting on you:** put real MySQL credentials in `.env`, then run `npm run db:migrate` followed by `npm run geo:import`. Next up: Phase 1d snapshot persistence.
 
 ---
 
@@ -12,7 +12,7 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 - [x] Create Next.js app (App Router, TypeScript) at repo root — Next 16, minimal shell + engine smoke-test page
 - [x] Set up workspace packages: `packages/astro-core`, `packages/numero-core` (framework-free TypeScript, no Next.js imports)
 - [x] Configure test runner (Vitest) for both core packages — root `vitest.config.mts`, `npm test`
-- [ ] Connect to local MySQL; set up Prisma with migration tooling (`DATABASE_URL` in `.env`) — **blocked: needs local MySQL credentials**
+- [ ] Connect to local MySQL; set up Prisma with migration tooling (`DATABASE_URL` in `.env`) — *Prisma 6 installed, full schema written (`prisma/schema.prisma`), client generated, `.env`/`.env.example` created; **run `npm run db:migrate` once real credentials are in `.env`***
 - [ ] Optional: `docker-compose.yml` (app + MySQL) for one-command startup
 
 ## Phase 1a — `astro-core` (build first)
@@ -29,7 +29,7 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 - [x] Solar-chart mode for unknown birth time: planets in signs + aspects only; suppress Ascendant, houses, and Moon degree precision with a machine-readable reason
 - [x] Uncertainty flags for approximate time: Ascendant, cusp-adjacent Moon, house placements
 - [ ] **Golden chart tests** (PRD §8): 10–15 reference charts with known published placements, asserting sign, house, and longitude within 1 arcminute of Swiss Ephemeris reference values — *partial: equinox/solstice/J2000 fixtures at tight tolerance + Einstein 1879 chart (Sun/Moon/Asc) at ~1° tolerance in `test/golden.test.ts`; the full arcminute suite against Swiss Ephemeris reference output remains*
-- [ ] **Edge-case tests**: birth near midnight across a DST transition; high-latitude birth (Placidus fallback); planet stationing (retrograde flag); sign-cusp Moon with approximate time; pre-1970 birth date — *partial: high-latitude fallback ✓, retrograde windows ✓, cusp Moon with approx time ✓, pre-1970 chart (1879) ✓; DST-midnight and pre-1970 offset-warning tests belong to the timezone layer (Phase 1c — astro-core is deliberately timezone-free)*
+- [x] **Edge-case tests**: birth near midnight across a DST transition; high-latitude birth (Placidus fallback); planet stationing (retrograde flag); sign-cusp Moon with approximate time; pre-1970 birth date — *high-latitude fallback, retrograde windows, cusp Moon, and the 1879 chart live in `packages/astro-core/test/`; DST-midnight (Havana gap), fall-back fold, and the pre-1970 offset warning live in `lib/tz.test.ts`*
 
 ## Phase 1b — `numero-core`
 
@@ -43,16 +43,16 @@ Derived from `AstralSync_PRD_v2.md` (v2.0). Ordered by build dependency: `astro-
 
 ## Phase 1c — Geolocation & timezone (fully offline)
 
-- [ ] Download GeoNames `cities15000` dataset; write import script into MySQL `geo_city` table
-- [ ] City search API route: local prefix/`LIKE` query with name index (no external API)
-- [ ] `geo-tz` lat/lng → IANA timezone lookup
-- [ ] Historical UTC offset resolution for the birth moment (IANA tz database, incl. DST)
-- [ ] Manual offset override support; persist `offset_overridden` flag
-- [ ] Pre-1970 birth date warning surfaced to the UI layer
+- [ ] Download GeoNames `cities15000` dataset; write import script into MySQL `geo_city` table — *script ready (`npm run geo:import`, idempotent); **run it after `db:migrate`***
+- [x] City search API route: local prefix/`LIKE` query with name index (no external API) — `app/api/cities/route.ts`, population-ranked, includes each city's IANA zone
+- [x] `geo-tz` lat/lng → IANA timezone lookup — `lib/tz.ts` (`timezoneFor`), tested offline
+- [x] Historical UTC offset resolution for the birth moment (IANA tz database, incl. DST) — `resolveBirthMoment` with DST gap/fold handling (Temporal "compatible" semantics)
+- [x] Manual offset override support; persist `offset_overridden` flag — flag in `prisma/schema.prisma`; onboarding UI wiring lands in Phase 1e
+- [x] Pre-1970 birth date warning surfaced to the UI layer — `pre_1970_offset_uncertain` warning emitted by `resolveBirthMoment`; display lands in Phase 1e
 
 ## Phase 1d — Database & snapshots
 
-- [ ] Prisma schema + migrations for PRD §6 tables: `profile`, `geo_city`, `astro_snapshot`, `numero_snapshot`, `reading`
+- [ ] Prisma schema + migrations for PRD §6 tables: `profile`, `geo_city`, `astro_snapshot`, `numero_snapshot`, `reading` — *schema complete in `prisma/schema.prisma` (enums, write-once versioning via `@@unique([profileId, version])`, cascade deletes); initial migration pending credentials*
 - [ ] Write-once snapshot rule: no UPDATE path; editing birth data creates a new snapshot version
 - [ ] Snapshot records `engine`, `engine_version`, `content_version`
 - [ ] Compute-once flow: chart calculated exactly once at profile creation/edit, read forever after

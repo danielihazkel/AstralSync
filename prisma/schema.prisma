@@ -1,0 +1,138 @@
+// AstralSync data model (PRD §6). Snapshots are write-once: editing birth
+// data creates a new snapshot version, never an UPDATE.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum NameScript {
+  latin
+  hebrew
+  other
+}
+
+enum TimeCertainty {
+  exact
+  approx
+  unknown
+}
+
+enum HouseSystem {
+  placidus
+  whole_sign
+  equal
+}
+
+enum NumeroSystem {
+  pythagorean
+  gematria
+}
+
+enum ReadingGenerator {
+  template
+  llm
+}
+
+// Imported once from GeoNames cities15000 (scripts/import-geonames.mts).
+model GeoCity {
+  geonameId   Int       @id @map("geoname_id")
+  name        String    @db.VarChar(200)
+  asciiName   String    @map("ascii_name") @db.VarChar(200)
+  countryCode String    @map("country_code") @db.VarChar(2)
+  admin1      String?   @db.VarChar(20)
+  lat         Float
+  lng         Float
+  population  Int
+  profiles    Profile[]
+
+  @@index([asciiName])
+  @@index([name])
+  @@map("geo_city")
+}
+
+model Profile {
+  id                 Int           @id @default(autoincrement())
+  displayName        String        @map("display_name") @db.VarChar(100)
+  fullBirthName      String?       @map("full_birth_name") @db.VarChar(200)
+  nameScript         NameScript    @default(latin) @map("name_script")
+  birthDate          DateTime      @map("birth_date") @db.Date
+  /// Local wall-clock birth time as "HH:MM"; null when unknown.
+  birthTime          String?       @map("birth_time") @db.VarChar(5)
+  timeCertainty      TimeCertainty @default(exact) @map("time_certainty")
+  birthCityGeonameId Int?          @map("birth_city_geoname_id")
+  birthCity          GeoCity?      @relation(fields: [birthCityGeonameId], references: [geonameId])
+  birthLat           Float         @map("birth_lat")
+  birthLng           Float         @map("birth_lng")
+  tzIana             String        @map("tz_iana") @db.VarChar(64)
+  utcOffsetMinutes   Int           @map("utc_offset_minutes")
+  offsetOverridden   Boolean       @default(false) @map("offset_overridden")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  astroSnapshots  AstroSnapshot[]
+  numeroSnapshots NumeroSnapshot[]
+
+  @@map("profile")
+}
+
+// Write-once. New birth data or house system → new version row.
+model AstroSnapshot {
+  id             Int         @id @default(autoincrement())
+  profileId      Int         @map("profile_id")
+  profile        Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  version        Int
+  houseSystem    HouseSystem @map("house_system")
+  isSolarChart   Boolean     @map("is_solar_chart")
+  sunSign        String      @map("sun_sign") @db.VarChar(12)
+  moonSign       String      @map("moon_sign") @db.VarChar(12)
+  ascendant      String?     @db.VarChar(12)
+  placementsJson Json        @map("placements_json")
+  aspectsJson    Json        @map("aspects_json")
+  engine         String      @db.VarChar(32)
+  engineVersion  String      @map("engine_version") @db.VarChar(16)
+  contentVersion String      @map("content_version") @db.VarChar(16)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  readings       Reading[]
+
+  @@unique([profileId, version])
+  @@map("astro_snapshot")
+}
+
+// Write-once, same versioning rule as astro_snapshot.
+model NumeroSnapshot {
+  id             Int          @id @default(autoincrement())
+  profileId      Int          @map("profile_id")
+  profile        Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  version        Int
+  system         NumeroSystem
+  lifePathInt    Int          @map("life_path_int")
+  /// Null when no birth name was provided (names are optional, PRD §4.6).
+  destinyInt     Int?         @map("destiny_int")
+  soulUrgeInt    Int?         @map("soul_urge_int")
+  isMasterLp     Boolean      @map("is_master_lp")
+  derivationJson Json         @map("derivation_json")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  readings       Reading[]
+
+  @@unique([profileId, version])
+  @@map("numero_snapshot")
+}
+
+// Optional synthesis, generated once per snapshot pair and stored forever.
+model Reading {
+  id               Int              @id @default(autoincrement())
+  astroSnapshotId  Int              @map("astro_snapshot_id")
+  astroSnapshot    AstroSnapshot    @relation(fields: [astroSnapshotId], references: [id], onDelete: Cascade)
+  numeroSnapshotId Int?             @map("numero_snapshot_id")
+  numeroSnapshot   NumeroSnapshot?  @relation(fields: [numeroSnapshotId], references: [id], onDelete: Cascade)
+  bodyMd           String           @map("body_md") @db.Text
+  generator        ReadingGenerator
+  modelName        String?          @map("model_name") @db.VarChar(64)
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  @@map("reading")
+}
