@@ -4,6 +4,7 @@ import {
   gematriaExpression,
   gematriaValue,
   isVowelAt,
+  MISPAR_KATAN_VALUES,
   soulUrge,
 } from "../src";
 
@@ -84,5 +85,53 @@ describe("Gematria (Hebrew, PRD §3.3)", () => {
 
   it("rejects input with no Hebrew letters", () => {
     expect(() => gematriaExpression("David")).toThrow();
+  });
+
+  it("defaults to the hechrachi variant", () => {
+    expect(gematriaExpression("דוד").variant).toBe("hechrachi");
+  });
+});
+
+describe("Mispar katan variant (Phase 2a)", () => {
+  it("drops trailing zeros from the hechrachi values", () => {
+    expect(MISPAR_KATAN_VALUES["י"]).toBe(1); // 10
+    expect(MISPAR_KATAN_VALUES["ק"]).toBe(1); // 100
+    expect(MISPAR_KATAN_VALUES["ר"]).toBe(2); // 200
+    expect(MISPAR_KATAN_VALUES["ת"]).toBe(4); // 400
+    expect(MISPAR_KATAN_VALUES["א"]).toBe(1);
+    expect(MISPAR_KATAN_VALUES["ט"]).toBe(9);
+  });
+
+  it("values final forms as their base letters", () => {
+    expect(MISPAR_KATAN_VALUES["ך"]).toBe(2);
+    expect(MISPAR_KATAN_VALUES["ם"]).toBe(4);
+    expect(MISPAR_KATAN_VALUES["ן"]).toBe(5);
+    expect(MISPAR_KATAN_VALUES["ף"]).toBe(8);
+    expect(MISPAR_KATAN_VALUES["ץ"]).toBe(9);
+  });
+
+  it("derives with katan values but agrees with hechrachi on the final digit (שלום)", () => {
+    const katan = gematriaExpression("שלום", "katan");
+    expect(katan.variant).toBe("katan");
+    expect(katan.derivation.words[0].letters).toEqual([
+      { char: "ש", value: 3 },
+      { char: "ל", value: 3 },
+      { char: "ו", value: 6 },
+      { char: "ם", value: 4 },
+    ]);
+    expect(katan.derivation.words[0].subtotal).toBe(16);
+    expect(katan.value).toBe(7);
+    expect(gematriaExpression("שלום").derivation.words[0].subtotal).toBe(376);
+    expect(gematriaExpression("שלום").value).toBe(7);
+  });
+
+  it("can land on a master number the hechrachi reduction skips", () => {
+    // תתתתהא: hechrachi 1606 → 13 → 4; katan 4+4+4+4+5+1 = 22 (master).
+    const hechrachi = gematriaExpression("תתתתהא");
+    const katan = gematriaExpression("תתתתהא", "katan");
+    expect(hechrachi.value).toBe(4);
+    expect(hechrachi.isMaster).toBe(false);
+    expect(katan.value).toBe(22);
+    expect(katan.isMaster).toBe(true);
   });
 });
