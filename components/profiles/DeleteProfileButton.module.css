@@ -1,0 +1,42 @@
+.trigger {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 0.5rem 1rem;
+}
+
+.trigger:hover {
+  color: var(--danger);
+}
+
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.prompt {
+  color: var(--text-muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.confirm {
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.7rem;
+}
+
+.confirm:hover {
+  background: rgba(201, 106, 106, 0.12);
+}
+
+.cancel {
+  color: var(--text-muted);
+  padding: 0.25rem 0.4rem;
+}

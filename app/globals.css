@@ -1,56 +1,114 @@
+/* Dark-celestial design tokens (Phase 1e). Component styles live in CSS
+   Modules; this file holds the palette, typography, and base element rules. */
+
+:root {
+  --bg: #0e0e14;
+  --surface: #1a1a26;
+  --surface-raised: #232132;
+  --border: #2c2c40;
+  --border-strong: #3d3b58;
+  --text: #e8e6f0;
+  --text-muted: #9a94b8;
+  --heading: #b8b2d8;
+  --accent: #d4af6a;
+  --accent-bright: #e8c987;
+  --accent-dim: rgba(212, 175, 106, 0.16);
+  --danger: #c96a6a;
+  --warn: #d9a03f;
+  --warn-bg: rgba(217, 160, 63, 0.12);
+  --ok: #6aa98a;
+
+  /* Aspect line colors: gold conjunction, cool harmonious, warm hard. */
+  --aspect-conjunction: #d4af6a;
+  --aspect-trine: #5fae8e;
+  --aspect-sextile: #6fa0c9;
+  --aspect-square: #c97a5a;
+  --aspect-opposition: #c95a70;
+
+  --font-display: Georgia, "Palatino Linotype", "Book Antiqua", serif;
+  --font-body: system-ui, -apple-system, sans-serif;
+
+  --radius: 8px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+html {
+  color-scheme: dark;
+}
+
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #0e0e14;
-  color: #e8e6f0;
+  font-family: var(--font-body);
+  background: var(--bg);
+  background-image: radial-gradient(
+      circle at 20% -10%,
+      rgba(93, 78, 140, 0.14),
+      transparent 45%
+    ),
+    radial-gradient(circle at 85% 15%, rgba(212, 175, 106, 0.05), transparent 40%);
+  background-attachment: fixed;
+  color: var(--text);
   min-height: 100vh;
-  padding: 3rem 1.5rem;
 }
 
 main {
-  max-width: 42rem;
+  max-width: 64rem;
   margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--heading);
 }
 
 h1 {
   font-size: 1.75rem;
-  margin-bottom: 0.5rem;
 }
 
-p.tagline {
-  color: #9a94b8;
-  margin-bottom: 2rem;
+a {
+  color: var(--accent-bright);
+  text-decoration: none;
 }
 
-section {
-  background: #1a1a26;
-  border: 1px solid #2c2c40;
-  border-radius: 8px;
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+a:hover {
+  text-decoration: underline;
 }
 
-section h2 {
-  font-size: 1rem;
-  color: #b8b2d8;
-  margin-bottom: 0.75rem;
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 
-dl {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.35rem 1rem;
+input,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.65rem;
 }
 
-dt {
-  color: #9a94b8;
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-dd {
-  text-transform: capitalize;
+::placeholder {
+  color: var(--text-muted);
 }

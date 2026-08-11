@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Source of truth for all app icons; regenerate PNGs with `npm run icons:generate`. -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#232132" />
+      <stop offset="100%" stop-color="#0e0e14" />
+    </radialGradient>
+    <linearGradient id="star" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8c987" />
+      <stop offset="100%" stop-color="#d4af6a" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#glow)" />
+  <!-- Six-pointed star (the ✶ brand mark) as a path for deterministic rasterization. -->
+  <path
+    fill="url(#star)"
+    d="M256 76
+       L283.5 208.4 L411.9 166 L311 256 L411.9 346 L283.5 303.6
+       L256 436 L228.5 303.6 L100.1 346 L201 256 L100.1 166 L228.5 208.4 Z"
+  />
+  <circle cx="256" cy="256" r="26" fill="#e8c987" />
+</svg>

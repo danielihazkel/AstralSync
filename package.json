@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "geo:import": "node scripts/import-geonames.mts"
+    "geo:import": "node scripts/import-geonames.mts",
+    "icons:generate": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -30,6 +31,7 @@
     "@types/react-dom": "^19.2.4",
     "adm-zip": "^0.6.0",
     "prisma": "^6.19.3",
+    "sharp": "^0.35.3",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

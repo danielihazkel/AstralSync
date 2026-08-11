@@ -1,51 +1,64 @@
-import { buildChart } from "@astralsync/astro-core";
-import { lifePath } from "@astralsync/numero-core";
+import Link from "next/link";
+import type { Sign } from "@astralsync/astro-core";
+import { listProfiles } from "@/lib/snapshots";
+import {
+  SIGN_NAMES,
+  TIME_CERTAINTY_LABELS,
+  formatBirthDate,
+} from "@/components/format";
+import DeleteProfileButton from "@/components/profiles/DeleteProfileButton";
+import styles from "./page.module.css";
 
-// Smoke-test page: renders a fixed reference chart server-side to prove the
-// core packages are wired into the app. Replaced by real onboarding in Phase 1e.
-export default function Home() {
-  const chart = buildChart({
-    utc: new Date(Date.UTC(2000, 0, 1, 12, 0, 0)),
-    latitude: 51.48,
-    longitude: 0,
-    houseSystem: "placidus",
-    timeCertainty: "exact",
-  });
-  const lp = lifePath({ year: 2000, month: 1, day: 1 });
+// Profile data lives in the local DB and changes between requests.
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const profiles = await listProfiles();
 
   return (
     <main>
-      <h1>AstralSync</h1>
-      <p className="tagline">
-        Natal charts and numerology — fully offline. Scaffolding build.
+      <h1>Profiles</h1>
+      <p className={styles.tagline}>
+        Natal charts and numerology — computed once, stored forever, fully
+        offline.
       </p>
-      <section>
-        <h2>Engine smoke test — J2000 epoch, Greenwich</h2>
-        <dl>
-          <dt>Sun</dt>
-          <dd>{chart.bigThree.sun}</dd>
-          <dt>Moon</dt>
-          <dd>{chart.bigThree.moon}</dd>
-          <dt>Ascendant</dt>
-          <dd>{chart.bigThree.ascendant ?? "—"}</dd>
-          <dt>Aspects found</dt>
-          <dd>{chart.aspects.length}</dd>
-          <dt>Ephemeris</dt>
-          <dd>
-            {chart.engine.name} v{chart.engine.version}
-          </dd>
-        </dl>
-      </section>
-      <section>
-        <h2>Numerology smoke test — 2000-01-01</h2>
-        <dl>
-          <dt>Life Path</dt>
-          <dd>
-            {lp.value}
-            {lp.isMaster ? " (master)" : ""}
-          </dd>
-        </dl>
-      </section>
+
+      {profiles.length === 0 ? (
+        <div className={styles.empty}>
+          <p>No profiles yet.</p>
+          <Link href="/onboarding" className={styles.cta}>
+            Create your first chart
+          </Link>
+        </div>
+      ) : (
+        <ul className={styles.list}>
+          {profiles.map((p) => (
+            <li key={p.id} className={styles.card}>
+              <Link href={`/profiles/${p.id}`} className={styles.cardLink}>
+                <span className={styles.name}>{p.displayName}</span>
+                <span className={styles.meta}>
+                  {formatBirthDate(p.birthDate)}
+                  {p.sunSign ? ` · ${SIGN_NAMES[p.sunSign as Sign]} Sun` : ""}
+                </span>
+                <span className={styles.tags}>
+                  {p.isSolarChart && (
+                    <span className={styles.tag}>Solar chart</span>
+                  )}
+                  {p.timeCertainty === "approx" && (
+                    <span className={styles.tag}>
+                      {TIME_CERTAINTY_LABELS.approx}
+                    </span>
+                  )}
+                </span>
+              </Link>
+              <DeleteProfileButton
+                profileId={p.id}
+                displayName={p.displayName}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </main>
   );
 }

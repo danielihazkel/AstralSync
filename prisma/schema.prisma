@@ -132,7 +132,14 @@ model Reading {
   bodyMd           String           @map("body_md") @db.Text
   generator        ReadingGenerator
   modelName        String?          @map("model_name") @db.VarChar(64)
+  /// Content library version the generation prompt was built from.
+  contentVersion   String?          @map("content_version") @db.VarChar(16)
   createdAt        DateTime         @default(now()) @map("created_at")
 
+  // "Generated once": one reading per generator per snapshot pair. The astro
+  // snapshot id alone identifies the pair (both snapshots share
+  // profileId+version); keying on the nullable numero FK would let MySQL
+  // admit duplicate rows through repeated NULLs.
+  @@unique([astroSnapshotId, generator])
   @@map("reading")
 }

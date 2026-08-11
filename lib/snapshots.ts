@@ -18,6 +18,7 @@ import {
   type GeoCity,
   type NumeroSnapshot,
   type Profile,
+  type Reading,
 } from "@prisma/client";
 import { prisma } from "./db";
 import { resolveBirthMoment, timezoneFor, type TzWarning } from "./tz";
@@ -303,8 +304,10 @@ function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
   };
 }
 
-function serializeAstro(s: AstroSnapshot) {
+function serializeAstro(s: AstroSnapshot & { readings?: Reading[] }) {
+  const llm = s.readings?.find((r) => r.generator === "llm") ?? null;
   return {
+    snapshotId: s.id,
     version: s.version,
     houseSystem: s.houseSystem,
     isSolarChart: s.isSolarChart,
@@ -317,11 +320,21 @@ function serializeAstro(s: AstroSnapshot) {
     engineVersion: s.engineVersion,
     contentVersion: s.contentVersion,
     createdAt: s.createdAt,
+    /** Stored LLM synthesis for this snapshot, if one was ever generated. */
+    llmReading: llm
+      ? {
+          bodyMd: llm.bodyMd,
+          modelName: llm.modelName,
+          contentVersion: llm.contentVersion,
+          createdAt: llm.createdAt,
+        }
+      : null,
   };
 }
 
 function serializeNumero(s: NumeroSnapshot) {
   return {
+    snapshotId: s.id,
     version: s.version,
     system: s.system,
     lifePath: s.lifePathInt,
@@ -428,14 +441,19 @@ export async function getProfileView(
   });
   if (!profile) return null;
 
+  const llmReadings = {
+    readings: { where: { generator: "llm" as const } },
+  };
   const astro =
     version != null
       ? await prisma.astroSnapshot.findUnique({
           where: { profileId_version: { profileId: id, version } },
+          include: llmReadings,
         })
       : await prisma.astroSnapshot.findFirst({
           where: { profileId: id },
           orderBy: { version: "desc" },
+          include: llmReadings,
         });
   const numero =
     version != null
@@ -473,6 +491,21 @@ export async function listProfiles() {
       createdAt: p.createdAt,
     };
   });
+}
+
+/** Snapshot version list for the history UI — newest first. */
+export async function listSnapshotVersions(profileId: number) {
+  const versions = await prisma.astroSnapshot.findMany({
+    where: { profileId },
+    orderBy: { version: "desc" },
+    select: {
+      version: true,
+      createdAt: true,
+      houseSystem: true,
+      isSolarChart: true,
+    },
+  });
+  return versions;
 }
 
 /** Full data export (PRD §4.6): every snapshot version, every reading. */

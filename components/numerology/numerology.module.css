@@ -1,0 +1,151 @@
+.panel {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44rem;
+}
+
+.numberCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+}
+
+.numberCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.numberLabel {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.numberValue {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--accent-bright);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.masterBadge {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  color: var(--accent-bright);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.derivation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.derivation h3 {
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  margin-bottom: 0.75rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.3rem 1.25rem 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.table thead th {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.table tbody th {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.chain {
+  color: var(--accent-bright);
+  white-space: nowrap;
+}
+
+.totalRow {
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  line-height: 1.6;
+}
+
+.masterNote {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.word {
+  margin-bottom: 1rem;
+}
+
+.letterGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.letter,
+.letterVowel {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 1.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.25rem 0.3rem;
+}
+
+.letterVowel {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.letterChar {
+  font-size: 1rem;
+}
+
+.letterValue {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.wordSum {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}

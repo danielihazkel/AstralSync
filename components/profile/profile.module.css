@@ -1,0 +1,217 @@
+/* Big Three */
+
+.bigThree {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.bigThreeCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.bigThreeLabel {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bigThreeSign {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--heading);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.bigThreeGlyph {
+  color: var(--accent);
+}
+
+.bigThreeNote {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Tabs */
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+.tab,
+.tabActive {
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--text-muted);
+}
+
+.tabActive {
+  color: var(--accent-bright);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-color: var(--surface);
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+/* Reading tab */
+
+.reading {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+}
+
+.readingSection {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.readingSource {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 0.7rem;
+}
+
+.readingBody {
+  font-size: 0.95rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.readingBody ul {
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.staleNote {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chip,
+.chipActive {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.chipActive {
+  color: var(--accent-bright);
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+/* Details tab */
+
+.details {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+}
+
+.detailsSection {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.factList {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1.25rem;
+  font-size: 0.92rem;
+}
+
+.factList dt {
+  color: var(--text-muted);
+}
+
+.actionRow {
+  margin-top: 0.9rem;
+  font-size: 0.92rem;
+}
+
+.deleteRow {
+  margin-top: 0.5rem;
+  margin-left: -1rem;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.selectorError {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.houseSystem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.houseSystemLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.92rem;
+}
+
+.versionList {
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.92rem;
+}
+
+.versionMeta {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 640px) {
+  .bigThree {
+    grid-template-columns: 1fr;
+  }
+}

@@ -5,6 +5,29 @@ const nextConfig: NextConfig = {
   // geo-tz reads its timezone boundary data from node_modules at runtime and
   // must not be bundled.
   serverExternalPackages: ["geo-tz", "@prisma/client"],
+  async headers() {
+    return [
+      {
+        // Per the Next PWA guide: never let browsers cache the worker script
+        // itself, and pin a strict CSP for it.
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'self'; script-src 'self'",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

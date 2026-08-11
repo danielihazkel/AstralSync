@@ -10,7 +10,12 @@ import type { ProfileBirthData } from "./snapshots";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-export const profileInputSchema = z
+/**
+ * Field-level schema without cross-field rules — exported so the onboarding
+ * wizard can validate individual steps client-side. The full cross-field
+ * validation lives in `profileInputSchema` below.
+ */
+export const profileInputBase = z
   .object({
     displayName: z.string().trim().min(1).max(100),
     fullBirthName: z.string().trim().min(1).max(200).nullish(),
@@ -28,7 +33,9 @@ export const profileInputSchema = z
     utcOffsetMinutes: z.number().int().min(-16 * 60).max(16 * 60).optional(),
     offsetOverridden: z.boolean().default(false),
     houseSystem: z.enum(["placidus", "whole_sign", "equal"]).default("placidus"),
-  })
+  });
+
+export const profileInputSchema = profileInputBase
   .superRefine((v, ctx) => {
     const [y, m, d] = v.birthDate.split("-").map(Number);
     const date = new Date(Date.UTC(y, m - 1, d));
@@ -66,6 +73,20 @@ export const profileInputSchema = z
         code: "custom",
         path: ["fullBirthName"],
         message: "nameScript is hebrew but the name contains no Hebrew letters",
+      });
+    }
+    // Pythagorean numerology needs Latin letters (numero-core throws
+    // otherwise) — non-Latin names must go through the transliteration path.
+    if (
+      v.nameScript !== "hebrew" &&
+      v.fullBirthName &&
+      !/[A-Za-z]/.test(v.fullBirthName)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["fullBirthName"],
+        message:
+          "name contains no Latin letters — provide a Latin transliteration for Pythagorean numerology",
       });
     }
   });

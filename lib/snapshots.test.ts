@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CONTENT_VERSION } from "./versions";
 import {
   buildSnapshotRows,
   computeAstro,
@@ -121,7 +122,7 @@ describe("buildSnapshotRows", () => {
   it("records engine and content versions", () => {
     expect(astroRow.engine).toBe("astronomy-engine");
     expect(astroRow.engineVersion).toBe("2.1.19");
-    expect(astroRow.contentVersion).toBe("0");
+    expect(astroRow.contentVersion).toBe(CONTENT_VERSION);
   });
 
   it("stores the complete render record in placementsJson", () => {
