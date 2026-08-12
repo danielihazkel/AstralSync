@@ -4,6 +4,7 @@ import {
   DEFAULT_WHEEL_SIZE,
   GLYPH_MIN_SEPARATION,
   TRANSIT_RING_WIDTH,
+  layoutBiWheel,
   layoutTransitWheel,
   layoutWheel,
   longitudeToScreenAngle,
@@ -281,5 +282,88 @@ describe("layoutTransitWheel", () => {
     expect(
       solar.planets.find((p) => p.planet === "venus")!.angle,
     ).toBeCloseTo(310, 6);
+  });
+});
+
+describe("layoutBiWheel", () => {
+  // Synastry convention: `a` = person A's planet (inner), `b` = person B's
+  // (outer band) — the reverse of layoutTransitWheel's expectation.
+  const outer = {
+    placements: [
+      {
+        planet: "mars" as const,
+        longitude: 200,
+        sign: "libra" as const,
+        degreeInSign: 20,
+        house: null,
+        retrograde: false,
+      },
+    ],
+    crossAspects: [
+      {
+        a: "sun" as const, // A's Sun (inner, longitude 280 in makeChart)
+        b: "mars" as const, // B's Mars (outer, longitude 200)
+        type: "square" as const,
+        angle: 90,
+        orb: 1.1,
+      },
+    ],
+  };
+  const inner = makeChart();
+  const layout = layoutBiWheel(inner, outer);
+
+  it("keeps the synastry a/b fields unswapped on returned chords", () => {
+    expect(layout.crossAspects).toHaveLength(1);
+    expect(layout.crossAspects[0].a).toBe("sun");
+    expect(layout.crossAspects[0].b).toBe("mars");
+    expect(layout.crossAspects[0].orb).toBe(1.1);
+  });
+
+  it("runs chords from B at the band's inner edge to A at the hub", () => {
+    const c = layout.crossAspects[0];
+    const rot = wheelRotation(inner);
+    // `from` = B's Mars (200°) on the band's inner edge.
+    expect(dist(c.from, layout.center)).toBeCloseTo(layout.base.radii.outer, 6);
+    expect(
+      dist(
+        c.from,
+        polarToXY(
+          layout.center,
+          layout.base.radii.outer,
+          longitudeToScreenAngle(200, rot),
+        ),
+      ),
+    ).toBeCloseTo(0, 6);
+    // `to` = A's Sun (280°) at the hub.
+    expect(dist(c.to, layout.center)).toBeCloseTo(layout.base.radii.hub, 6);
+    expect(
+      dist(
+        c.to,
+        polarToXY(
+          layout.center,
+          layout.base.radii.hub,
+          longitudeToScreenAngle(280, rot),
+        ),
+      ),
+    ).toBeCloseTo(0, 6);
+  });
+
+  it("delegates the two-ring layout to the transit geometry", () => {
+    expect(layout.base.size).toBe(DEFAULT_WHEEL_SIZE - 2 * TRANSIT_RING_WIDTH);
+    for (const p of layout.planets) {
+      const r = dist(p.glyphPoint, layout.center);
+      expect(r).toBeGreaterThan(layout.base.radii.outer);
+      expect(r).toBeLessThan(layout.ringRadius);
+    }
+  });
+
+  it("anchors a solar inner chart at 0° Aries with no houses", () => {
+    const solar = layoutBiWheel(
+      makeChart({ houses: null, isSolarChart: true }),
+      outer,
+    );
+    expect(solar.base.houses).toBeNull();
+    // 0° Aries at 180°: B's mars at 200° lands at screen angle 20.
+    expect(solar.planets[0].angle).toBeCloseTo(20, 6);
   });
 });

@@ -7,6 +7,7 @@ import {
   formatBirthDate,
 } from "@/components/format";
 import DeleteProfileButton from "@/components/profiles/DeleteProfileButton";
+import PairPicker from "@/components/synastry/PairPicker";
 import styles from "./page.module.css";
 
 // Profile data lives in the local DB and changes between requests.
@@ -58,6 +59,15 @@ export default async function Home() {
             </li>
           ))}
         </ul>
+      )}
+
+      {profiles.length >= 2 && (
+        <PairPicker
+          profiles={profiles.map((p) => ({
+            id: p.id,
+            displayName: p.displayName,
+          }))}
+        />
       )}
     </main>
   );

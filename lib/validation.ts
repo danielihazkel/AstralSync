@@ -128,6 +128,18 @@ export const transitQuerySchema = z.object({
 
 export type TransitQuery = z.infer<typeof transitQuerySchema>;
 
+/** /synastry?a=<id>&b=<id> query — two distinct profile ids. */
+export const synastryQuerySchema = z
+  .object({
+    a: z.coerce.number().int().positive(),
+    b: z.coerce.number().int().positive(),
+  })
+  .refine((v) => v.a !== v.b, {
+    message: "synastry needs two different profiles",
+  });
+
+export type SynastryQuery = z.infer<typeof synastryQuerySchema>;
+
 /** Parsed input → the pure computation shape used by lib/snapshots.ts. */
 export function toProfileBirthData(
   input: ProfileInput,

@@ -1,0 +1,155 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getEntry, loadContentIndex } from "@/lib/content";
+import { getSynastryView, synastryAspectKey } from "@/lib/synastry";
+import { synastryQuerySchema } from "@/lib/validation";
+import { PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/format";
+import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
+import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
+import BiWheel from "@/components/synastry/BiWheel";
+import CrossAspectList, {
+  type AspectProse,
+} from "@/components/synastry/CrossAspectList";
+import type { SynastrySide } from "@/lib/synastry";
+import styles from "@/components/synastry/synastry.module.css";
+
+// Snapshot data lives in the local DB; render per-request. Synastry is an
+// ephemeral read — recomputed from the two stored charts on every view,
+// never persisted, so the URL is shareable and always current.
+export const dynamic = "force-dynamic";
+
+function moonReason(side: SynastrySide): string | null {
+  if (!side.moonUncertain) return null;
+  return (
+    side.chart.uncertainties.find((u) => u.field === "moon_sign")?.reason ??
+    "The natal Moon sign is uncertain."
+  );
+}
+
+function OverlayTable({
+  owner,
+  host,
+}: {
+  owner: SynastrySide;
+  host: SynastrySide;
+}) {
+  return (
+    <div>
+      <h3 className={styles.sectionTitle}>
+        {owner.displayName}&rsquo;s planets in {host.displayName}&rsquo;s houses
+      </h3>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th scope="col">Planet</th>
+            <th scope="col">Position</th>
+            <th scope="col">House</th>
+          </tr>
+        </thead>
+        <tbody>
+          {owner.overlayPlacements.map((p) => (
+            <tr key={p.planet}>
+              <td>
+                <span className={styles.glyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[p.planet] + "︎"}
+                </span>
+                {PLANET_NAMES[p.planet]}
+                {p.retrograde && (
+                  <span className={styles.retro} title="Retrograde">
+                    {" "}
+                    ℞
+                  </span>
+                )}
+              </td>
+              <td>
+                {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
+              </td>
+              <td>{p.house}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default async function SynastryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ a?: string; b?: string }>;
+}) {
+  const query = synastryQuerySchema.safeParse(await searchParams);
+  if (!query.success) notFound();
+  const view = await getSynastryView(query.data.a, query.data.b);
+  if (!view) notFound();
+  const { a, b, aspects } = view;
+
+  // Optional pair prose from the content library (3d Tier 6) — absent keys
+  // simply render nothing, same degradation as the reading resolvers.
+  const index = loadContentIndex();
+  const prose: Record<string, AspectProse> = {};
+  for (const c of aspects) {
+    const key = synastryAspectKey(c.a, c.b, c.type);
+    const entry = getEntry(index, key);
+    if (entry) prose[key] = { title: entry.title, bodyMd: entry.bodyMd };
+  }
+
+  const eitherSolar = a.isSolarChart || b.isSolarChart;
+
+  return (
+    <main className={styles.page}>
+      <header className={styles.header}>
+        <h1>
+          {a.displayName} × {b.displayName}
+        </h1>
+        {[a, b].map((side) => (
+          <p key={side.profileId} className={styles.subline}>
+            <Link href={`/profiles/${side.profileId}`}>
+              {side.displayName}
+            </Link>
+            <span>chart version {side.version}</span>
+            {side.isSolarChart && (
+              <span className={styles.tag}>Solar chart</span>
+            )}
+            {moonReason(side) && (
+              <UncertaintyBadge reason={moonReason(side)!} />
+            )}
+          </p>
+        ))}
+      </header>
+
+      {eitherSolar && (
+        <p className={styles.notice} role="note">
+          {a.isSolarChart && b.isSolarChart
+            ? "Both birth times are unknown, so both charts are solar."
+            : `${(a.isSolarChart ? a : b).displayName}'s birth time is unknown, so their chart is solar.`}{" "}
+          Sign-to-sign aspects are unaffected, but house overlays into a solar
+          chart are omitted — a solar chart has no houses.
+        </p>
+      )}
+
+      <BiWheel a={a} b={b} aspects={aspects} />
+
+      <section aria-label="Cross aspects">
+        <h2 className={styles.sectionTitle}>Cross aspects</h2>
+        <CrossAspectList
+          aName={a.displayName}
+          bName={b.displayName}
+          aspects={aspects}
+          aMoonReason={moonReason(a)}
+          bMoonReason={moonReason(b)}
+          prose={prose}
+        />
+      </section>
+
+      <section aria-label="House overlays" className={styles.overlayTables}>
+        {!b.isSolarChart && <OverlayTable owner={a} host={b} />}
+        {!a.isSolarChart && <OverlayTable owner={b} host={a} />}
+      </section>
+
+      <p className={styles.muted}>
+        <Link href="/">← All profiles</Link>
+      </p>
+    </main>
+  );
+}

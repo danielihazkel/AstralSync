@@ -354,3 +354,33 @@ export function layoutTransitWheel(
     crossAspects,
   };
 }
+
+export type BiWheelLayout = TransitWheelLayout;
+
+/**
+ * Synastry bi-wheel: person A (inner, with houses) and person B (outer band)
+ * share the transit geometry, but the aspect convention flips — synastry
+ * cross aspects carry `a` = person A's planet (inner) while
+ * `layoutTransitWheel` expects `a` = the outer body. Endpoints are swapped on
+ * the way in and the fields swapped back on the way out, so returned chords
+ * keep the synastry convention: `from` = band inner edge at B's angle,
+ * `to` = hub at A's angle.
+ */
+export function layoutBiWheel(
+  inner: WheelChart,
+  outer: { placements: Placement[]; crossAspects: CrossAspect[] },
+  size: number = DEFAULT_WHEEL_SIZE,
+): BiWheelLayout {
+  const layout = layoutTransitWheel(
+    inner,
+    {
+      placements: outer.placements,
+      crossAspects: outer.crossAspects.map((c) => ({ ...c, a: c.b, b: c.a })),
+    },
+    size,
+  );
+  return {
+    ...layout,
+    crossAspects: layout.crossAspects.map((c) => ({ ...c, a: c.b, b: c.a })),
+  };
+}

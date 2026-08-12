@@ -22,6 +22,9 @@ export const CONTENT_CATEGORIES = [
   "planet_in_house",
   "aspect",
   "ascendant_sign",
+  // Synastry pair prose, Phase 3c — authoring is the optional 3d Tier 6;
+  // the aspect list degrades to prose-less rows until entries land.
+  "synastry_aspect",
   "element_dominance",
   "modality_dominance",
   "life_path",

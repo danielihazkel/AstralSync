@@ -53,6 +53,7 @@ AstralSync/
 3. Every subsequent view renders from the stored JSON. **Zero recomputation** — the performance strategy is caching, not optimization (target < 200ms end-to-end for the one-time calculation).
 4. **Immutability rule:** snapshots are write-once. Editing birth data (or changing house system) creates a *new* snapshot version; old versions are preserved.
 5. **The one exception — transits (PRD §9):** the Transits tab recomputes current placements and cross aspects against the *latest* natal snapshot on every read (`GET /api/transits/[id]`, served `Cache-Control: no-store`). Nothing is persisted — the write-once guard is untouched because the flow never writes — and by design there are no offline transits: the tab shows a "needs a live connection" notice instead.
+6. **Synastry follows the same ephemeral-read rule**, minus the liveness: `/synastry?a=&b=` recomputes cross aspects and mutual house overlays from the two profiles' *stored* latest snapshots on every view (`lib/synastry.ts`, called directly by the server page — no API route). The inputs are immutable, so the recompute is deterministic; nothing is persisted and no live ephemeris call is involved.
 
 ## 5. Data model (MySQL, PRD §6)
 
