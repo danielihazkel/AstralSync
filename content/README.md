@@ -47,8 +47,17 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**v1 scope (52 entries):** Sun in sign ×12, Moon in sign ×12,
-`ascendant_sign` ×12, `life_path` 1–9/11/22/33 (×12), `element_dominance` ×4.
+**English scope (356 entries, Phase 3d complete):** `planet_in_sign` ×120
+(all ten planets × 12 signs; outer-planet sign entries use generational
+framing), `planet_in_house` ×120, `aspect` ×49 (nine pairs across all five
+types, plus conjunction-only Sun–Mercury and Sun–Venus and
+conjunction+sextile Mercury–Venus — the remaining combinations are
+astronomically unreachable at natal orbs), `ascendant_sign` ×12,
+`life_path` / `destiny` / `soul_urge` ×12 each (1–9, 11, 22, 33),
+`element_dominance` ×4, `modality_dominance` ×3, and a `synastry_aspect`
+×12 starter set. The reading renders sign/house sections for the personal
+planets only; Jupiter–Pluto entries are authored for future surfaces
+(transits, LLM prompts).
 
 **Hebrew scope (62 entries under `he/`, Phase 2c):** `mazal_month` ×12 (the
 single `adar` entry covers Adar I/II), `day_planet` ×7 + `hour_planet` ×7
@@ -88,9 +97,9 @@ arrays. Fields:
 - `key` (required) — must match the file path; enforced by
   `lib/content.lint.test.ts`.
 - `title` (required) — display heading.
-- `essence` (required for `element_dominance` and `life_path`, optional
-  elsewhere) — a short lowercase noun phrase consumed by the template
-  synthesis (`lib/synthesis.ts`). It must read naturally after "giving you …"
+- `essence` (required for `element_dominance`, `modality_dominance`, and
+  `life_path`, optional elsewhere) — a short lowercase noun phrase consumed
+  by the template synthesis (`lib/synthesis.ts`). It must read naturally after "giving you …"
   or "— …", e.g. `a researcher's need to understand before joining in`.
 
 ## Body Markdown subset

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { Placement, Planet, Sign } from "@astralsync/astro-core";
 import {
   ELEMENTS,
+  MODALITIES,
   SIGN_ELEMENTS,
   SIGN_MODALITIES,
   elementDominance,
+  modalityDominance,
 } from "./dominance";
 
 function placement(planet: Planet, sign: Sign): Placement {
@@ -137,5 +139,85 @@ describe("elementDominance", () => {
     const timed = chart(["leo", "virgo"]).map((p, i) => ({ ...p, house: i + 1 }));
     const solar = chart(["leo", "virgo"]);
     expect(elementDominance(timed)).toEqual(elementDominance(solar));
+  });
+});
+
+describe("modalityDominance", () => {
+  it("counts each planet once by its sign's modality", () => {
+    // 4 cardinal (sun, moon, mercury, venus), 3 fixed, 3 mutable
+    const placements = [
+      placement("sun", "aries"),
+      placement("moon", "cancer"),
+      placement("mercury", "libra"),
+      placement("venus", "capricorn"),
+      placement("mars", "taurus"),
+      placement("jupiter", "leo"),
+      placement("saturn", "scorpio"),
+      placement("uranus", "gemini"),
+      placement("neptune", "virgo"),
+      placement("pluto", "pisces"),
+    ];
+    const d = modalityDominance(placements);
+    expect(d.counts).toEqual({ cardinal: 4, fixed: 3, mutable: 3 });
+    expect(d.dominant).toBe("cardinal");
+    expect(d.tied).toEqual(["cardinal"]);
+  });
+
+  it("breaks a two-way tie toward the modality holding the Sun", () => {
+    // 5 fixed (incl. sun), 5 mutable (incl. moon)
+    const placements = chart(["taurus", "virgo"]);
+    const d = modalityDominance(placements);
+    expect(d.counts.fixed).toBe(5);
+    expect(d.counts.mutable).toBe(5);
+    expect(d.tied).toEqual(["fixed", "mutable"]);
+    expect(d.dominant).toBe("fixed");
+  });
+
+  it("falls to the Moon's modality when the Sun is outside the tie", () => {
+    // sun cardinal(2); moon mutable; tie between fixed and mutable at 4
+    const placements = [
+      placement("sun", "aries"),
+      placement("moon", "gemini"),
+      placement("mercury", "taurus"),
+      placement("venus", "leo"),
+      placement("mars", "scorpio"),
+      placement("jupiter", "aquarius"),
+      placement("saturn", "virgo"),
+      placement("uranus", "sagittarius"),
+      placement("neptune", "pisces"),
+      placement("pluto", "cancer"),
+    ];
+    const d = modalityDominance(placements);
+    expect(d.counts).toEqual({ cardinal: 2, fixed: 4, mutable: 4 });
+    expect(d.dominant).toBe("mutable");
+  });
+
+  it("falls to canonical order when neither luminary is in the tie", () => {
+    // sun+moon mutable(2); cardinal 4, fixed 4 tie; cardinal precedes fixed
+    const placements = [
+      placement("sun", "gemini"),
+      placement("moon", "virgo"),
+      placement("mercury", "aries"),
+      placement("venus", "cancer"),
+      placement("mars", "libra"),
+      placement("jupiter", "capricorn"),
+      placement("saturn", "taurus"),
+      placement("uranus", "leo"),
+      placement("neptune", "scorpio"),
+      placement("pluto", "aquarius"),
+    ];
+    const d = modalityDominance(placements);
+    expect(d.counts).toEqual({ cardinal: 4, fixed: 4, mutable: 2 });
+    expect(d.dominant).toBe("cardinal");
+  });
+
+  it("is indifferent to house data (solar charts behave identically)", () => {
+    const timed = chart(["leo", "virgo"]).map((p, i) => ({ ...p, house: i + 1 }));
+    const solar = chart(["leo", "virgo"]);
+    expect(modalityDominance(timed)).toEqual(modalityDominance(solar));
+  });
+
+  it("orders MODALITIES canonically for the chip row and tie-break", () => {
+    expect(MODALITIES).toEqual(["cardinal", "fixed", "mutable"]);
   });
 });

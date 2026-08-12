@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolveReading } from "@/lib/content";
+import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
 import {
@@ -9,6 +9,7 @@ import {
   listSnapshotVersions,
 } from "@/lib/snapshots";
 import {
+  toNumeroReadingInput,
   toStoredHebrewGematria,
   toStoredMazal,
   toWheelChart,
@@ -60,14 +61,28 @@ export default async function ProfilePage({
   const latestVersion = versions[0]?.version ?? view.astro.version;
   const isLatest = view.astro.version === latestVersion;
   const { profile } = view;
+  const numeroInput = toNumeroReadingInput(view.numero);
+  const contentIndex = loadContentIndex();
   const reading = resolveReading(
     chart,
-    {
-      lifePath: view.numero.lifePath,
-      isMaster: view.numero.isMasterLifePath,
-    },
+    numeroInput,
     view.astro.contentVersion,
+    contentIndex,
   );
+  // Name-number prose for the Numerology tab, resolved here because the
+  // content loader is server-only (the panel is a client component).
+  const prose = (key: string | null) => {
+    const entry = key === null ? null : getEntry(contentIndex, key);
+    return entry ? { title: entry.title, bodyMd: entry.bodyMd } : null;
+  };
+  const numeroProse = {
+    destiny: prose(
+      numeroInput.destiny ? `destiny/${numeroInput.destiny.value}` : null,
+    ),
+    soulUrge: prose(
+      numeroInput.soulUrge ? `soul_urge/${numeroInput.soulUrge.value}` : null,
+    ),
+  };
   const llmEnabled = llmClientFromEnv() !== null;
   // Null for historical versions computed before the Mazal feature.
   const hebrewReading = view.hebrew
@@ -131,6 +146,7 @@ export default async function ProfilePage({
         profile={profile}
         astro={view.astro}
         numero={view.numero}
+        numeroProse={numeroProse}
         chart={chart}
         versions={versions}
         isLatest={isLatest}

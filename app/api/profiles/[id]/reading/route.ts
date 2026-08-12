@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getProfileView } from "@/lib/snapshots";
 import { resolveReading } from "@/lib/content";
 import { buildReadingPrompt, llmClientFromEnv, LlmUnavailableError } from "@/lib/llm";
-import { toWheelChart } from "@/lib/view-types";
+import { toNumeroReadingInput, toWheelChart } from "@/lib/view-types";
 
 function parseId(raw: unknown): number | null {
   const id = Number(raw);
@@ -49,7 +49,7 @@ export async function POST(
   const chart = toWheelChart(view.astro);
   const resolved = resolveReading(
     chart,
-    { lifePath: view.numero.lifePath, isMaster: view.numero.isMasterLifePath },
+    toNumeroReadingInput(view.numero),
     view.astro.contentVersion,
   );
 

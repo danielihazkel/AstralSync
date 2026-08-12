@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { SIGNS } from "@astralsync/astro-core";
+import { PLANETS, SIGNS, type Planet } from "@astralsync/astro-core";
 import { DAY_PLANETS, HEBREW_MONTH_KEYS } from "@astralsync/hebrew-core";
-import { ELEMENTS } from "./dominance";
+import { ELEMENTS, MODALITIES } from "./dominance";
 import { contentRoot, loadContentIndex, type ContentEntry } from "./content";
 
 /**
@@ -16,6 +16,31 @@ const entries = [...index.entries.values()];
 const heIndex = loadContentIndex(contentRoot("he"));
 const heEntries = [...heIndex.entries.values()];
 const LIFE_PATHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 22, 33];
+const ASPECT_TYPES = ["conjunction", "sextile", "square", "trine", "opposition"];
+
+/** Tier 2 pairs authored across all five aspect types (PLANETS order). */
+const FULL_ASPECT_PAIRS: [Planet, Planet][] = [
+  ["sun", "moon"],
+  ["sun", "mars"],
+  ["sun", "jupiter"],
+  ["sun", "saturn"],
+  ["moon", "mercury"],
+  ["moon", "venus"],
+  ["moon", "mars"],
+  ["mercury", "mars"],
+  ["venus", "mars"],
+];
+
+/**
+ * Pairs whose remaining types are astronomically unreachable at natal orbs
+ * (Sun–Mercury max elongation ~28°, Sun–Venus ~47°, Mercury–Venus ~76°).
+ */
+const PARTIAL_ASPECT_KEYS = [
+  "aspect/sun/mercury/conjunction",
+  "aspect/sun/venus/conjunction",
+  "aspect/mercury/venus/conjunction",
+  "aspect/mercury/venus/sextile",
+];
 
 function entry(key: string): ContentEntry | null {
   return index.entries.get(key) ?? null;
@@ -41,15 +66,32 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 52 v1 entries", () => {
-    // 24 sun/moon-in-sign + 12 ascendant + 12 life paths + 4 elements.
-    expect(entries).toHaveLength(52);
+  it("contains exactly the 356 entries", () => {
+    // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
+    // paths + 4 elements + 3 modalities + 49 natal aspects + 12 destiny
+    // + 12 soul urge + 12 synastry aspects (Phase 3d complete).
+    expect(entries).toHaveLength(356);
   });
 
-  it("covers Sun and Moon in every sign", () => {
-    for (const sign of SIGNS) {
-      expect(entry(`planet_in_sign/sun/${sign}`), `sun/${sign}`).not.toBeNull();
-      expect(entry(`planet_in_sign/moon/${sign}`), `moon/${sign}`).not.toBeNull();
+  it("covers every planet in every sign", () => {
+    for (const planet of PLANETS) {
+      for (const sign of SIGNS) {
+        expect(
+          entry(`planet_in_sign/${planet}/${sign}`),
+          `${planet}/${sign}`,
+        ).not.toBeNull();
+      }
+    }
+  });
+
+  it("covers every planet in every house", () => {
+    for (const planet of PLANETS) {
+      for (let house = 1; house <= 12; house++) {
+        expect(
+          entry(`planet_in_house/${planet}/${house}`),
+          `${planet}/${house}`,
+        ).not.toBeNull();
+      }
     }
   });
 
@@ -65,15 +107,78 @@ describe("content library lint", () => {
     }
   });
 
+  it("covers every Destiny and Soul Urge number including masters", () => {
+    for (const n of LIFE_PATHS) {
+      expect(entry(`destiny/${n}`), `destiny/${n}`).not.toBeNull();
+      expect(entry(`soul_urge/${n}`), `soul_urge/${n}`).not.toBeNull();
+    }
+  });
+
+  it("covers the Tier 6 synastry aspect starter set", () => {
+    const SYNASTRY_KEYS = [
+      "synastry_aspect/sun/moon/conjunction",
+      "synastry_aspect/sun/moon/square",
+      "synastry_aspect/sun/moon/trine",
+      "synastry_aspect/venus/mars/conjunction",
+      "synastry_aspect/venus/mars/square",
+      "synastry_aspect/venus/mars/trine",
+      "synastry_aspect/sun/venus/conjunction",
+      "synastry_aspect/sun/mars/conjunction",
+      "synastry_aspect/moon/venus/conjunction",
+      "synastry_aspect/moon/mars/conjunction",
+      "synastry_aspect/sun/sun/conjunction",
+      "synastry_aspect/moon/moon/conjunction",
+    ];
+    for (const key of SYNASTRY_KEYS) {
+      expect(entry(key), key).not.toBeNull();
+    }
+    expect(entries.filter((e) => e.category === "synastry_aspect")).toHaveLength(
+      SYNASTRY_KEYS.length,
+    );
+  });
+
   it("covers every element dominance", () => {
     for (const element of ELEMENTS) {
       expect(entry(`element_dominance/${element}`), element).not.toBeNull();
     }
   });
 
-  it("has a synthesis essence on every element and life path entry", () => {
+  it("covers every modality dominance", () => {
+    for (const modality of MODALITIES) {
+      expect(entry(`modality_dominance/${modality}`), modality).not.toBeNull();
+    }
+  });
+
+  it("covers the Tier 2 natal aspect matrix", () => {
+    for (const [a, b] of FULL_ASPECT_PAIRS) {
+      for (const type of ASPECT_TYPES) {
+        expect(entry(`aspect/${a}/${b}/${type}`), `${a}/${b}/${type}`).not.toBeNull();
+      }
+    }
+    for (const key of PARTIAL_ASPECT_KEYS) {
+      expect(entry(key), key).not.toBeNull();
+    }
+    const authored = entries.filter((e) => e.category === "aspect");
+    expect(authored).toHaveLength(
+      FULL_ASPECT_PAIRS.length * ASPECT_TYPES.length + PARTIAL_ASPECT_KEYS.length,
+    );
+  });
+
+  it("orders every aspect key's pair canonically (PLANETS order)", () => {
     for (const e of entries) {
-      if (e.category !== "element_dominance" && e.category !== "life_path") continue;
+      if (e.category !== "aspect") continue;
+      const [, a, b] = e.key.split("/");
+      expect(
+        PLANETS.indexOf(a as Planet),
+        e.key,
+      ).toBeLessThan(PLANETS.indexOf(b as Planet));
+    }
+  });
+
+  it("has a synthesis essence on every element, modality, and life path entry", () => {
+    const synthesized = ["element_dominance", "modality_dominance", "life_path"];
+    for (const e of entries) {
+      if (!synthesized.includes(e.category)) continue;
       expect(e.essence, e.key).toBeTruthy();
       // Must read naturally after "giving you …" — lowercase noun phrase,
       // no trailing period.

@@ -112,6 +112,15 @@
   font-size: 0.85rem;
 }
 
+.readingGroup {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0.4rem 0 -0.4rem;
+}
+
 .chipRow {
   display: flex;
   flex-wrap: wrap;

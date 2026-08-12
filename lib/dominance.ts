@@ -28,7 +28,9 @@ export const SIGN_ELEMENTS: Record<Sign, Element> = {
   pisces: "water",
 };
 
-/** Defined for the full content taxonomy; dominance uses elements only in v1. */
+/** Canonical order; also the last-resort dominance tie-break order. */
+export const MODALITIES: Modality[] = ["cardinal", "fixed", "mutable"];
+
 export const SIGN_MODALITIES: Record<Sign, Modality> = {
   aries: "cardinal",
   taurus: "fixed",
@@ -52,31 +54,53 @@ export interface ElementDominance {
   tied: Element[];
 }
 
-/**
- * Dominant element of a chart: each of the ten planets counts once, weighted
- * equally, by the element of its sign. The Ascendant is not counted — it is
- * not a placement, and excluding it keeps solar charts (no Ascendant)
- * comparable with timed ones. Ties break deterministically toward the tied
- * element holding the Sun, then the Moon, then canonical order
- * (fire → earth → air → water), so the UI can always explain the pick.
- */
-export function elementDominance(placements: Placement[]): ElementDominance {
-  const counts: Record<Element, number> = { fire: 0, earth: 0, air: 0, water: 0 };
-  for (const p of placements) counts[SIGN_ELEMENTS[p.sign]]++;
+export interface ModalityDominance {
+  /** Planets per modality — surfaced in the UI as the "why" for the reading. */
+  counts: Record<Modality, number>;
+  dominant: Modality;
+  /** Every modality at the max count; length > 1 means a tie was broken. */
+  tied: Modality[];
+}
 
-  const max = Math.max(...ELEMENTS.map((e) => counts[e]));
-  const tied = ELEMENTS.filter((e) => counts[e] === max);
+/**
+ * Shared dominance rule: each of the ten planets counts once, weighted
+ * equally, by its sign's class. The Ascendant is not counted — it is not a
+ * placement, and excluding it keeps solar charts (no Ascendant) comparable
+ * with timed ones. Ties break deterministically toward the tied class
+ * holding the Sun, then the Moon, then canonical order, so the UI can
+ * always explain the pick.
+ */
+function dominanceBy<K extends string>(
+  placements: Placement[],
+  classOf: Record<Sign, K>,
+  order: K[],
+): { counts: Record<K, number>; dominant: K; tied: K[] } {
+  const counts = Object.fromEntries(order.map((k) => [k, 0])) as Record<K, number>;
+  for (const p of placements) counts[classOf[p.sign]]++;
+
+  const max = Math.max(...order.map((k) => counts[k]));
+  const tied = order.filter((k) => counts[k] === max);
 
   let dominant = tied[0];
   if (tied.length > 1) {
     for (const planet of ["sun", "moon"] as const) {
       const sign = placements.find((p) => p.planet === planet)?.sign;
-      const element = sign && SIGN_ELEMENTS[sign];
-      if (element && tied.includes(element)) {
-        dominant = element;
+      const cls = sign && classOf[sign];
+      if (cls && tied.includes(cls)) {
+        dominant = cls;
         break;
       }
     }
   }
   return { counts, dominant, tied };
+}
+
+/** Dominant element (fire → earth → air → water tie-break order). */
+export function elementDominance(placements: Placement[]): ElementDominance {
+  return dominanceBy(placements, SIGN_ELEMENTS, ELEMENTS);
+}
+
+/** Dominant modality (cardinal → fixed → mutable tie-break order). */
+export function modalityDominance(placements: Placement[]): ModalityDominance {
+  return dominanceBy(placements, SIGN_MODALITIES, MODALITIES);
 }

@@ -62,6 +62,11 @@ const resolved: ResolvedReading = {
     dominant: "water",
     tied: ["water"],
   },
+  modality: {
+    counts: { cardinal: 4, fixed: 3, mutable: 3 },
+    dominant: "cardinal",
+    tied: ["cardinal"],
+  },
   sections: [
     {
       slot: "sun",

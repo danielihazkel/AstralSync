@@ -1,11 +1,12 @@
-import type { Element } from "./dominance";
+import type { Element, Modality } from "./dominance";
 
 /**
  * Template-synthesized reading: the intersection of a chart's dominant
- * element with the Life Path number (PRD §3.4). Pure composition over the
- * `essence` lines of the two resolved content entries plus original
- * connective copy that lives here — 4 × 13 combinations without authoring
- * each one. Deterministic by design so old snapshots re-render identically.
+ * element and modality with the Life Path number (PRD §3.4). Pure
+ * composition over the `essence` lines of the resolved content entries plus
+ * original connective copy that lives here — 4 × 3 × 13 combinations
+ * without authoring each one. Deterministic by design so old snapshots
+ * re-render identically.
  *
  * Grammar contract (enforced by the content lint test's README rules):
  * `essence` is a lowercase noun phrase that reads naturally after
@@ -14,6 +15,12 @@ import type { Element } from "./dominance";
 
 export interface SynthesisElementInput {
   name: Element;
+  title: string;
+  essence: string;
+}
+
+export interface SynthesisModalityInput {
+  name: Modality;
   title: string;
   essence: string;
 }
@@ -51,13 +58,31 @@ const ELEMENT_VOICE: Record<Element, { opener: string; bridge: string }> = {
   },
 };
 
+/**
+ * Connective copy weaving the dominant modality into the elemental opening;
+ * the modality entry's essence follows each clause.
+ */
+const MODALITY_VOICE: Record<Modality, string> = {
+  cardinal:
+    "Layered over that is a cardinal rhythm — this chart starts things — bringing",
+  fixed:
+    "Layered over that is a fixed rhythm — this chart holds its ground — bringing",
+  mutable:
+    "Layered over that is a mutable rhythm — this chart bends without breaking — bringing",
+};
+
 export function synthesizeReading(args: {
   element: SynthesisElementInput;
+  /** Null when the modality entry is unauthored — the weave is skipped. */
+  modality: SynthesisModalityInput | null;
   lifePath: SynthesisLifePathInput | null;
 }): string {
-  const { element, lifePath } = args;
+  const { element, modality, lifePath } = args;
   const voice = ELEMENT_VOICE[element.name];
-  const opening = `${voice.opener} ${element.essence}.`;
+  const weave = modality
+    ? ` ${MODALITY_VOICE[modality.name]} ${modality.essence}.`
+    : "";
+  const opening = `${voice.opener} ${element.essence}.${weave}`;
 
   if (!lifePath) {
     return `${opening} With no Life Path on record, let the elemental balance carry this reading on its own.`;

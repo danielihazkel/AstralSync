@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { ResolvedReading } from "@/lib/content";
+import type { ReadingSlot, ResolvedReading } from "@/lib/content";
 import type { AstroView } from "@/lib/view-types";
 import Markdown from "@/components/Markdown";
-import { ELEMENTS } from "@/lib/dominance";
+import { ELEMENTS, MODALITIES } from "@/lib/dominance";
 import styles from "./profile.module.css";
 
 function cap(s: string): string {
@@ -15,6 +15,24 @@ function cap(s: string): string {
 function dateOnly(value: Date | string): string {
   return new Date(value).toISOString().slice(0, 10);
 }
+
+/** Group heading per slot; null renders ungrouped (synthesis stands alone). */
+const SLOT_GROUP: Record<ReadingSlot, string | null> = {
+  sun: "Placements",
+  moon: "Placements",
+  ascendant: "Placements",
+  mercury: "Placements",
+  venus: "Placements",
+  mars: "Placements",
+  element: "Chart balance",
+  modality: "Chart balance",
+  aspect: "Key aspects",
+  house: "Houses",
+  life_path: "Numerology",
+  destiny: "Numerology",
+  soul_urge: "Numerology",
+  synthesis: null,
+};
 
 /**
  * The Reading tab: template-resolved interpretation sections (rendered live
@@ -61,7 +79,7 @@ export default function ReadingPanel({
     );
   }
 
-  const { dominance } = reading;
+  const { dominance, modality } = reading;
 
   return (
     <div className={styles.reading}>
@@ -98,19 +116,45 @@ export default function ReadingPanel({
         )}
       </div>
 
-      {reading.sections.map((section) => (
-        <section
-          key={section.slot}
-          className={styles.readingSection}
-          aria-label={section.title}
-        >
-          <h3 className={styles.sectionTitle}>{section.title}</h3>
-          <p className={styles.readingSource}>{section.source}</p>
-          <div className={styles.readingBody}>
-            <Markdown md={section.bodyMd} />
+      <div className={styles.chipRow} aria-label="Modality distribution">
+        {MODALITIES.map((m) => (
+          <span
+            key={m}
+            className={m === modality.dominant ? styles.chipActive : styles.chip}
+          >
+            {cap(m)} {modality.counts[m]}
+          </span>
+        ))}
+        {modality.tied.length > 1 && (
+          <span className={styles.hint}>
+            {modality.tied.map(cap).join(" and ")} are tied —{" "}
+            {cap(modality.dominant)} leads via your Sun, Moon, or modality
+            order.
+          </span>
+        )}
+      </div>
+
+      {reading.sections.map((section, i) => {
+        const group = SLOT_GROUP[section.slot];
+        const prevGroup = i > 0 ? SLOT_GROUP[reading.sections[i - 1].slot] : null;
+        return (
+          <div key={section.key ?? section.slot} className={styles.reading}>
+            {group !== null && group !== prevGroup && (
+              <h2 className={styles.readingGroup}>{group}</h2>
+            )}
+            <section
+              className={styles.readingSection}
+              aria-label={section.title}
+            >
+              <h3 className={styles.sectionTitle}>{section.title}</h3>
+              <p className={styles.readingSource}>{section.source}</p>
+              <div className={styles.readingBody}>
+                <Markdown md={section.bodyMd} />
+              </div>
+            </section>
           </div>
-        </section>
-      ))}
+        );
+      })}
 
       {llmReading ? (
         <section className={styles.readingSection} aria-label="AI synthesis">

@@ -1,9 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Planet } from "@astralsync/astro-core";
-import type { StoredChart } from "./view-types";
+import { PLANETS, type AspectType, type Planet } from "@astralsync/astro-core";
+import type { WheelChart } from "./view-types";
 import { CONTENT_VERSION } from "./versions";
-import { elementDominance, type ElementDominance } from "./dominance";
+import {
+  elementDominance,
+  modalityDominance,
+  type ElementDominance,
+  type ModalityDominance,
+} from "./dominance";
 import { synthesizeReading } from "./synthesis";
 
 /**
@@ -165,12 +170,31 @@ export function getEntry(index: ContentIndex, key: string): ContentEntry | null 
   return index.entries.get(key) ?? null;
 }
 
+/**
+ * Canonical natal-aspect key: pair ordered by `PLANETS` index, matching
+ * `detectAspects` output and the synastry key convention. Defined here
+ * rather than imported from lib/synastry.ts, which pulls in prisma.
+ */
+export function natalAspectKey(a: Planet, b: Planet, type: AspectType): string {
+  const [first, second] =
+    PLANETS.indexOf(a) <= PLANETS.indexOf(b) ? [a, b] : [b, a];
+  return `aspect/${first}/${second}/${type}`;
+}
+
 export type ReadingSlot =
   | "sun"
   | "moon"
   | "ascendant"
+  | "mercury"
+  | "venus"
+  | "mars"
   | "element"
+  | "modality"
+  | "aspect"
+  | "house"
   | "life_path"
+  | "destiny"
+  | "soul_urge"
   | "synthesis";
 
 export interface ReadingSection {
@@ -186,6 +210,9 @@ export interface ReadingSection {
 export interface NumeroReadingInput {
   lifePath: number;
   isMaster: boolean;
+  /** Null when the profile has no birth name (or no vowels-only number). */
+  destiny: { value: number; isMaster: boolean } | null;
+  soulUrge: { value: number; isMaster: boolean } | null;
 }
 
 export interface ResolvedReading {
@@ -196,6 +223,7 @@ export interface ResolvedReading {
   /** True when the two differ — the UI shows a provenance note. */
   stale: boolean;
   dominance: ElementDominance;
+  modality: ModalityDominance;
   sections: ReadingSection[];
   /** Keys referenced but not authored — sections silently omitted. */
   missingKeys: string[];
@@ -203,6 +231,20 @@ export interface ResolvedReading {
 
 function cap(s: string): string {
   return s[0].toUpperCase() + s.slice(1);
+}
+
+function ordinal(n: number): string {
+  const suffix =
+    n % 100 >= 11 && n % 100 <= 13
+      ? "th"
+      : n % 10 === 1
+        ? "st"
+        : n % 10 === 2
+          ? "nd"
+          : n % 10 === 3
+            ? "rd"
+            : "th";
+  return `${n}${suffix}`;
 }
 
 /** Mirrors components/format.ts formatDegreeInSign (lib stays UI-free). */
@@ -217,18 +259,20 @@ function degreeLabel(deg: number): string {
 }
 
 /**
- * Resolve a snapshot pair to its reading: Big Three entries, element
- * dominance, Life Path, and the template synthesis. Missing entries are
+ * Resolve a snapshot pair to its reading: Big Three entries, element and
+ * modality dominance, the tightest natal aspects, Life Path, and the
+ * template synthesis. Missing entries are
  * collected in `missingKeys`, never thrown — the taxonomy is larger than
  * the authored library and degrades gracefully.
  */
 export function resolveReading(
-  chart: StoredChart,
+  chart: WheelChart,
   numero: NumeroReadingInput | null,
   snapshotContentVersion: string,
   index: ContentIndex = loadContentIndex(),
 ): ResolvedReading {
   const dominance = elementDominance(chart.placements);
+  const modality = modalityDominance(chart.placements);
   const sections: ReadingSection[] = [];
   const missingKeys: string[] = [];
 
@@ -242,7 +286,7 @@ export function resolveReading(
     return entry;
   };
 
-  const luminarySource = (planet: Planet): string => {
+  const planetSource = (planet: Planet): string => {
     const p = chart.placements.find((pl) => pl.planet === planet);
     const base = `${cap(planet)} in ${cap(p ? p.sign : "")}`;
     // Solar charts suppress degree precision (positions are noon estimates).
@@ -251,8 +295,8 @@ export function resolveReading(
       : base;
   };
 
-  take(`planet_in_sign/sun/${chart.bigThree.sun}`, "sun", luminarySource("sun"));
-  take(`planet_in_sign/moon/${chart.bigThree.moon}`, "moon", luminarySource("moon"));
+  take(`planet_in_sign/sun/${chart.bigThree.sun}`, "sun", planetSource("sun"));
+  take(`planet_in_sign/moon/${chart.bigThree.moon}`, "moon", planetSource("moon"));
 
   if (chart.bigThree.ascendant !== null) {
     take(
@@ -262,11 +306,52 @@ export function resolveReading(
     );
   }
 
+  // Personal planets get their own sign sections; Jupiter–Pluto sign entries
+  // are authored for other surfaces but not rendered in the reading.
+  for (const planet of ["mercury", "venus", "mars"] as const) {
+    const p = chart.placements.find((pl) => pl.planet === planet);
+    if (p) take(`planet_in_sign/${planet}/${p.sign}`, planet, planetSource(planet));
+  }
+
   const elementEntry = take(
     `element_dominance/${dominance.dominant}`,
     "element",
     `${dominance.counts[dominance.dominant]} of ${chart.placements.length} planets in ${dominance.dominant} signs`,
   );
+
+  const modalityEntry = take(
+    `modality_dominance/${modality.dominant}`,
+    "modality",
+    `${modality.counts[modality.dominant]} of ${chart.placements.length} planets in ${modality.dominant} signs`,
+  );
+
+  // The chart's five tightest aspects; unauthored pairs (e.g. outer-planet
+  // combinations) degrade into missingKeys like everything else.
+  const tightest = [...chart.aspects].sort((x, y) => x.orb - y.orb).slice(0, 5);
+  for (const asp of tightest) {
+    const base = `${cap(asp.a)} ${asp.type} ${cap(asp.b)}`;
+    take(
+      natalAspectKey(asp.a, asp.b, asp.type),
+      "aspect",
+      // Solar-chart positions are noon estimates — suppress orb precision.
+      chart.isSolarChart ? base : `${base} — orb ${degreeLabel(asp.orb)}`,
+    );
+  }
+
+  // House placements for the personal planets, behind the per-placement
+  // house-null guard — solar charts have no houses, so the keys are never
+  // attempted (no missingKeys noise). Jupiter–Pluto house entries are
+  // authored for other surfaces but not rendered here.
+  for (const planet of ["sun", "moon", "mercury", "venus", "mars"] as const) {
+    const p = chart.placements.find((pl) => pl.planet === planet);
+    if (p && p.house !== null) {
+      take(
+        `planet_in_house/${planet}/${p.house}`,
+        "house",
+        `${cap(planet)} in the ${ordinal(p.house)} house`,
+      );
+    }
+  }
 
   const lifePathEntry = numero
     ? take(
@@ -275,6 +360,23 @@ export function resolveReading(
         `Life Path ${numero.lifePath}${numero.isMaster ? " — master number" : ""}`,
       )
     : null;
+
+  // Name numbers mirror the Life Path source format; a null field means the
+  // profile has no birth name, so the section is omitted without noise.
+  if (numero?.destiny) {
+    take(
+      `destiny/${numero.destiny.value}`,
+      "destiny",
+      `Destiny ${numero.destiny.value}${numero.destiny.isMaster ? " — master number" : ""}`,
+    );
+  }
+  if (numero?.soulUrge) {
+    take(
+      `soul_urge/${numero.soulUrge.value}`,
+      "soul_urge",
+      `Soul Urge ${numero.soulUrge.value}${numero.soulUrge.isMaster ? " — master number" : ""}`,
+    );
+  }
 
   if (elementEntry) {
     sections.push({
@@ -287,6 +389,13 @@ export function resolveReading(
           title: elementEntry.title,
           essence: elementEntry.essence ?? "",
         },
+        modality: modalityEntry
+          ? {
+              name: modality.dominant,
+              title: modalityEntry.title,
+              essence: modalityEntry.essence ?? "",
+            }
+          : null,
         lifePath:
           numero && lifePathEntry
             ? {
@@ -297,7 +406,7 @@ export function resolveReading(
               }
             : null,
       }),
-      source: "Dominant element × Life Path",
+      source: "Dominant element × modality × Life Path",
     });
   }
 
@@ -306,6 +415,7 @@ export function resolveReading(
     snapshotContentVersion,
     stale: snapshotContentVersion !== index.version,
     dominance,
+    modality,
     sections,
     missingKeys,
   };

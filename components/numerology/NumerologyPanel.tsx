@@ -1,21 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import type {
-  LifePathResult,
-  NameNumberResult,
-} from "@astralsync/numero-core";
 import type { NumeroView } from "@/lib/view-types";
+import { toNumeroDerivation } from "@/lib/view-types";
+import Markdown from "@/components/Markdown";
 import LifePathDerivation from "./LifePathDerivation";
 import NameDerivation from "./NameDerivation";
 import styles from "./numerology.module.css";
 
-interface DerivationJson {
-  lifePath: LifePathResult;
-  destiny: NameNumberResult | null;
-  soulUrge: NameNumberResult | null;
-  /** Absent on snapshots computed before the two-field name split. */
-  hebrewDestiny?: NameNumberResult | null;
+export interface NumeroProseEntry {
+  title: string;
+  bodyMd: string;
+}
+
+/** Interpretation prose resolved server-side (the content loader reads disk). */
+export interface NumeroProse {
+  destiny: NumeroProseEntry | null;
+  soulUrge: NumeroProseEntry | null;
 }
 
 /**
@@ -24,12 +25,14 @@ interface DerivationJson {
  */
 export default function NumerologyPanel({
   numero,
+  prose,
   profileId,
 }: {
   numero: NumeroView;
+  prose: NumeroProse;
   profileId: number;
 }) {
-  const derivation = numero.derivation as unknown as DerivationJson;
+  const derivation = toNumeroDerivation(numero);
   const isGematria = numero.system === "gematria";
   // Both-names case only: for Hebrew-only profiles the primary destiny IS
   // the gematria result, so a second card would be a duplicate.
@@ -107,6 +110,19 @@ export default function NumerologyPanel({
           title="Destiny — Hebrew gematria, letter by letter"
           result={hebrewDestiny}
         />
+      )}
+
+      {prose.destiny && (
+        <section className={styles.derivation} aria-label={prose.destiny.title}>
+          <h3>{prose.destiny.title}</h3>
+          <Markdown md={prose.destiny.bodyMd} />
+        </section>
+      )}
+      {prose.soulUrge && (
+        <section className={styles.derivation} aria-label={prose.soulUrge.title}>
+          <h3>{prose.soulUrge.title}</h3>
+          <Markdown md={prose.soulUrge.bodyMd} />
+        </section>
       )}
 
       {(isGematria || hebrewDestiny) && (

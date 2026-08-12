@@ -12,7 +12,9 @@ import type {
 } from "@/lib/view-types";
 import ChartWheel from "@/components/chart/ChartWheel";
 import MazalPanel from "@/components/mazal/MazalPanel";
-import NumerologyPanel from "@/components/numerology/NumerologyPanel";
+import NumerologyPanel, {
+  type NumeroProse,
+} from "@/components/numerology/NumerologyPanel";
 import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
@@ -32,6 +34,7 @@ export default function ProfileTabs({
   profile,
   astro,
   numero,
+  numeroProse,
   chart,
   versions,
   isLatest,
@@ -43,6 +46,7 @@ export default function ProfileTabs({
   profile: ProfileData;
   astro: AstroView;
   numero: NumeroView;
+  numeroProse: NumeroProse;
   chart: WheelChart;
   versions: SnapshotVersionInfo[];
   isLatest: boolean;
@@ -88,7 +92,11 @@ export default function ProfileTabs({
       )}
       {tab === "Numerology" && (
         <div role="tabpanel" aria-label="Numerology">
-          <NumerologyPanel numero={numero} profileId={profile.id} />
+          <NumerologyPanel
+            numero={numero}
+            prose={numeroProse}
+            profileId={profile.id}
+          />
         </div>
       )}
       {tab === "Mazal" && (

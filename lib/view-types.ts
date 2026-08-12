@@ -2,6 +2,7 @@ import type { Aspect, ChartSnapshot } from "@astralsync/astro-core";
 import type { MazalChart } from "@astralsync/hebrew-core";
 import type {
   HebrewDateGematriaResult,
+  LifePathResult,
   NameNumberResult,
 } from "@astralsync/numero-core";
 import type { ProfileView } from "./snapshots";
@@ -36,6 +37,15 @@ export interface StoredHebrewGematria {
   katanName: NameNumberResult | null;
 }
 
+/** Shape of the stored `derivationJson` column. */
+export interface NumeroDerivation {
+  lifePath: LifePathResult;
+  destiny: NameNumberResult | null;
+  soulUrge: NameNumberResult | null;
+  /** Absent on snapshots computed before the two-field name split. */
+  hebrewDestiny?: NameNumberResult | null;
+}
+
 export function toWheelChart(astro: AstroView): WheelChart {
   const chart = astro.chart as unknown as StoredChart;
   const aspects = (astro.aspects as unknown as Aspect[]) ?? [];
@@ -48,4 +58,37 @@ export function toStoredMazal(hebrew: HebrewView): StoredMazal {
 
 export function toStoredHebrewGematria(hebrew: HebrewView): StoredHebrewGematria {
   return hebrew.gematria as unknown as StoredHebrewGematria;
+}
+
+export function toNumeroDerivation(
+  numero: Pick<NumeroView, "derivation">,
+): NumeroDerivation {
+  return numero.derivation as unknown as NumeroDerivation;
+}
+
+/**
+ * Build the reading input for `resolveReading` from a numero snapshot view.
+ * The return shape structurally matches content.ts's `NumeroReadingInput`
+ * (declared here inline to avoid an import cycle — content.ts already
+ * imports this module).
+ */
+export function toNumeroReadingInput(
+  numero: Pick<NumeroView, "lifePath" | "isMasterLifePath" | "derivation">,
+): {
+  lifePath: number;
+  isMaster: boolean;
+  destiny: { value: number; isMaster: boolean } | null;
+  soulUrge: { value: number; isMaster: boolean } | null;
+} {
+  const d = toNumeroDerivation(numero);
+  return {
+    lifePath: numero.lifePath,
+    isMaster: numero.isMasterLifePath,
+    destiny: d.destiny
+      ? { value: d.destiny.value, isMaster: d.destiny.isMaster }
+      : null,
+    soulUrge: d.soulUrge
+      ? { value: d.soulUrge.value, isMaster: d.soulUrge.isMaster }
+      : null,
+  };
 }
