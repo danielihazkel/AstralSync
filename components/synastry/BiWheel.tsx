@@ -38,8 +38,8 @@ function planetAriaLabel(side: SynastrySide, planet: Planet): string {
  * The synastry bi-wheel: person A's chart inside (houses and all), person B's
  * planets on the outer band, dashed cross-aspect chords diving between rings.
  * Full hover/tap/focus parity with ChartWheel — hover previews, click/Enter
- * pins into the detail card — the interactivity the transit wheel deferred
- * to this phase.
+ * pins into the detail card. TransitWheel ports this same interaction model
+ * to the transit/progression rings.
  */
 export default function BiWheel({
   a,
