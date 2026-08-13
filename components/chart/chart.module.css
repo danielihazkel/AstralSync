@@ -257,6 +257,48 @@
   color: var(--danger);
 }
 
+/* Chart patterns */
+
+.patterns {
+  margin-top: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.patternsTitle {
+  font-size: 1.05rem;
+  margin-bottom: 0.6rem;
+}
+
+.patternList {
+  list-style: none;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.patternHead {
+  font-size: 0.95rem;
+}
+
+.patternGlyph {
+  margin-right: 0.25rem;
+}
+
+.patternCopy {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin-top: 0.2rem;
+}
+
+.patternNote {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 0.9rem;
+}
+
 @media print {
   .downloadRow {
     display: none;

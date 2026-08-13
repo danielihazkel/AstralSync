@@ -10,7 +10,9 @@ import type {
   ProfileData,
   WheelChart,
 } from "@/lib/view-types";
+import type { ChartPattern } from "@astralsync/astro-core";
 import ChartWheel, { type ChartPoints } from "@/components/chart/ChartWheel";
+import ChartPatterns from "@/components/chart/ChartPatterns";
 import ForecastPanel from "@/components/forecast/ForecastPanel";
 import MazalPanel from "@/components/mazal/MazalPanel";
 import NumerologyPanel, {
@@ -31,6 +33,7 @@ export default function ProfileTabs({
   numeroProse,
   chart,
   points = null,
+  patterns = [],
   versions,
   isLatest,
   reading,
@@ -44,6 +47,7 @@ export default function ProfileTabs({
   numeroProse: NumeroProse;
   chart: WheelChart;
   points?: ChartPoints | null;
+  patterns?: ChartPattern[];
   versions: SnapshotVersionInfo[];
   isLatest: boolean;
   reading: ResolvedReading;
@@ -87,6 +91,7 @@ export default function ProfileTabs({
             points={points}
             downloadName={`${profile.displayName} chart`}
           />
+          <ChartPatterns patterns={patterns} />
         </div>
       )}
       {tab === "Reading" && (

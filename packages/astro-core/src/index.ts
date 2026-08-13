@@ -30,6 +30,8 @@ export {
 } from "./fortune";
 export { annualProfection, TRADITIONAL_RULERS } from "./profections";
 export type { AnnualProfection } from "./profections";
+export { detectPatterns } from "./patterns";
+export type { ChartPattern, PatternType } from "./patterns";
 export type { EclipseEvent, EclipseKind, EclipseType } from "./eclipses";
 export { pointsAt, meanNode, trueNode, meanLilith } from "./points";
 export type { PointName, PointPlacement, NodeVariant } from "./points";

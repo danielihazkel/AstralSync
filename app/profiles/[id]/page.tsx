@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
   pointsAt,
@@ -192,6 +193,7 @@ export default async function ProfilePage({
         numeroProse={numeroProse}
         chart={chart}
         points={points}
+        patterns={detectPatterns(chart.placements)}
         versions={versions}
         isLatest={isLatest}
         reading={reading}
