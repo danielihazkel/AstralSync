@@ -301,13 +301,34 @@ export function renderWesternPeriodData(summary: WesternPeriodSummary): string {
   }
 
   if (summary.events.length > 0) {
-    lines.push("Sky events this period (dates approximate, from daily sampling):");
+    lines.push(
+      "Sky events this period (ingress/station dates approximate, from daily sampling; eclipse dates exact):",
+    );
     for (const e of summary.events) {
-      lines.push(
-        e.type === "ingress"
-          ? `- ${cap(e.planet)} enters ${cap(e.toSign)} (from ${cap(e.fromSign)}) around ${formatCivil(e.aroundDate)}`
-          : `- ${cap(e.planet)} stations ${e.direction} around ${formatCivil(e.aroundDate)}`,
-      );
+      if (e.type === "eclipse") {
+        const where =
+          e.natalHouse !== null
+            ? `, falling in the natal ${ordinal(e.natalHouse)} house`
+            : "";
+        const contacts =
+          e.natalContacts.length > 0
+            ? `, ${e.natalContacts
+                .map(
+                  (c) =>
+                    `${c.aspect === "conjunction" ? "conjunct" : "opposite"} natal ${cap(c.planet)} (${degreeLabel(c.orb)})`,
+                )
+                .join(", ")}`
+            : "";
+        lines.push(
+          `- ${cap(e.eclipseType)} ${e.kind} eclipse at ${Math.floor(e.degreeInSign)}° ${cap(e.sign)} on ${formatCivil(e.date)}${where}${contacts}`,
+        );
+      } else {
+        lines.push(
+          e.type === "ingress"
+            ? `- ${cap(e.planet)} enters ${cap(e.toSign)} (from ${cap(e.fromSign)}) around ${formatCivil(e.aroundDate)}`
+            : `- ${cap(e.planet)} stations ${e.direction} around ${formatCivil(e.aroundDate)}`,
+        );
+      }
     }
   }
 

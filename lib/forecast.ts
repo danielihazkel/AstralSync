@@ -1,9 +1,13 @@
 import {
   DEFAULT_TRANSIT_ORBS,
   detectCrossAspects,
+  houseOf,
   overlayHouses,
   positionsAt,
+  separation,
+  upcomingEclipses,
   type AspectType,
+  type EclipseType,
   type Placement,
   type Planet,
   type Sign,
@@ -131,6 +135,23 @@ export type TransitEvent =
       planet: Planet;
       direction: "retrograde" | "direct";
       aroundDate: CivilDate;
+    }
+  | {
+      type: "eclipse";
+      kind: "solar" | "lunar";
+      eclipseType: EclipseType;
+      sign: Sign;
+      degreeInSign: number;
+      /** Natal house the eclipse degree falls in; null on solar charts. */
+      natalHouse: number | null;
+      /** Natal planets within 3° of conjunct/opposite the eclipse degree. */
+      natalContacts: {
+        planet: Planet;
+        aspect: "conjunction" | "opposition";
+        orb: number;
+      }[];
+      /** Exact (eclipse peaks are searched, not sampled) — phrase as "on". */
+      date: CivilDate;
     };
 
 /** One (transiting a, natal b, aspect type) contact tracked across the period. */
@@ -226,6 +247,41 @@ export function computeWesternPeriodSummary(
         });
       }
     }
+  }
+
+  // Eclipses are searched directly (a peak between noon samples would be
+  // missed): from the start day's midnight through the end day's midnight,
+  // both local. Their dates are exact, unlike the sampled events above.
+  const eclipseFrom = new Date(noonUtcFor(period.start).getTime() - 43_200_000);
+  for (const e of upcomingEclipses(eclipseFrom, period.days)) {
+    const peak = new Date(e.peakUtc);
+    const natalContacts: Extract<
+      TransitEvent,
+      { type: "eclipse" }
+    >["natalContacts"] = [];
+    for (const p of natal.placements) {
+      const sep = separation(e.longitude, p.longitude);
+      if (sep <= 3) {
+        natalContacts.push({ planet: p.planet, aspect: "conjunction", orb: sep });
+      } else if (sep >= 177) {
+        natalContacts.push({
+          planet: p.planet,
+          aspect: "opposition",
+          orb: 180 - sep,
+        });
+      }
+    }
+    natalContacts.sort((x, y) => x.orb - y.orb);
+    events.push({
+      type: "eclipse",
+      kind: e.kind,
+      eclipseType: e.type,
+      sign: e.sign,
+      degreeInSign: e.degreeInSign,
+      natalHouse: natal.houses ? houseOf(e.longitude, natal.houses.cusps) : null,
+      natalContacts,
+      date: civilFromDate(peak),
+    });
   }
 
   // Aspect windows: per-day cross aspects grouped by (a, b, type).

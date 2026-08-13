@@ -172,6 +172,52 @@ describe("computeWesternPeriodSummary", () => {
     expect(seen).toBeGreaterThanOrEqual(1);
   });
 
+  it("month kind: reports both eclipses of the Aug 2026 season with natal houses", () => {
+    const p = periodFor("month", "western", { year: 2026, month: 8, day: 13 });
+    const s = computeWesternPeriodSummary(natalChart(), 1, p, noonUtc);
+    const eclipses = s.events.filter((e) => e.type === "eclipse");
+    expect(eclipses).toHaveLength(2);
+    expect(eclipses[0]).toMatchObject({
+      kind: "solar",
+      eclipseType: "total",
+      sign: "leo",
+      date: { year: 2026, month: 8, day: 12 },
+    });
+    expect(eclipses[1]).toMatchObject({ kind: "lunar", sign: "pisces" });
+    for (const e of eclipses) {
+      expect(e.natalHouse).toBeGreaterThanOrEqual(1);
+      expect(e.natalHouse).toBeLessThanOrEqual(12);
+      for (const c of e.natalContacts) expect(c.orb).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("day kind: an eclipse day reports exactly its own eclipse", () => {
+    const p = periodFor("day", "western", { year: 2026, month: 8, day: 12 });
+    const s = computeWesternPeriodSummary(natalChart(), 1, p, noonUtc);
+    const eclipses = s.events.filter((e) => e.type === "eclipse");
+    expect(eclipses).toHaveLength(1);
+    expect(eclipses[0].kind).toBe("solar");
+  });
+
+  it("reports no eclipses in a period without one", () => {
+    const p = periodFor("week", "western", { year: 2026, month: 7, day: 5 });
+    const s = computeWesternPeriodSummary(natalChart(), 1, p, noonUtc);
+    expect(s.events.filter((e) => e.type === "eclipse")).toHaveLength(0);
+  });
+
+  it("eclipse natalHouse is null on a solar natal chart", () => {
+    const p = periodFor("month", "western", { year: 2026, month: 8, day: 13 });
+    const s = computeWesternPeriodSummary(
+      natalChart({ timeCertainty: "unknown" }),
+      1,
+      p,
+      noonUtc,
+    );
+    const eclipses = s.events.filter((e) => e.type === "eclipse");
+    expect(eclipses.length).toBeGreaterThan(0);
+    for (const e of eclipses) expect(e.natalHouse).toBeNull();
+  });
+
   it("solar natal: no house overlay; moon uncertainty propagates", () => {
     const p = periodFor("day", "western", { year: 2026, month: 8, day: 13 });
     const s = computeWesternPeriodSummary(

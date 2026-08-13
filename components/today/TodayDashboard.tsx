@@ -220,6 +220,27 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
         </div>
       )}
 
+      {sky.eclipses.length > 0 && (
+        <div className={styles.transits} aria-label="Upcoming eclipses">
+          <h3 className={styles.cardTitle}>Eclipses ahead</h3>
+          <ul className={styles.transitList}>
+            {sky.eclipses.map((e) => (
+              <li key={e.peakUtc}>
+                {e.type[0].toUpperCase() + e.type.slice(1)} {e.kind} eclipse ·{" "}
+                <span className={styles.glyph} aria-hidden="true">
+                  {SIGN_GLYPH_CHARS[e.sign] + "︎"}
+                </span>
+                {Math.floor(e.degreeInSign)}° {SIGN_NAMES[e.sign]} on{" "}
+                {new Date(e.peakUtc).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {sky.transits.length > 0 && (
         <div className={styles.transits} aria-label="Notable transits">
           <h3 className={styles.cardTitle}>In the sky for your charts</h3>

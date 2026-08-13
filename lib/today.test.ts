@@ -45,6 +45,23 @@ describe("computeToday", () => {
     expect(sky.moon.illumination).toBeLessThan(0.03);
   });
 
+  it("lists eclipses peaking within the 35-day horizon", () => {
+    // 2024-04-08 total solar eclipse falls 2½ weeks after this instant.
+    const sky = computeToday(new Date(Date.UTC(2024, 2, 20, 12, 0)), null, []);
+    const solar = sky.eclipses.filter((e) => e.kind === "solar");
+    expect(solar).toHaveLength(1);
+    expect(solar[0].type).toBe("total");
+    expect(solar[0].sign).toBe("aries");
+    // The Mar 25 penumbral lunar eclipse is also inside the horizon.
+    expect(sky.eclipses.some((e) => e.kind === "lunar")).toBe(true);
+  });
+
+  it("reports no eclipses when none fall within the horizon", () => {
+    // May–June 2024 has no eclipses within 35 days of May 1.
+    const sky = computeToday(new Date(Date.UTC(2024, 4, 1, 12, 0)), null, []);
+    expect(sky.eclipses).toHaveLength(0);
+  });
+
   it("maps the civil date to the Hebrew calendar without a location", () => {
     // 2024-04-23 daytime = 15 Nisan 5784 (first day of Pesach).
     const sky = computeToday(new Date(Date.UTC(2024, 3, 23, 12, 0)), null, []);

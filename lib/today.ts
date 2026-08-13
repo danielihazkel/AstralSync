@@ -2,7 +2,9 @@ import {
   DEFAULT_TRANSIT_ORBS,
   detectCrossAspects,
   positionsAt,
+  upcomingEclipses,
   type CrossAspect,
+  type EclipseEvent,
   type Placement,
   type Planet,
   type Sign,
@@ -73,6 +75,9 @@ export interface TodaySky {
   };
   /** Planets flipping direction within the next week. */
   stations: StationAlert[];
+  /** Eclipses peaking within the next ~5 weeks — enough lead time to catch a
+   *  whole eclipse season, unlike the 7-day station horizon. */
+  eclipses: EclipseEvent[];
   hebrew: {
     parts: HebrewDateParts;
     mazal: MazalEntry;
@@ -336,6 +341,7 @@ export function computeToday(
       voidOfCourse: computeVoidOfCourse(now),
     },
     stations: computeStations(now),
+    eclipses: upcomingEclipses(now, 35),
     hebrew: { parts, mazal, approximate },
     hour,
     transits,
