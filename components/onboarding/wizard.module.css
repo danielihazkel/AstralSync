@@ -210,3 +210,25 @@
   color: var(--text-muted);
   font-size: 0.8rem;
 }
+
+/* Manual location entry */
+
+.linkBtn {
+  display: block;
+  margin-top: 0.75rem;
+  color: var(--accent-bright);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.coordRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+.coordRow input[aria-invalid="true"],
+.field input[aria-invalid="true"] {
+  border-color: var(--danger);
+}

@@ -1,11 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { offsetMinutesAt, resolveBirthMoment, timezoneFor } from "./tz";
+import {
+  isValidTimeZone,
+  offsetMinutesAt,
+  resolveBirthMoment,
+  timezoneFor,
+} from "./tz";
 
 describe("timezoneFor (geo-tz, offline)", () => {
   it("resolves coordinates to IANA zones", () => {
     expect(timezoneFor(40.7, -74.0)).toBe("America/New_York");
     expect(timezoneFor(32.08, 34.78)).toBe("Asia/Jerusalem");
     expect(timezoneFor(48.4, 10.0)).toBe("Europe/Berlin");
+  });
+});
+
+describe("isValidTimeZone", () => {
+  it("accepts zones the runtime's IANA database knows", () => {
+    expect(isValidTimeZone("Asia/Jerusalem")).toBe(true);
+    expect(isValidTimeZone("America/Argentina/Buenos_Aires")).toBe(true);
+    expect(isValidTimeZone("UTC")).toBe(true);
+  });
+
+  it("rejects unknown and malformed zone names", () => {
+    expect(isValidTimeZone("Not/AZone")).toBe(false);
+    expect(isValidTimeZone("Europe Berlin")).toBe(false);
+    expect(isValidTimeZone("")).toBe(false);
   });
 });
 

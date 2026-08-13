@@ -1,10 +1,12 @@
 import { z } from "zod";
 import type { ProfileBirthData } from "./snapshots";
+import { isValidTimeZone } from "./tz";
 
 /**
  * Request validation for the profile API (Phase 1d). Pure — timezone
  * defaulting (lat/lng → IANA zone) is the caller's job so this module
- * stays free of lookups.
+ * stays free of lookups. (`isValidTimeZone` is an Intl probe, not a
+ * lookup — it keeps a client-supplied zone from reaching offset math.)
  */
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -68,6 +70,13 @@ export const profileInputSchema = profileInputBase
         code: "custom",
         path: ["utcOffsetMinutes"],
         message: "required when offsetOverridden is true",
+      });
+    }
+    if (v.tzIana !== undefined && !isValidTimeZone(v.tzIana)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["tzIana"],
+        message: "not a recognized IANA timezone",
       });
     }
     if (

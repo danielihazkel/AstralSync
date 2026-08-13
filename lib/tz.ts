@@ -39,6 +39,20 @@ export function timezoneFor(lat: number, lng: number): string {
   return zones[0];
 }
 
+/**
+ * Whether `zone` names a timezone the runtime's IANA database knows —
+ * validates client-supplied zones (manual-location onboarding) before they
+ * reach offset resolution. Pure: an Intl constructor probe, no geo lookup.
+ */
+export function isValidTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function parseGmtOffset(value: string): number {
   // Formats seen from ICU: "GMT", "GMT+2", "GMT+05:30", "GMT+00:53:28" (LMT).
   const m = value.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?/);

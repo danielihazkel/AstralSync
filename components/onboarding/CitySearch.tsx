@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ManualLocation from "./ManualLocation";
 import type { CityOption } from "./types";
 import styles from "./wizard.module.css";
 
@@ -32,6 +33,7 @@ export default function CitySearch({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CityResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [manual, setManual] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -82,46 +84,74 @@ export default function CitySearch({
           </span>
         </p>
       )}
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search for a city (min. 2 letters)…"
-        aria-label="Search birth city"
-        autoComplete="off"
-        className={styles.cityInput}
-      />
-      {searching && <p className={styles.cityHint}>Searching…</p>}
-      {!searching && query.trim().length >= 2 && results.length === 0 && (
-        <p className={styles.cityHint}>
-          No matching city. The offline dataset covers cities with 15,000+
-          inhabitants — try the nearest larger town.
-        </p>
+      {manual ? (
+        <>
+          <ManualLocation
+            onSelect={(city) => {
+              onSelect(city);
+              setManual(false);
+            }}
+          />
+          <button
+            type="button"
+            className={styles.linkBtn}
+            onClick={() => setManual(false)}
+          >
+            Back to city search
+          </button>
+        </>
+      ) : (
+        <>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search for a city (min. 2 letters)…"
+            aria-label="Search birth city"
+            autoComplete="off"
+            className={styles.cityInput}
+          />
+          {searching && <p className={styles.cityHint}>Searching…</p>}
+          {!searching && query.trim().length >= 2 && results.length === 0 && (
+            <p className={styles.cityHint}>
+              No matching city. The offline dataset covers cities with 15,000+
+              inhabitants — try the nearest larger town, or enter coordinates
+              below.
+            </p>
+          )}
+          <ul className={styles.cityResults}>
+            {results.map((c) => (
+              <li key={c.geonameId}>
+                <button
+                  type="button"
+                  className={styles.cityResult}
+                  onClick={() => {
+                    onSelect({
+                      geonameId: c.geonameId,
+                      label: labelFor(c),
+                      lat: c.lat,
+                      lng: c.lng,
+                      tzIana: c.tzIana,
+                    });
+                    setQuery("");
+                    setResults([]);
+                  }}
+                >
+                  {labelFor(c)}
+                  <span className={styles.cityTz}>{c.tzIana}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className={styles.linkBtn}
+            onClick={() => setManual(true)}
+          >
+            Can&rsquo;t find your birthplace? Enter coordinates
+          </button>
+        </>
       )}
-      <ul className={styles.cityResults}>
-        {results.map((c) => (
-          <li key={c.geonameId}>
-            <button
-              type="button"
-              className={styles.cityResult}
-              onClick={() => {
-                onSelect({
-                  geonameId: c.geonameId,
-                  label: labelFor(c),
-                  lat: c.lat,
-                  lng: c.lng,
-                  tzIana: c.tzIana,
-                });
-                setQuery("");
-                setResults([]);
-              }}
-            >
-              {labelFor(c)}
-              <span className={styles.cityTz}>{c.tzIana}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

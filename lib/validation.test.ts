@@ -40,6 +40,24 @@ describe("profileInputSchema", () => {
     ).toBe(true);
   });
 
+  it("accepts a manual-location payload (no geoname id, explicit zone)", () => {
+    const p = profileInputSchema.parse({
+      ...valid,
+      birthCityGeonameId: null,
+      tzIana: "Europe/Berlin",
+    });
+    expect(p.birthCityGeonameId).toBeNull();
+    expect(p.tzIana).toBe("Europe/Berlin");
+  });
+
+  it("rejects a timezone the IANA database does not know", () => {
+    const r = profileInputSchema.safeParse({ ...valid, tzIana: "Not/AZone" });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0]?.path).toEqual(["tzIana"]);
+    }
+  });
+
   it("requires an offset when offsetOverridden is set", () => {
     expect(
       profileInputSchema.safeParse({ ...valid, offsetOverridden: true })
