@@ -22,14 +22,14 @@ flowchart LR
 ```
 AstralSync/
 ├── app/                    # Next.js App Router: pages + API routes
-├── components/             # React components (chart wheel, onboarding, profile UI)
+├── components/             # React components (chart wheel, onboarding, panels, Today)
 ├── packages/
 │   ├── astro-core/         # Chart calculation — framework-free TypeScript
+│   ├── hebrew-core/        # Hebrew calendar/mazalot/planetary hours — framework-free
 │   └── numero-core/        # Numerology calculation — framework-free TypeScript
-├── content/                # Versioned interpretation library (Markdown/JSON)
+├── content/                # Versioned interpretation library (en/ + he/ Markdown)
 ├── prisma/                 # Schema + migrations
-├── scripts/                # One-off tooling (GeoNames import)
-└── docker-compose.yml      # Optional: app + MySQL
+└── scripts/                # One-off tooling (GeoNames import, icon generation)
 ```
 
 ## 3. Module boundaries
@@ -104,15 +104,15 @@ The math is solved; the text is the product (PRD §5). Content is a first-class,
 
 ## 9. Testing strategy (PRD §8)
 
-- **Golden chart tests** in `astro-core`: 10–15 reference charts with known published placements, asserting sign, house, and longitude within 1 arcminute of Swiss Ephemeris reference values.
-- **Required edge cases:** birth near midnight across a DST transition; high-latitude birth (Placidus → Whole Sign fallback); planet stationing (retrograde flag); sign-cusp Moon with approximate time; pre-1970 offset warning.
+- **Golden chart tests** in `astro-core`: 10–15 reference charts with known published placements, asserting sign, house, and longitude within 1 arcminute of Swiss Ephemeris reference values. Further golden-style suites pin eclipses (NASA catalog events), planetary returns, the Part of Fortune, profections, and chart-pattern detection against synthetic and historical fixtures.
+- **Required edge cases:** birth near midnight across a DST transition; high-latitude birth (Placidus → Whole Sign fallback); planet stationing (retrograde flag); sign-cusp Moon with approximate time; pre-1970 offset warning; Saturn's retrograde triple pass over a natal degree; snapshot invariance under the minor-aspect engine extension.
 - **Numerology:** master numbers 11/22/33 preservation; Y-as-vowel rules documented and tested; Hebrew final letter forms in gematria.
 - Core packages are framework-free, so all of the above runs as plain unit tests with no server or database.
 
 ## 10. Non-goals & phase gates
 
-**Out of scope for v1 (deliberate cuts, PRD §7):** React Native, user accounts/auth, cloud hosting/CDN, synastry, transits, minor aspects/asteroids/fixed stars/progressions, UI localization (content structure must not preclude it).
+**Since shipped (originally Phase 2+ cuts):** synastry (bi-wheel, overlays, composite, AI reading), daily transits, secondary progressions, solar/lunar/Jupiter/Saturn returns, annual profections, eclipses, chart patterns, the Part of Fortune, opt-in minor aspects with per-browser orb settings, the Hebrew/Mazal layer, forecasts, the journal, chart chat, the Today dashboard, and a printable report.
 
-**Phase 2:** synastry overlay, daily transits dashboard (the only feature requiring ongoing computation), full interpretation matrix.
+**Still out of scope (deliberate cuts):** React Native, user accounts/auth, cloud hosting/CDN, asteroids/Chiron/fixed stars (see `packages/astro-core/src/points.ts` for the Chiron rationale), sidereal zodiacs, UI localization (content structure must not preclude it).
 
-**Phase 3 (public deployment gate):** authentication, hosted database, privacy hardening (encryption at rest, retention, GDPR-style deletion), rate limiting, client-side calculation re-evaluation. Privacy section §4.6 of the PRD must be revisited before any public deployment — exact birth data is near-identifying personal data; v1 stores it only on the local machine, names are optional, and every profile supports full JSON export and hard delete.
+**Phase 4 (public deployment gate):** authentication, hosted database, `@hebcal/core` GPL-2.0 license review, privacy hardening (encryption at rest, retention, GDPR-style deletion), per-route rate limiting, client-side calculation re-evaluation. Privacy section §4.6 of the PRD must be revisited before any public deployment — exact birth data is near-identifying personal data; v1 stores it only on the local machine, names are optional, and every profile supports full JSON export and hard delete.
