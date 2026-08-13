@@ -104,7 +104,8 @@
 
 .pointControls {
   display: flex;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
   align-items: center;
   margin-top: 0.5rem;
   font-size: 0.85rem;
@@ -297,6 +298,15 @@
   color: var(--text-muted);
   font-size: 0.8rem;
   margin-top: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  /* Stacked under the wheel, the detail card takes the full width and
+     stops being sticky (it would otherwise pin over the content below). */
+  .detail {
+    max-width: none;
+    position: static;
+  }
 }
 
 @media print {

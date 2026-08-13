@@ -185,6 +185,7 @@ export default function CyclesPanel({
           bodyLabel="Progressed"
         />
 
+        <div className="tableWrap">
         <table className={styles.table}>
           <thead>
             <tr>
@@ -219,6 +220,7 @@ export default function CyclesPanel({
             ))}
           </tbody>
         </table>
+        </div>
 
         <h4 className={styles.sectionTitle}>Progressed aspects to the natal chart</h4>
         {orbs && <OrbSettingsControl value={orbs} onChange={changeOrbs} />}

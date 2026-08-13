@@ -44,6 +44,7 @@ export default function CompositePanel({
       <ChartWheel chart={chart} downloadName={`${aName} × ${bName} composite`} />
 
       <h3 className={styles.sectionTitle}>Composite placements</h3>
+      <div className="tableWrap">
       <table className={styles.table}>
         <thead>
           <tr>
@@ -67,6 +68,7 @@ export default function CompositePanel({
           ))}
         </tbody>
       </table>
+      </div>
 
       {sorted.length > 0 && (
         <>

@@ -35,6 +35,7 @@
 .card {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);

@@ -47,6 +47,7 @@
 
 .tabs {
   display: flex;
+  flex-wrap: wrap; /* nine tabs — keep all visible on phones instead of overflowing */
   gap: 0.25rem;
   border-bottom: 1px solid var(--border);
   margin-bottom: 1.25rem;

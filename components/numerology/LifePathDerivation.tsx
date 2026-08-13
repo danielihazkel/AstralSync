@@ -16,6 +16,7 @@ export default function LifePathDerivation({
   return (
     <section className={styles.derivation}>
       <h3>Life Path — how it was derived</h3>
+      <div className="tableWrap">
       <table className={styles.table}>
         <thead>
           <tr>
@@ -36,6 +37,7 @@ export default function LifePathDerivation({
           ))}
         </tbody>
       </table>
+      </div>
       <p className={styles.totalRow}>
         {result.derivation.components.map((c) => c.reduced).join(" + ")} ={" "}
         {result.derivation.total},{" "}

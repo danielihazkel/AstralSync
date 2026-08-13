@@ -21,35 +21,14 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ServiceWorkerRegistration />
-        <header
-          style={{
-            borderBottom: "1px solid var(--border)",
-            padding: "0.85rem 1.5rem",
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-          }}
-        >
-          <Link
-            href="/"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "1.15rem",
-              color: "var(--accent-bright)",
-            }}
-          >
+        <header className="siteHeader">
+          <Link href="/" className="siteBrand">
             ✶ AstralSync
           </Link>
-          <nav style={{ display: "flex", gap: "1.25rem" }}>
-            <Link href="/" style={{ color: "var(--text-muted)" }}>
-              Profiles
-            </Link>
-            <Link href="/synastry" style={{ color: "var(--text-muted)" }}>
-              Synastry
-            </Link>
-            <Link href="/onboarding" style={{ color: "var(--text-muted)" }}>
-              New profile
-            </Link>
+          <nav className="siteNav">
+            <Link href="/">Profiles</Link>
+            <Link href="/synastry">Synastry</Link>
+            <Link href="/onboarding">New profile</Link>
           </nav>
         </header>
         {children}

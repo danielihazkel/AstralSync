@@ -37,6 +37,7 @@ export function TransitPositionsTable({
   showHouses: boolean;
 }) {
   return (
+    <div className="tableWrap">
     <table className={styles.table}>
       <thead>
         <tr>
@@ -68,6 +69,7 @@ export function TransitPositionsTable({
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 

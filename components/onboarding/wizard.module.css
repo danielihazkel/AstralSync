@@ -232,3 +232,19 @@
 .field input[aria-invalid="true"] {
   border-color: var(--danger);
 }
+
+@media (max-width: 640px) {
+  .panel {
+    padding: 1rem;
+  }
+
+  .overrideRow {
+    flex-wrap: wrap;
+    align-items: start;
+  }
+
+  .nextBtn,
+  .backBtn {
+    padding: 0.55rem 1.1rem;
+  }
+}
