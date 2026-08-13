@@ -57,7 +57,12 @@ astronomically unreachable at natal orbs), `ascendant_sign` ×12,
 `element_dominance` ×4, `modality_dominance` ×3, and a `synastry_aspect`
 ×12 starter set. The reading renders sign/house sections for the personal
 planets only; Jupiter–Pluto entries are authored for future surfaces
-(transits, LLM prompts).
+(transits, LLM prompts). The AI period forecasts (Phase 3e) reuse the natal
+`aspect` entries as archetypal pair context for the strongest transiting
+pairs; a dedicated `transit_aspect` category (transit-voiced, "moving over"
+framing) is deferred authoring work — adding it is one line in
+`CONTENT_CATEGORIES` plus entries, and the forecast route would prefer it
+over the natal entries once present.
 
 **Hebrew scope (62 entries under `he/`, Phase 2c):** `mazal_month` ×12 (the
 single `adar` entry covers Adar I/II), `day_planet` ×7 + `hour_planet` ×7

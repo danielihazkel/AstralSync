@@ -6,6 +6,7 @@ export const TABS = [
   "Numerology",
   "Mazal",
   "Transits",
+  "Forecast",
   "Details",
 ] as const;
 export type Tab = (typeof TABS)[number];

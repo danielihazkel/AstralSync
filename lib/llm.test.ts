@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ResolvedReading } from "./content";
+import type { ContentEntry, ResolvedReading } from "./content";
+import type { HebrewPeriodSummary, WesternPeriodSummary } from "./forecast";
 import type { ResolvedHebrewReading } from "./hebrewReading";
 import type {
   NumeroDerivation,
@@ -8,8 +9,10 @@ import type {
   WheelChart,
 } from "./view-types";
 import {
+  buildHebrewForecastPrompt,
   buildHebrewReadingPrompt,
   buildReadingPrompt,
+  buildWesternForecastPrompt,
   llmClientFromEnv,
   LlmUnavailableError,
   ollamaClient,
@@ -353,6 +356,197 @@ describe("buildHebrewReadingPrompt", () => {
     expect(prompt).toContain("כ״ד טֵבֵת תש״ס");
     expect(prompt).toContain("### מזל גדי — חודש טבת (חודש טבת — מזל גדי)");
     expect(prompt).toContain("גוף הפרק על מזל גדי.");
+  });
+});
+
+const westernSummary: WesternPeriodSummary = {
+  period: {
+    kind: "week",
+    start: { year: 2026, month: 8, day: 9 },
+    end: { year: 2026, month: 8, day: 15 },
+    days: 7,
+  },
+  startPlacements: chart.placements,
+  natal: { version: 2, isSolarChart: false, moonUncertain: false },
+  moonBySign: [
+    {
+      sign: "pisces",
+      fromDate: { year: 2026, month: 8, day: 9 },
+      toDate: { year: 2026, month: 8, day: 11 },
+    },
+  ],
+  moonNext: null,
+  events: [
+    {
+      type: "station",
+      planet: "saturn",
+      direction: "retrograde",
+      aroundDate: { year: 2026, month: 8, day: 14 },
+    },
+  ],
+  topAspects: [
+    {
+      a: "saturn",
+      b: "sun",
+      type: "square",
+      minOrb: 0.2,
+      closestDate: { year: 2026, month: 8, day: 11 },
+      appliedAllPeriod: true,
+    },
+  ],
+};
+
+const aspectEntries: ContentEntry[] = [
+  {
+    key: "aspect/sun/saturn/square",
+    category: "aspect",
+    title: "Sun square Saturn",
+    essence: null,
+    bodyMd: "Pressure meets purpose.",
+  },
+];
+
+describe("buildWesternForecastPrompt", () => {
+  it("frames the kind, word target, and approximate timing", () => {
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries);
+    expect(prompt).toContain("weekly forecast");
+    expect(prompt).toContain("roughly 350 words");
+    expect(prompt).toContain("phrase timing approximately");
+    expect(prompt).toContain("adapt their themes to transits");
+  });
+
+  it("includes the period sky, the natal chart, and the aspect entries", () => {
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries);
+    expect(prompt).toContain("## Period sky data");
+    expect(prompt).toContain("- Saturn stations retrograde around 2026-08-14");
+    expect(prompt).toContain("Transiting Saturn square natal Sun");
+    expect(prompt).toContain("## Complete natal chart data");
+    expect(prompt).toContain("Sun square Pluto — orb 5°12′");
+    expect(prompt).toContain("### Sun square Saturn");
+    expect(prompt).toContain("Pressure meets purpose.");
+  });
+
+  it("scales the word target by kind and omits an empty entries section", () => {
+    const day = buildWesternForecastPrompt(
+      {
+        ...westernSummary,
+        period: { ...westernSummary.period, kind: "day" },
+      },
+      chart,
+      [],
+    );
+    expect(day).toContain("daily forecast");
+    expect(day).toContain("roughly 250 words");
+    expect(day).not.toContain("## Interpretation entries");
+  });
+
+  it("adds solar-chart and uncertain-Moon caveats", () => {
+    const prompt = buildWesternForecastPrompt(
+      {
+        ...westernSummary,
+        natal: { version: 2, isSolarChart: true, moonUncertain: true },
+        startPlacements: solarChart.placements,
+      },
+      solarChart,
+      [],
+    );
+    expect(prompt).toContain("solar chart");
+    expect(prompt).toContain("natal Moon sign is uncertain");
+  });
+
+  it("never leaks the birth instant or coordinates", () => {
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries);
+    expect(prompt).not.toContain("2000-08-09");
+    expect(prompt).not.toContain("32.1");
+    expect(prompt).not.toContain("34.8");
+  });
+});
+
+const hebrewSummary: HebrewPeriodSummary = {
+  period: {
+    kind: "day",
+    start: { year: 2026, month: 8, day: 13 },
+    end: { year: 2026, month: 8, day: 13 },
+    days: 1,
+  },
+  days: [
+    {
+      civil: { year: 2026, month: 8, day: 13 },
+      hebrew: {
+        year: 5786,
+        month: 5,
+        day: 30,
+        monthKey: "av",
+        monthName: "Av",
+        weekday: 4,
+        renderGematriya: "ל׳ אָב תשפ״ו",
+      },
+      dayPlanet: "jupiter",
+      dateGematria: {
+        value: 6,
+        isMaster: false,
+        derivation: {
+          components: [
+            { part: "day", raw: 30, steps: [3], reduced: 3 },
+            { part: "year", raw: 5786, steps: [26, 8], reduced: 8 },
+          ],
+          total: 11,
+          steps: [2],
+        },
+      },
+    },
+  ],
+  months: [
+    {
+      monthKey: "av",
+      monthName: "Av",
+      mazal: { month: "av", mazal: "aryeh", hebrew: "אריה", sign: "leo" },
+      seferYetzirah: {
+        month: "av",
+        letter: "ט",
+        letterName: "Tet",
+        tribe: "shimon",
+        tribeHebrew: "שמעון",
+        faculty: "hearing",
+        facultyHebrew: "שמיעה",
+      },
+      fromCivil: { year: 2026, month: 8, day: 13 },
+      toCivil: { year: 2026, month: 8, day: 13 },
+    },
+  ],
+};
+
+const hebrewEntries: ContentEntry[] = [
+  {
+    key: "mazal_month/av",
+    category: "mazal_month",
+    title: "מזל אריה — חודש אב",
+    essence: null,
+    bodyMd: "גוף הפרק על מזל אריה.",
+  },
+];
+
+describe("buildHebrewForecastPrompt", () => {
+  it("reads the period against the natal Mazal, in English, Hebrew sources in", () => {
+    const prompt = buildHebrewForecastPrompt(hebrewSummary, mazal, gematria, hebrewEntries);
+    expect(prompt).toContain("daily forecast");
+    expect(prompt).toContain("roughly 250 words");
+    expect(prompt).toContain("entirely in English");
+    expect(prompt).toContain("against this person's natal Mazal chart");
+    expect(prompt).toContain("daytime mapping");
+    expect(prompt).toContain("## Period Hebrew calendar data");
+    expect(prompt).toContain("day planet Jupiter");
+    expect(prompt).toContain("## Complete natal Mazal chart data");
+    expect(prompt).toContain("Mazal (month sign): Tevet — Gdi (Capricorn)");
+    expect(prompt).toContain("### מזל אריה — חודש אב");
+    expect(prompt).toContain("גוף הפרק על מזל אריה.");
+  });
+
+  it("never leaks the birth instant or coordinates", () => {
+    const prompt = buildHebrewForecastPrompt(hebrewSummary, mazal, gematria, hebrewEntries);
+    expect(prompt).not.toContain("2000-01-01T10:00");
+    expect(prompt).not.toContain("32.1");
+    expect(prompt).not.toContain("34.8");
   });
 });
 

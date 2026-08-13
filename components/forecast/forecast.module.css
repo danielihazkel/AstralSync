@@ -1,0 +1,106 @@
+.panel {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+}
+
+.switcher {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.switch,
+.switchActive {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.9rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.switchActive {
+  color: var(--accent-bright);
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+
+.switch:hover {
+  color: var(--text);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.cardTitle {
+  font-size: 1.05rem;
+  margin-bottom: 0.5rem;
+}
+
+.provenance {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 0.7rem;
+}
+
+.body {
+  font-size: 0.95rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.body ul {
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.notice {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.staleNote {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.8rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 0.7rem;
+}
+
+.actionRow {
+  margin-top: 0.9rem;
+  font-size: 0.92rem;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+@media print {
+  .switcher,
+  .actionRow {
+    display: none;
+  }
+}

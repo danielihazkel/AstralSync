@@ -11,6 +11,7 @@ import {
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
+import ForecastCard from "@/components/forecast/ForecastCard";
 import TransitWheel from "./TransitWheel";
 import styles from "./transits.module.css";
 
@@ -30,10 +31,12 @@ export default function TransitsPanel({
   profileId,
   chart,
   isLatest,
+  llmEnabled,
 }: {
   profileId: number;
   chart: WheelChart;
   isLatest: boolean;
+  llmEnabled: boolean;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
 
@@ -192,6 +195,15 @@ export default function TransitsPanel({
           </ul>
         )}
       </section>
+
+      {/* The same row as Forecast → Day → Western: one cached daily reading. */}
+      <ForecastCard
+        profileId={profileId}
+        mode="western"
+        kind="day"
+        llmEnabled={llmEnabled}
+        heading="AI reading of today’s transits"
+      />
     </div>
   );
 }

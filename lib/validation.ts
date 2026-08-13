@@ -128,6 +128,34 @@ export const transitQuerySchema = z.object({
 
 export type TransitQuery = z.infer<typeof transitQuerySchema>;
 
+/** /api/profiles/[id]/forecast query/body: which forecast cell. `date` is a
+ *  testing hook ("compute the period containing this civil date"), defaulting
+ *  to server-local today; not exposed in the UI. */
+export const forecastParamsSchema = z
+  .object({
+    mode: z.enum(["western", "hebrew"]),
+    kind: z.enum(["day", "week", "month"]),
+    date: z.string().regex(DATE_RE, "expected YYYY-MM-DD").optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (!v.date) return;
+    const [y, m, d] = v.date.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    if (
+      date.getUTCFullYear() !== y ||
+      date.getUTCMonth() !== m - 1 ||
+      date.getUTCDate() !== d
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["date"],
+        message: "not a real calendar date",
+      });
+    }
+  });
+
+export type ForecastParams = z.infer<typeof forecastParamsSchema>;
+
 /** /synastry?a=<id>&b=<id> query — two distinct profile ids. */
 export const synastryQuerySchema = z
   .object({

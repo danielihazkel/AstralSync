@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { HebrewPeriodSummary, WesternPeriodSummary } from "./forecast";
 import type {
   NumeroDerivation,
   StoredHebrewGematria,
@@ -7,8 +8,10 @@ import type {
 } from "./view-types";
 import {
   renderChartData,
+  renderHebrewPeriodData,
   renderMazalData,
   renderNumerologyData,
+  renderWesternPeriodData,
 } from "./promptData";
 
 const chart: WheelChart = {
@@ -355,6 +358,281 @@ describe("renderMazalData", () => {
     };
     expect(renderMazalData(afterSunset, gematria)).toContain(
       "Born after sunset",
+    );
+  });
+});
+
+const westernSummary: WesternPeriodSummary = {
+  period: {
+    kind: "week",
+    start: { year: 2026, month: 8, day: 9 },
+    end: { year: 2026, month: 8, day: 15 },
+    days: 7,
+  },
+  startPlacements: [
+    {
+      planet: "sun",
+      longitude: 137,
+      sign: "leo",
+      degreeInSign: 17,
+      house: 10,
+      retrograde: false,
+    },
+    {
+      planet: "saturn",
+      longitude: 5.5,
+      sign: "aries",
+      degreeInSign: 5.5,
+      house: 6,
+      retrograde: true,
+    },
+  ],
+  natal: { version: 2, isSolarChart: false, moonUncertain: false },
+  moonBySign: [
+    {
+      sign: "pisces",
+      fromDate: { year: 2026, month: 8, day: 9 },
+      toDate: { year: 2026, month: 8, day: 10 },
+    },
+    {
+      sign: "aries",
+      fromDate: { year: 2026, month: 8, day: 11 },
+      toDate: { year: 2026, month: 8, day: 13 },
+    },
+    {
+      sign: "taurus",
+      fromDate: { year: 2026, month: 8, day: 14 },
+      toDate: { year: 2026, month: 8, day: 15 },
+    },
+  ],
+  moonNext: null,
+  events: [
+    {
+      type: "ingress",
+      planet: "mercury",
+      fromSign: "leo",
+      toSign: "virgo",
+      aroundDate: { year: 2026, month: 8, day: 12 },
+    },
+    {
+      type: "station",
+      planet: "saturn",
+      direction: "retrograde",
+      aroundDate: { year: 2026, month: 8, day: 14 },
+    },
+  ],
+  topAspects: [
+    {
+      a: "saturn",
+      b: "sun",
+      type: "square",
+      minOrb: 0.2,
+      closestDate: { year: 2026, month: 8, day: 11 },
+      appliedAllPeriod: true,
+    },
+    {
+      a: "mars",
+      b: "venus",
+      type: "trine",
+      minOrb: 1.5,
+      closestDate: { year: 2026, month: 8, day: 13 },
+      appliedAllPeriod: false,
+    },
+  ],
+};
+
+describe("renderWesternPeriodData", () => {
+  it("renders the period, positions with natal houses, and Moon spans", () => {
+    const out = renderWesternPeriodData(westernSummary);
+    expect(out).toContain("Period: week, 2026-08-09 to 2026-08-15");
+    expect(out).toContain("- Sun: Leo 17°00′, 10th natal house");
+    expect(out).toContain("- Saturn: Aries 5°30′, 6th natal house, retrograde");
+    expect(out).toContain("- Moon in Pisces: 2026-08-09 to 2026-08-10");
+    expect(out).toContain("- Moon in Aries: 2026-08-11 to 2026-08-13");
+  });
+
+  it("renders events approximately and aspect windows with orbs", () => {
+    const out = renderWesternPeriodData(westernSummary);
+    expect(out).toContain(
+      "- Mercury enters Virgo (from Leo) around 2026-08-12",
+    );
+    expect(out).toContain("- Saturn stations retrograde around 2026-08-14");
+    expect(out).toContain(
+      "- Transiting Saturn square natal Sun — closest around 2026-08-11, orb 0°12′, in orb all period",
+    );
+    expect(out).toContain(
+      "- Transiting Mars trine natal Venus — closest around 2026-08-13, orb 1°30′",
+    );
+  });
+
+  it("renders a day period with the Moon's next sign, signs-only when solar", () => {
+    const day: WesternPeriodSummary = {
+      ...westernSummary,
+      period: {
+        kind: "day",
+        start: { year: 2026, month: 8, day: 13 },
+        end: { year: 2026, month: 8, day: 13 },
+        days: 1,
+      },
+      natal: { ...westernSummary.natal, isSolarChart: true },
+      startPlacements: westernSummary.startPlacements.map((p) => ({
+        ...p,
+        house: null,
+      })),
+      moonBySign: [
+        {
+          sign: "aries",
+          fromDate: { year: 2026, month: 8, day: 13 },
+          toDate: { year: 2026, month: 8, day: 13 },
+        },
+      ],
+      moonNext: { sign: "taurus", date: { year: 2026, month: 8, day: 14 } },
+      events: [],
+    };
+    const out = renderWesternPeriodData(day);
+    expect(out).toContain("Period: day, 2026-08-13");
+    expect(out).toContain("signs only");
+    expect(out).toContain("- Saturn: Aries, retrograde");
+    expect(out).not.toContain("natal house");
+    expect(out).toContain("- Moon in Aries: 2026-08-13");
+    expect(out).toContain("- The Moon moves into Taurus by 2026-08-14.");
+  });
+});
+
+const hebrewDay = (
+  civilDay: number,
+  hebDay: number,
+  weekday: number,
+  monthName = "Av",
+  month = 5,
+  gematriaValue = 7,
+  isMaster = false,
+): HebrewPeriodSummary["days"][number] => ({
+  civil: { year: 2026, month: 8, day: civilDay },
+  hebrew: {
+    year: 5786,
+    month,
+    day: hebDay,
+    monthKey: monthName === "Elul" ? "elul" : "av",
+    monthName,
+    weekday,
+    renderGematriya: "כ״ו אָב תשפ״ו",
+  },
+  dayPlanet: (["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"] as const)[
+    weekday
+  ],
+  dateGematria: {
+    value: gematriaValue,
+    isMaster,
+    derivation: {
+      components: [
+        { part: "day", raw: hebDay, steps: [], reduced: hebDay % 9 || 9 },
+        { part: "year", raw: 5786, steps: [26, 8], reduced: 8 },
+      ],
+      total: 15,
+      steps: [6],
+    },
+  },
+});
+
+const hebrewSummary: HebrewPeriodSummary = {
+  period: {
+    kind: "week",
+    start: { year: 2026, month: 8, day: 9 },
+    end: { year: 2026, month: 8, day: 15 },
+    days: 7,
+  },
+  days: [
+    hebrewDay(9, 26, 0),
+    hebrewDay(10, 27, 1),
+    hebrewDay(11, 28, 2),
+    hebrewDay(12, 29, 3),
+    hebrewDay(13, 30, 4),
+    hebrewDay(14, 1, 5, "Elul", 6, 11, true),
+    hebrewDay(15, 2, 6, "Elul", 6),
+  ],
+  months: [
+    {
+      monthKey: "av",
+      monthName: "Av",
+      mazal: { month: "av", mazal: "aryeh", hebrew: "אריה", sign: "leo" },
+      seferYetzirah: {
+        month: "av",
+        letter: "ט",
+        letterName: "Tet",
+        tribe: "shimon",
+        tribeHebrew: "שמעון",
+        faculty: "hearing",
+        facultyHebrew: "שמיעה",
+      },
+      fromCivil: { year: 2026, month: 8, day: 9 },
+      toCivil: { year: 2026, month: 8, day: 13 },
+    },
+    {
+      monthKey: "elul",
+      monthName: "Elul",
+      mazal: { month: "elul", mazal: "betulah", hebrew: "בתולה", sign: "virgo" },
+      seferYetzirah: {
+        month: "elul",
+        letter: "י",
+        letterName: "Yod",
+        tribe: "gad",
+        tribeHebrew: "גד",
+        faculty: "action",
+        facultyHebrew: "מעשה",
+      },
+      fromCivil: { year: 2026, month: 8, day: 14 },
+      toCivil: { year: 2026, month: 8, day: 15 },
+    },
+  ],
+};
+
+describe("renderHebrewPeriodData", () => {
+  it("renders the Hebrew date range, month rows, and the boundary note", () => {
+    const out = renderHebrewPeriodData(hebrewSummary);
+    expect(out).toContain(
+      "Hebrew dates (daytime mapping, no sunset adjustment): 26 Av 5786 to 2 Elul 5786",
+    );
+    expect(out).toContain(
+      "Month Av (civil 2026-08-09 to 2026-08-13): mazal Aryeh (Leo), Hebrew אריה",
+    );
+    expect(out).toContain("Sefer Yetzirah letter ט (Tet), tribe Shimon");
+    expect(out).toContain(
+      "the mazal shifts from Aryeh to Betulah on 2026-08-14",
+    );
+  });
+
+  it("renders per-day lines with day planets and gematria for a week", () => {
+    const out = renderHebrewPeriodData(hebrewSummary);
+    expect(out).toContain(
+      "- Sunday 2026-08-09 — 26 Av 5786 (כ״ו אָב תשפ״ו), day planet Sun, date gematria 7",
+    );
+    expect(out).toContain(
+      "- Friday 2026-08-14 — 1 Elul 5786 (כ״ו אָב תשפ״ו), day planet Venus, date gematria 11 (master number)",
+    );
+  });
+
+  it("for a month: no per-day lines, cycle note, only master-number days listed", () => {
+    const monthSummary: HebrewPeriodSummary = {
+      ...hebrewSummary,
+      period: {
+        kind: "month",
+        start: { year: 2026, month: 8, day: 9 },
+        end: { year: 2026, month: 8, day: 15 },
+        days: 7,
+      },
+    };
+    const out = renderHebrewPeriodData(monthSummary);
+    expect(out).toContain("Day planets cycle with the week");
+    expect(out).not.toContain("- Sunday 2026-08-09");
+    expect(out).toContain("Master-number date gematria days:");
+    expect(out).toContain("- 2026-08-14 (1 Elul): 11");
+    expect(out).not.toContain("- 2026-08-09 (26 Av)");
+  });
+
+  it("never renders a planetary hour", () => {
+    expect(renderHebrewPeriodData(hebrewSummary)).not.toContain(
+      "Planetary hour",
     );
   });
 });

@@ -54,6 +54,7 @@ AstralSync/
 4. **Immutability rule:** snapshots are write-once. Editing birth data (or changing house system) creates a *new* snapshot version; old versions are preserved.
 5. **The one exception — transits (PRD §9):** the Transits tab recomputes current placements and cross aspects against the *latest* natal snapshot on every read (`GET /api/transits/[id]`, served `Cache-Control: no-store`). Nothing is persisted — the write-once guard is untouched because the flow never writes — and by design there are no offline transits: the tab shows a "needs a live connection" notice instead.
 6. **Synastry follows the same ephemeral-read rule**, minus the liveness: `/synastry?a=&b=` recomputes cross aspects and mutual house overlays from the two profiles' *stored* latest snapshots on every view (`lib/synastry.ts`, called directly by the server page — no API route). The inputs are immutable, so the recompute is deterministic; nothing is persisted and no live ephemeris call is involved.
+7. **AI period forecasts split the difference:** the period *data* (transit samples, ingresses/stations, aspect windows, Hebrew calendar days — `lib/forecast.ts`) is recomputed ephemerally like transits, but the generated *prose* is stored in `forecast`, cached per `(profile, mode, kind, periodStart)` — the unique key is the LLM cost control (one generation per period until explicitly discarded). Periods are keyed by **server-local civil dates** (single-user app: server tz == user tz; a tz change merely opens a new cache slot). Weeks start Sunday in both modes (the Hebrew week); the Western month is the civil month while the Hebrew month follows the Hebrew calendar. Hebrew forecast days use the **daytime mapping** (no sunset adjustment — needs no location) and omit planetary hours (no single instant/location exists for a period). Forecasts always run against the *latest* snapshot; a stored row remembers its `natal_version` and the UI flags staleness rather than auto-invalidating. The western daily forecast doubles as the Transits-tab AI reading.
 
 ## 5. Data model (MySQL, PRD §6)
 
@@ -64,6 +65,7 @@ Five tables; access pattern is "fetch profile and its snapshots by ID" — stand
 - **`astro_snapshot`** *(write-once)* — version, house system, `is_solar_chart`, Big Three columns, `placements_json`, `aspects_json`, engine + engine_version + content_version
 - **`numero_snapshot`** *(write-once)* — version, system (`pythagorean|gematria`), life path / destiny / soul urge, `is_master_lp`, `derivation_json` (letter-by-letter)
 - **`reading`** — optional synthesis, generated once per snapshot pair; `generator` (`template|llm`), nullable model name
+- **`forecast`** — AI period forecasts, unique per `(profile_id, mode, kind, period_start)` with `mode` (`western|hebrew`), `kind` (`day|week|month`); `natal_version` records the snapshot generated against (staleness flag, not part of the key). Not write-once: discard frees the slot for regeneration, like `reading`.
 
 ORM: **Prisma** (first-class MySQL support; schema-as-migrations keeps a clean path to hosted MySQL/Postgres in Phase 3).
 

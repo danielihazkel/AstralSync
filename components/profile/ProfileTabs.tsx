@@ -11,6 +11,7 @@ import type {
   WheelChart,
 } from "@/lib/view-types";
 import ChartWheel from "@/components/chart/ChartWheel";
+import ForecastPanel from "@/components/forecast/ForecastPanel";
 import MazalPanel from "@/components/mazal/MazalPanel";
 import NumerologyPanel, {
   type NumeroProse,
@@ -121,6 +122,16 @@ export default function ProfileTabs({
             profileId={profile.id}
             chart={chart}
             isLatest={isLatest}
+            llmEnabled={llmEnabled}
+          />
+        </div>
+      )}
+      {tab === "Forecast" && (
+        <div role="tabpanel" aria-label="Forecast">
+          <ForecastPanel
+            profileId={profile.id}
+            llmEnabled={llmEnabled}
+            hebrewAvailable={hebrew !== null}
           />
         </div>
       )}

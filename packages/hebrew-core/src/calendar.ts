@@ -36,6 +36,28 @@ export function weekdayOf(rd: number): number {
   return new HDate(rd).getDay();
 }
 
+/**
+ * Daytime mapping: civil date → Hebrew date with NO sunset adjustment (the
+ * same daylight convention used for unknown birth times). Location-free —
+ * used by period forecasts, where no current location is known.
+ */
+export function civilToHebrewDateParts(d: CivilDate): HebrewDateParts {
+  return toParts(hdateFromCivil(d));
+}
+
+/**
+ * Civil date on which day 1 of the Hebrew month containing `containing`
+ * falls, under the daytime mapping. Adar I and Adar II are distinct months
+ * here (hebcal numbering); their shared content key only collapses in
+ * `HebrewDateParts.monthKey`.
+ */
+export function hebrewMonthStartCivil(containing: CivilDate): CivilDate {
+  const hd = hdateFromCivil(containing);
+  const first = new HDate(1, hd.getMonth(), hd.getFullYear());
+  const g = first.greg();
+  return { year: g.getFullYear(), month: g.getMonth() + 1, day: g.getDate() };
+}
+
 export function toParts(hd: HDate): HebrewDateParts {
   return {
     year: hd.getFullYear(),

@@ -39,6 +39,17 @@ enum ReadingGenerator {
   hebrew_llm
 }
 
+enum ForecastMode {
+  western
+  hebrew
+}
+
+enum ForecastKind {
+  day
+  week
+  month
+}
+
 // Imported once from GeoNames cities15000 (scripts/import-geonames.mts).
 model GeoCity {
   geonameId   Int       @id @map("geoname_id")
@@ -83,6 +94,7 @@ model Profile {
   astroSnapshots  AstroSnapshot[]
   numeroSnapshots NumeroSnapshot[]
   hebrewSnapshots HebrewSnapshot[]
+  forecasts       Forecast[]
 
   @@map("profile")
 }
@@ -179,4 +191,28 @@ model Reading {
   // admit duplicate rows through repeated NULLs.
   @@unique([astroSnapshotId, generator])
   @@map("reading")
+}
+
+// AI period forecasts: manual generate, cached per profile+mode+kind+period.
+// NOT write-once — discard frees the slot for regeneration, like Reading.
+// The western daily forecast doubles as the Transits-tab AI reading.
+model Forecast {
+  id        Int          @id @default(autoincrement())
+  profileId Int          @map("profile_id")
+  profile   Profile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  mode      ForecastMode
+  kind      ForecastKind
+  /// Civil local date the period starts (day: the date; week: its Sunday;
+  /// month: civil-month 1st (western) / Hebrew-month day 1 (hebrew)).
+  periodStart    DateTime @map("period_start") @db.Date
+  /// Astro snapshot version generated against — staleness flag, NOT a key.
+  natalVersion   Int      @map("natal_version")
+  bodyMd         String   @map("body_md") @db.Text
+  modelName      String?  @map("model_name") @db.VarChar(64)
+  /// Content library version the generation prompt was built from.
+  contentVersion String?  @map("content_version") @db.VarChar(16)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([profileId, mode, kind, periodStart])
+  @@map("forecast")
 }

@@ -178,6 +178,16 @@ Ordered like Phase 1: engine primitives first (`astro-core`), since both transit
 - [x] Extend `lib/content.lint.test.ts` coverage expectations tier-by-tier as each tier lands (coverage, format, size band, per `content/README.md`) — *358-entry total, per-category coverage loops, canonical aspect-pair-order check, essence check extended to `modality_dominance`*
 - [x] `CONTENT_VERSION` (`lib/versions.ts`): bump **only** when existing entries are rewritten — new entries alone never bump, per the documented contract; the existing provenance note handles snapshot drift — *unchanged at "1"*
 
+### Phase 3e — AI transit reading & period forecasts
+
+- [x] `forecast` table: AI prose cached per `(profile, mode, kind, period_start)` — the unique key is the LLM cost control (generate once per period, discard to regenerate); `natal_version` recorded as a staleness flag, never part of the key — `prisma/migrations/*_add_forecast`
+- [x] Location-free Hebrew date helpers: `civilToHebrewDateParts` (daytime mapping, no sunset) + `hebrewMonthStartCivil` — `packages/hebrew-core/src/calendar.ts`
+- [x] Pure period engine `lib/forecast.ts`: `periodFor` (Sunday weeks both modes; civil vs. Hebrew months), `computeWesternPeriodSummary` (daily noon sampling → Moon spans, ingresses/stations ±1 day, min-orb aspect windows with outer-planet priority), `computeHebrewPeriodSummary` (per-day day planets + date gematria, month mazal rows incl. mid-period boundaries)
+- [x] Prompt renderers (`renderWesternPeriodData` / `renderHebrewPeriodData` in `lib/promptData.ts`) and builders (`buildWesternForecastPrompt` / `buildHebrewForecastPrompt` in `lib/llm.ts`) — word targets 250/350/450 by kind; natal `aspect` entries reused as archetypal pair context (a dedicated `transit_aspect` category is deferred authoring work); privacy contract holds (no birth instant/coordinates in prompts)
+- [x] `GET/POST/DELETE /api/profiles/[id]/forecast` (`?mode=&kind=&date?=`, `date` a testing hook) + `lib/forecastStore.ts`; 409 `llm_disabled`/`already_generated`/`no_hebrew_snapshot`, 502 `llm_unavailable`, P2002 concurrency race → 409
+- [x] Forecast tab (Day/Week/Month switcher × Western/Hebrew cards) — `components/forecast/`; the western daily card doubles as the Transits-tab "AI reading of today's transits" (same cached row); stale forecasts show a version note with discard-to-regenerate
+- [x] **Tests**: `lib/forecast.test.ts` (periods incl. Adar I/II and Hebrew month boundaries; ingress/station/aspect-window detection), `packages/hebrew-core/test/calendar.test.ts`, renderer/builder additions in `lib/promptData.test.ts` + `lib/llm.test.ts` (incl. no-birth-data assertions), `lib/forecast.route.test.ts` (full 409/502 matrix) — suite at 398
+
 ## Phase 4 (public deployment gate — deferred)
 
 - Authentication / user accounts

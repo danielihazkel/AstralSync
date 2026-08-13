@@ -1,9 +1,16 @@
-import type { ResolvedReading } from "./content";
+import type { ContentEntry, ResolvedReading } from "./content";
+import type {
+  ForecastKind,
+  HebrewPeriodSummary,
+  WesternPeriodSummary,
+} from "./forecast";
 import type { ResolvedHebrewReading } from "./hebrewReading";
 import {
   renderChartData,
+  renderHebrewPeriodData,
   renderMazalData,
   renderNumerologyData,
+  renderWesternPeriodData,
 } from "./promptData";
 import type {
   NumeroDerivation,
@@ -224,6 +231,108 @@ export function buildHebrewReadingPrompt(
       ? `## Complete numerology data\n${renderNumerologyData(numerology)}`
       : "",
     `## Interpretation entries (Hebrew source material)\n${sections}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+// Forecast prose scales with the period; all fit MAX_TOKENS comfortably.
+const FORECAST_WORDS: Record<ForecastKind, number> = {
+  day: 250,
+  week: 350,
+  month: 450,
+};
+
+const KIND_LABEL: Record<ForecastKind, string> = {
+  day: "daily forecast for this day",
+  week: "weekly forecast for this Sunday-to-Saturday week",
+  month: "monthly forecast for this month",
+};
+
+function renderEntrySections(entries: ContentEntry[]): string {
+  return entries.map((e) => `### ${e.title}\n${e.bodyMd}`).join("\n\n");
+}
+
+/**
+ * Prompt for a western transit forecast: the period's sky (positions, Moon
+ * spans, ingresses/stations, aspect windows) interpreted against the natal
+ * chart. `aspectContext` holds the natal `aspect` library entries for the
+ * strongest transiting pairs — archetypal pair prose the model is told to
+ * adapt to a transit reading. Like buildReadingPrompt, birth details
+ * (`chart.input`) are never included.
+ */
+export function buildWesternForecastPrompt(
+  summary: WesternPeriodSummary,
+  chart: WheelChart,
+  aspectContext: ContentEntry[],
+): string {
+  const kind = summary.period.kind;
+  const instructions = [
+    `You are writing one ${KIND_LABEL[kind]} for an astrology app, based on the current transits over this person's natal chart.`,
+    "Below are the period's sky data, the complete natal chart, and interpretation entries for the strongest planetary pairs in play.",
+    "The interpretation entries describe each pair archetypally in a natal context — adapt their themes to transits unfolding over this period, do not restate them.",
+    "Emphasize the strongest and slowest-moving contacts; treat fast Moon movements as day-to-day texture, not headlines.",
+    "Event dates come from daily sampling: phrase timing approximately (\"around\", \"early in the week\"), never as precise moments.",
+    `Weave everything into a single original forecast of roughly ${FORECAST_WORDS[kind]} words in Markdown`,
+    "(paragraphs, optional **bold** and *italic*, optional - lists; no headings, no HTML, no links).",
+    "Address the reader as \"you\", gender-neutrally. Be concrete and even-handed — openings and frictions both. No promises, no fortune-telling: describe climates and invitations, not fixed outcomes.",
+    summary.natal.isSolarChart
+      ? "Birth time is unknown (solar chart): do not mention houses or a rising sign."
+      : "",
+    summary.natal.moonUncertain
+      ? "The natal Moon sign is uncertain: hedge any claims that depend on contacts to the natal Moon."
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return [
+    instructions,
+    `## Period sky data\n${renderWesternPeriodData(summary)}`,
+    `## Complete natal chart data\n${renderChartData(chart)}`,
+    aspectContext.length > 0
+      ? `## Interpretation entries (natal archetypes for the pairs in play)\n${renderEntrySections(aspectContext)}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Prompt for a Hebrew (Mazal) forecast: the period's Hebrew calendar —
+ * daytime-mapping dates, month mazal(ot), day planets, date gematria —
+ * interpreted against this person's natal Mazal chart. `monthContext` holds
+ * the Hebrew library entries in play (mazal_month, plus day_planet /
+ * hebrew_date_gematria for daily forecasts). Hebrew sources in, English
+ * prose out, matching buildHebrewReadingPrompt; birth details
+ * (`mazal.input`) are never included.
+ */
+export function buildHebrewForecastPrompt(
+  summary: HebrewPeriodSummary,
+  natalMazal: StoredMazal,
+  natalGematria: StoredHebrewGematria,
+  monthContext: ContentEntry[],
+): string {
+  const kind = summary.period.kind;
+  const instructions = [
+    `You are writing one ${KIND_LABEL[kind]} for the Jewish astrology (Mazal) side of an astrology app, reading the period's Hebrew calendar against this person's natal Mazal chart.`,
+    "Below are the period's Hebrew calendar data, the person's complete natal Mazal chart, and the interpretation entries that apply to the period.",
+    "The interpretation entries are written in Hebrew: draw on their ideas and translate them — do not quote them untranslated.",
+    "Relate the period's energies (month mazal, day planets, date gematria) to the natal chart: where they reinforce the person's natal mazal and where they pull against it.",
+    "Hebrew dates use the daytime mapping — after sunset the next Hebrew day has already begun; do not present dates as exact to the hour.",
+    "Write the forecast entirely in English. Keep key Hebrew terms transliterated (mazal, Sefer Yetzirah, gematria), with a brief gloss where helpful.",
+    `Weave everything into a single original forecast of roughly ${FORECAST_WORDS[kind]} words in Markdown`,
+    "(paragraphs, optional **bold** and *italic*, optional - lists; no headings, no HTML, no links).",
+    "Address the reader as \"you\", gender-neutrally. Be concrete and even-handed — openings and frictions both. No promises, no fortune-telling: describe climates and invitations, not fixed outcomes.",
+  ].join("\n");
+
+  return [
+    instructions,
+    `## Period Hebrew calendar data\n${renderHebrewPeriodData(summary)}`,
+    `## Complete natal Mazal chart data\n${renderMazalData(natalMazal, natalGematria)}`,
+    monthContext.length > 0
+      ? `## Interpretation entries (Hebrew source material)\n${renderEntrySections(monthContext)}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n\n");

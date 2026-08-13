@@ -1,5 +1,11 @@
 import { SIGNS } from "@astralsync/astro-core";
 import type { NameNumberResult } from "@astralsync/numero-core";
+import {
+  formatCivil,
+  type ForecastPeriod,
+  type HebrewPeriodSummary,
+  type WesternPeriodSummary,
+} from "./forecast";
 import type {
   NumeroDerivation,
   StoredHebrewGematria,
@@ -220,6 +226,129 @@ export function renderMazalData(
   if (mazal.uncertainties.length > 0) {
     lines.push("Uncertainties:");
     for (const u of mazal.uncertainties) lines.push(`- ${u.reason}`);
+  }
+
+  return lines.join("\n");
+}
+
+function periodLabel(period: ForecastPeriod): string {
+  if (period.kind === "day") return `day, ${formatCivil(period.start)}`;
+  return `${period.kind}, ${formatCivil(period.start)} to ${formatCivil(period.end)}`;
+}
+
+/**
+ * The period's sky for the western forecast prompts: start-of-period
+ * positions, Moon sign spans, ingresses/stations (day-sampled, so dated
+ * "around"), and the tracked transit-to-natal aspect windows. Current-period
+ * dates only — the natal side comes from renderChartData, which never leaks
+ * birth details.
+ */
+export function renderWesternPeriodData(summary: WesternPeriodSummary): string {
+  const lines: string[] = [`Period: ${periodLabel(summary.period)}`];
+
+  lines.push(
+    summary.natal.isSolarChart
+      ? "Transiting positions at the start of the period (noon; natal chart is solar — signs only):"
+      : "Transiting positions at the start of the period (noon; house = natal house the transit falls in):",
+  );
+  for (const p of summary.startPlacements) {
+    const retro = p.retrograde ? ", retrograde" : "";
+    if (summary.natal.isSolarChart) {
+      lines.push(`- ${cap(p.planet)}: ${cap(p.sign)}${retro}`);
+    } else {
+      const house = p.house !== null ? `, ${ordinal(p.house)} natal house` : "";
+      lines.push(
+        `- ${cap(p.planet)}: ${cap(p.sign)} ${degreeLabel(p.degreeInSign)}${house}${retro}`,
+      );
+    }
+  }
+
+  if (summary.moonBySign.length > 0) {
+    lines.push("Moon by sign:");
+    for (const span of summary.moonBySign) {
+      const range =
+        formatCivil(span.fromDate) === formatCivil(span.toDate)
+          ? formatCivil(span.fromDate)
+          : `${formatCivil(span.fromDate)} to ${formatCivil(span.toDate)}`;
+      lines.push(`- Moon in ${cap(span.sign)}: ${range}`);
+    }
+  }
+  if (summary.moonNext) {
+    lines.push(
+      `- The Moon moves into ${cap(summary.moonNext.sign)} by ${formatCivil(summary.moonNext.date)}.`,
+    );
+  }
+
+  if (summary.events.length > 0) {
+    lines.push("Sky events this period (dates approximate, from daily sampling):");
+    for (const e of summary.events) {
+      lines.push(
+        e.type === "ingress"
+          ? `- ${cap(e.planet)} enters ${cap(e.toSign)} (from ${cap(e.fromSign)}) around ${formatCivil(e.aroundDate)}`
+          : `- ${cap(e.planet)} stations ${e.direction} around ${formatCivil(e.aroundDate)}`,
+      );
+    }
+  }
+
+  if (summary.topAspects.length > 0) {
+    lines.push("Strongest transit aspects to the natal chart:");
+    for (const w of summary.topAspects) {
+      const hold = w.appliedAllPeriod ? ", in orb all period" : "";
+      lines.push(
+        `- Transiting ${cap(w.a)} ${w.type} natal ${cap(w.b)} — closest around ${formatCivil(w.closestDate)}, orb ${degreeLabel(w.minOrb)}${hold}`,
+      );
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * The period's Hebrew calendar for the hebrew forecast prompts: date range
+ * under the daytime mapping, month mazal row(s), and per-day detail for
+ * day/week periods (a month lists only its notable master-number days).
+ * Location-free by construction — planetary hours never appear.
+ */
+export function renderHebrewPeriodData(summary: HebrewPeriodSummary): string {
+  const first = summary.days[0];
+  const last = summary.days[summary.days.length - 1];
+  const lines: string[] = [
+    `Period: ${periodLabel(summary.period)}`,
+    `Hebrew dates (daytime mapping, no sunset adjustment): ${first.hebrew.day} ${first.hebrew.monthName} ${first.hebrew.year} to ${last.hebrew.day} ${last.hebrew.monthName} ${last.hebrew.year}`,
+  ];
+
+  for (const m of summary.months) {
+    const sy = m.seferYetzirah;
+    lines.push(
+      `Month ${m.monthName} (civil ${formatCivil(m.fromCivil)} to ${formatCivil(m.toCivil)}): mazal ${cap(m.mazal.mazal)} (${cap(m.mazal.sign)}), Hebrew ${m.mazal.hebrew}; Sefer Yetzirah letter ${sy.letter} (${sy.letterName}), tribe ${cap(sy.tribe)} (${sy.tribeHebrew}), faculty ${sy.faculty} (${sy.facultyHebrew})`,
+    );
+  }
+  if (summary.months.length > 1) {
+    lines.push(
+      `- A Hebrew month boundary falls inside this period: the mazal shifts from ${cap(summary.months[0].mazal.mazal)} to ${cap(summary.months[1].mazal.mazal)} on ${formatCivil(summary.months[1].fromCivil)}.`,
+    );
+  }
+
+  if (summary.period.kind === "month") {
+    lines.push(
+      "Day planets cycle with the week: Sunday Sun, Monday Moon, Tuesday Mars, Wednesday Mercury, Thursday Jupiter, Friday Venus, Saturday Saturn.",
+    );
+    const notable = summary.days.filter((d) => d.dateGematria.isMaster);
+    if (notable.length > 0) {
+      lines.push("Master-number date gematria days:");
+      for (const d of notable) {
+        lines.push(
+          `- ${formatCivil(d.civil)} (${d.hebrew.day} ${d.hebrew.monthName}): ${d.dateGematria.value}`,
+        );
+      }
+    }
+  } else {
+    lines.push("Days:");
+    for (const d of summary.days) {
+      lines.push(
+        `- ${WEEKDAYS[d.hebrew.weekday]} ${formatCivil(d.civil)} — ${d.hebrew.day} ${d.hebrew.monthName} ${d.hebrew.year} (${d.hebrew.renderGematriya}), day planet ${cap(d.dayPlanet)}, date gematria ${d.dateGematria.value}${d.dateGematria.isMaster ? " (master number)" : ""}`,
+      );
+    }
   }
 
   return lines.join("\n");
