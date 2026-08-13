@@ -104,7 +104,7 @@ export default function CyclesPanel({
   const moonReason =
     chart.uncertainties.find((u) => u.field === "moon_sign")?.reason ??
     "The natal Moon sign is uncertain.";
-  const { progressions, solarReturn } = data;
+  const { progressions, solarReturn, lunarReturn } = data;
 
   return (
     <div className={styles.panel}>
@@ -203,6 +203,23 @@ export default function CyclesPanel({
           </ul>
         )}
       </section>
+
+      {lunarReturn && (
+        <section aria-label="Lunar return">
+          <h3 className={styles.sectionTitle}>Lunar return</h3>
+          <p className={styles.muted}>
+            The chart for the month: cast for the moment the Moon last
+            returned to its natal position (
+            {new Date(lunarReturn.returnUtc).toLocaleString()}), at the birth
+            location. Returns recur every ~27.3 days — this chart colors the
+            lunar month until{" "}
+            {new Date(lunarReturn.nextReturnUtc).toLocaleDateString()}.
+            {(data.natal.isSolarChart || data.natal.moonUncertain) &&
+              " The natal Moon position is uncertain (birth time), so the return moment is approximate."}
+          </p>
+          <ChartWheel chart={lunarReturn.chart} downloadName="lunar return" />
+        </section>
+      )}
 
       <section aria-label="Solar return">
         <h3 className={styles.sectionTitle}>

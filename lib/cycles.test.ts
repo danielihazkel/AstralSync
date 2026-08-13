@@ -1,6 +1,11 @@
 import { buildChart, separation } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { computeCycles, computeProgressions, computeSolarReturn } from "./cycles";
+import {
+  computeCycles,
+  computeLunarReturn,
+  computeProgressions,
+  computeSolarReturn,
+} from "./cycles";
 import type { WheelChart } from "./view-types";
 
 function chartOf(
@@ -89,6 +94,42 @@ describe("computeSolarReturn", () => {
   });
 });
 
+describe("computeLunarReturn", () => {
+  const DAY_MS = 86_400_000;
+  const at = new Date(Date.UTC(2026, 7, 13));
+
+  it("returns a chart whose Moon matches the natal Moon longitude", () => {
+    const lr = computeLunarReturn(NATAL, at)!;
+    expect(lr).not.toBeNull();
+    const natalMoon = NATAL.placements.find((p) => p.planet === "moon")!;
+    const lrMoon = lr.chart.placements.find((p) => p.planet === "moon")!;
+    expect(separation(lrMoon.longitude, natalMoon.longitude)).toBeLessThan(0.01);
+  });
+
+  it("picks the most recent return not after `at`, within one sidereal month", () => {
+    const lr = computeLunarReturn(NATAL, at)!;
+    const returnMs = new Date(lr.returnUtc).getTime();
+    expect(returnMs).toBeLessThanOrEqual(at.getTime());
+    expect(at.getTime() - returnMs).toBeLessThan(27.6 * DAY_MS);
+  });
+
+  it("finds the next return one sidereal month after the current one", () => {
+    const lr = computeLunarReturn(NATAL, at)!;
+    const gap =
+      new Date(lr.nextReturnUtc).getTime() - new Date(lr.returnUtc).getTime();
+    expect(gap).toBeGreaterThan(27.0 * DAY_MS);
+    expect(gap).toBeLessThan(27.7 * DAY_MS);
+    expect(new Date(lr.nextReturnUtc).getTime()).toBeGreaterThan(at.getTime());
+  });
+
+  it("casts full houses for the birth location and is deterministic", () => {
+    const lr = computeLunarReturn(NATAL, at)!;
+    expect(lr.chart.houses).not.toBeNull();
+    expect(lr.chart.input.latitude).toBe(51.48);
+    expect(computeLunarReturn(NATAL, at)).toEqual(lr);
+  });
+});
+
 describe("computeCycles", () => {
   it("assembles the full view with natal flags and engine info", () => {
     const at = new Date(Date.UTC(2026, 7, 13));
@@ -101,6 +142,7 @@ describe("computeCycles", () => {
     });
     expect(view.progressions.placements).toHaveLength(10);
     expect(view.solarReturn.year).toBe(2026);
+    expect(view.lunarReturn).not.toBeNull();
     expect(view.engine.name).toBe("astronomy-engine");
   });
 

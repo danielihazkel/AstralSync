@@ -25,6 +25,11 @@ const canned = {
     returnUtc: "2026-03-04T18:22:11.000Z",
     chart: {} as CyclesData["solarReturn"]["chart"],
   },
+  lunarReturn: {
+    returnUtc: "2026-07-30T02:11:45.000Z",
+    nextReturnUtc: "2026-08-26T09:54:02.000Z",
+    chart: {} as CyclesData["solarReturn"]["chart"],
+  },
   engine: { name: "astronomy-engine", version: "2.1.19" },
 } satisfies CyclesData;
 
