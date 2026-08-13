@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { overlayHouses, pointsAt } from "@astralsync/astro-core";
+import {
+  overlayHouses,
+  partOfFortunePlacement,
+  pointsAt,
+} from "@astralsync/astro-core";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
@@ -82,6 +86,18 @@ export default async function ProfilePage({
     mean: overlayHouses(pointsAt(birthUtc, "mean"), cusps),
     true: overlayHouses(pointsAt(birthUtc, "true"), cusps),
   };
+  // Part of Fortune needs an Ascendant, so solar charts skip it. Identical
+  // in both node variants — the lot doesn't involve the nodes.
+  if (chart.houses && cusps) {
+    const sunLon = chart.placements.find((p) => p.planet === "sun")!.longitude;
+    const moonLon = chart.placements.find((p) => p.planet === "moon")!.longitude;
+    const fortune = overlayHouses(
+      [partOfFortunePlacement(chart.houses.ascendant, sunLon, moonLon, cusps)],
+      cusps,
+    )[0];
+    points.mean.push(fortune);
+    points.true.push(fortune);
+  }
   const latestVersion = versions[0]?.version ?? view.astro.version;
   const isLatest = view.astro.version === latestVersion;
   const { profile } = view;

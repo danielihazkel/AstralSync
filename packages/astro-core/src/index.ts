@@ -23,6 +23,13 @@ export {
 export { compositeChart } from "./composite";
 export type { CompositeChartData } from "./composite";
 export { upcomingEclipses } from "./eclipses";
+export {
+  isDayChart,
+  partOfFortune,
+  partOfFortunePlacement,
+} from "./fortune";
+export { annualProfection, TRADITIONAL_RULERS } from "./profections";
+export type { AnnualProfection } from "./profections";
 export type { EclipseEvent, EclipseKind, EclipseType } from "./eclipses";
 export { pointsAt, meanNode, trueNode, meanLilith } from "./points";
 export type { PointName, PointPlacement, NodeVariant } from "./points";

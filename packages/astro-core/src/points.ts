@@ -15,7 +15,11 @@ import type { Sign } from "./types";
  * decades. Revisit if a Swiss Ephemeris provider lands.
  */
 
-export type PointName = "north_node" | "south_node" | "lilith";
+export type PointName =
+  | "north_node"
+  | "south_node"
+  | "lilith"
+  | "part_of_fortune";
 export type NodeVariant = "mean" | "true";
 
 export interface PointPlacement {

@@ -27,6 +27,7 @@ export const POINT_GLYPH_CHARS: Record<PointName, string> = {
   north_node: "☊",
   south_node: "☋",
   lilith: "⚸",
+  part_of_fortune: "⊗",
 };
 
 export const SIGN_GLYPH_CHARS: Record<Sign, string> = {

@@ -210,6 +210,17 @@ describe("computeCycles", () => {
       "jupiter",
       "saturn",
     ]);
+    // Born 1990-03-04, viewed 2026-08-13 → age 36, a 1st-house year again.
+    expect(view.profection).not.toBeNull();
+    expect(view.profection!.age).toBe(36);
+    expect(view.profection!.profectedHouse).toBe(1);
+    expect(view.profection!.profectedSign).toBe(NATAL.bigThree.ascendant);
+  });
+
+  it("omits the profection on a solar natal chart", () => {
+    const solar = chartOf(new Date(Date.UTC(1990, 2, 4, 12, 0, 0)), "unknown");
+    const view = computeCycles(solar, 1, new Date(Date.UTC(2026, 7, 13)))!;
+    expect(view.profection).toBeNull();
     expect(view.engine.name).toBe("astronomy-engine");
   });
 

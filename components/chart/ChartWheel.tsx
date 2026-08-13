@@ -443,7 +443,7 @@ export default function ChartWheel({
                   }
                 }}
               />{" "}
-              Nodes &amp; Lilith
+              Points (nodes, Lilith, Fortune)
             </label>
             {showPoints && (
               <label>

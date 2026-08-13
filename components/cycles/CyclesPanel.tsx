@@ -21,6 +21,12 @@ type State =
   | { kind: "offline" }
   | { kind: "error" };
 
+function ordinal(house: number): string {
+  const suffix =
+    house === 1 ? "st" : house === 2 ? "nd" : house === 3 ? "rd" : "th";
+  return `${house}${suffix}`;
+}
+
 /**
  * The Cycles tab: secondary progressions and the current solar return —
  * ephemeral like transits, recomputed against the latest natal snapshot on
@@ -104,7 +110,8 @@ export default function CyclesPanel({
   const moonReason =
     chart.uncertainties.find((u) => u.field === "moon_sign")?.reason ??
     "The natal Moon sign is uncertain.";
-  const { progressions, solarReturn, lunarReturn, planetaryReturns } = data;
+  const { progressions, solarReturn, lunarReturn, planetaryReturns, profection } =
+    data;
 
   return (
     <div className={styles.panel}>
@@ -120,6 +127,24 @@ export default function CyclesPanel({
           Cycles are computed against the current chart version, not the
           historical version you are viewing.
         </p>
+      )}
+
+      {profection && (
+        <section aria-label="Annual profection">
+          <h3 className={styles.sectionTitle}>
+            Annual profection — {ordinal(profection.profectedHouse)}-house year
+          </h3>
+          <p className={styles.muted}>
+            At age {profection.age} the year counts to the{" "}
+            {ordinal(profection.profectedHouse)} house from your Ascendant:{" "}
+            {SIGN_NAMES[profection.profectedSign]}, making{" "}
+            {PLANET_NAMES[profection.yearLord]} lord of the year until your
+            next birthday (
+            {new Date(profection.yearEndUtc).toLocaleDateString()}). Watch how{" "}
+            {PLANET_NAMES[profection.yearLord]} fares in the solar return
+            below — traditional practice reads the two together.
+          </p>
+        </section>
       )}
 
       <section aria-label="Secondary progressions">

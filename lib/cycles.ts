@@ -1,10 +1,12 @@
 import {
   DEFAULT_TRANSIT_ORBS,
+  annualProfection,
   astronomyEngineProvider,
   buildChart,
   detectCrossAspects,
   overlayHouses,
   positionsAt,
+  type AnnualProfection,
   type Aspect,
   type CrossAspect,
   type Placement,
@@ -62,6 +64,8 @@ export interface CyclesData {
   } | null;
   /** Jupiter and Saturn returns, in that order. */
   planetaryReturns: PlanetaryReturnData[];
+  /** Whole-sign annual profection; null on a solar chart (no Ascendant). */
+  profection: AnnualProfection | null;
   engine: { name: string; version: string };
 }
 
@@ -397,6 +401,9 @@ export function computeCycles(
     planetaryReturns: (["jupiter", "saturn"] as const).map((p) =>
       computePlanetaryReturn(natal, at, p),
     ),
+    profection: natal.bigThree.ascendant
+      ? annualProfection(natal.bigThree.ascendant, new Date(natal.input.utc), at)
+      : null,
     engine: {
       name: astronomyEngineProvider.name,
       version: astronomyEngineProvider.version,

@@ -31,6 +31,7 @@ const canned = {
     chart: {} as CyclesData["solarReturn"]["chart"],
   },
   planetaryReturns: [],
+  profection: null,
   engine: { name: "astronomy-engine", version: "2.1.19" },
 } satisfies CyclesData;
 

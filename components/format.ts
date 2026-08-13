@@ -38,11 +38,12 @@ export const PLANET_NAMES: Record<Planet, string> = {
   pluto: "Pluto",
 };
 
-/** Calculated chart points (nodes, Lilith) — ephemeral, never stored. */
+/** Calculated chart points (nodes, Lilith, Fortune) — ephemeral, never stored. */
 export const POINT_NAMES: Record<PointName, string> = {
   north_node: "North Node",
   south_node: "South Node",
   lilith: "Lilith",
+  part_of_fortune: "Part of Fortune",
 };
 
 /** The seven classical planets of the Mazal chart (English chrome). */
