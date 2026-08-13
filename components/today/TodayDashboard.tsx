@@ -110,6 +110,16 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
               day: "numeric",
             })}
           </p>
+          {sky.moon.voidOfCourse && (
+            <p className={styles.muted}>
+              Void of course until{" "}
+              {new Date(sky.moon.voidOfCourse.until).toLocaleTimeString(
+                undefined,
+                { hour: "2-digit", minute: "2-digit" },
+              )}{" "}
+              → enters {SIGN_NAMES[sky.moon.voidOfCourse.nextSign]}
+            </p>
+          )}
         </div>
 
         <div className={styles.card}>
@@ -192,6 +202,23 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
           )}
         </div>
       </div>
+
+      {sky.stations.length > 0 && (
+        <div className={styles.transits} aria-label="Upcoming stations">
+          <h3 className={styles.cardTitle}>Stations this week</h3>
+          <ul className={styles.transitList}>
+            {sky.stations.map((s) => (
+              <li key={`${s.planet}-${s.kind}`}>
+                {PLANET_NAMES[s.planet]} stations {s.kind} around{" "}
+                {new Date(s.aroundUtc).toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {sky.transits.length > 0 && (
         <div className={styles.transits} aria-label="Notable transits">

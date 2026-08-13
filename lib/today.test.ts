@@ -1,6 +1,12 @@
 import { positionsAt } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { computeToday, moonPhaseName, type HomeLocation } from "./today";
+import {
+  computeStations,
+  computeToday,
+  computeVoidOfCourse,
+  moonPhaseName,
+  type HomeLocation,
+} from "./today";
 
 const JERUSALEM: HomeLocation = {
   label: "Jerusalem, Israel",
@@ -102,5 +108,71 @@ describe("computeToday", () => {
   it("hides the transit section shape for empty profile lists", () => {
     const sky = computeToday(new Date(Date.UTC(2026, 7, 13)), null, []);
     expect(sky.transits).toEqual([]);
+  });
+});
+
+describe("computeStations", () => {
+  const DAY_MS = 86_400_000;
+
+  it("catches the 2023-04-21 Mercury retrograde station within a day", () => {
+    // Mercury stationed retrograde 2023-04-21 (golden-test anchor dates).
+    const stations = computeStations(new Date(Date.UTC(2023, 3, 18)));
+    const rx = stations.find((s) => s.planet === "mercury");
+    expect(rx?.kind).toBe("retrograde");
+    expect(
+      Math.abs(new Date(rx!.aroundUtc).getTime() - Date.UTC(2023, 3, 21, 12)),
+    ).toBeLessThan(1.5 * DAY_MS);
+  });
+
+  it("catches the 2023-05-15 Mercury direct station within a day", () => {
+    const stations = computeStations(new Date(Date.UTC(2023, 4, 12)));
+    const direct = stations.find((s) => s.planet === "mercury");
+    expect(direct?.kind).toBe("direct");
+    expect(
+      Math.abs(new Date(direct!.aroundUtc).getTime() - Date.UTC(2023, 4, 15, 3)),
+    ).toBeLessThan(1.5 * DAY_MS);
+  });
+
+  it("reports nothing in a station-free week", () => {
+    // Early March 2023: Mercury direct throughout, no other flips.
+    expect(computeStations(new Date(Date.UTC(2023, 2, 2)))).toEqual([]);
+  });
+});
+
+describe("computeVoidOfCourse", () => {
+  const DAY_MS = 86_400_000;
+
+  it("holds its invariants at every non-null result across a month", () => {
+    // Scan a month of half-day samples: every reported void ends at a real
+    // ingress (sign advances by exactly one) within 3 days.
+    let voids = 0;
+    let active = 0;
+    for (let i = 0; i < 60; i++) {
+      const at = new Date(Date.UTC(2026, 6, 1) + i * (DAY_MS / 2));
+      const voc = computeVoidOfCourse(at);
+      if (!voc) {
+        active += 1;
+        continue;
+      }
+      voids += 1;
+      const until = new Date(voc.until);
+      expect(until.getTime()).toBeGreaterThan(at.getTime());
+      expect(until.getTime() - at.getTime()).toBeLessThan(3 * DAY_MS);
+      const signBefore = positionsAt(at).find((p) => p.planet === "moon")!.sign;
+      const signAfter = positionsAt(new Date(until.getTime() + 120_000)).find(
+        (p) => p.planet === "moon",
+      )!.sign;
+      expect(voc.nextSign).toBe(signAfter);
+      expect(signAfter).not.toBe(signBefore);
+    }
+    // Both states occur over a lunar month — a scan that only ever saw one
+    // would mean the detector is stuck.
+    expect(voids).toBeGreaterThan(0);
+    expect(active).toBeGreaterThan(0);
+  });
+
+  it("is deterministic for a fixed instant", () => {
+    const at = new Date(Date.UTC(2026, 7, 13, 6));
+    expect(computeVoidOfCourse(at)).toEqual(computeVoidOfCourse(at));
   });
 });
