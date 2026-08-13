@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
+import { BUILD_ID_PLACEHOLDER, renderServiceWorker } from "./swTemplate";
 
-// The service worker is plain JS with no imports; evaluate it against a stub
+// The service worker is plain JS with no imports; evaluate it (after the
+// same build-id substitution app/sw.js/route.ts performs) against a stub
 // `self` to reach the pure helpers it exposes on `self.__testables`.
 
 const ORIGIN = "http://localhost:3000";
+const TEST_BUILD_ID = "testbuild123";
 
 type Testables = {
   classifyRequest: (req: {
@@ -23,9 +26,9 @@ let testables: Testables;
 let listeners: string[];
 
 beforeAll(() => {
-  const src = readFileSync(
-    path.resolve(__dirname, "..", "..", "public", "sw.js"),
-    "utf8"
+  const src = renderServiceWorker(
+    readFileSync(path.resolve(__dirname, "sw.src.js"), "utf8"),
+    TEST_BUILD_ID
   );
   listeners = [];
   const self: Record<string, unknown> = {
@@ -106,7 +109,19 @@ describe("lifecycle", () => {
     expect(listeners).toEqual(["install", "activate", "fetch"]);
   });
 
-  it("exposes a version for cache busting", () => {
-    expect(testables.VERSION).toMatch(/^v\d+$/);
+  it("exposes the substituted build id as its version", () => {
+    expect(testables.VERSION).toBe(TEST_BUILD_ID);
+  });
+});
+
+describe("renderServiceWorker", () => {
+  it("replaces the placeholder and strips unsafe characters", () => {
+    const src = `const VERSION = "${BUILD_ID_PLACEHOLDER}";`;
+    expect(renderServiceWorker(src, 'ab"c;1')).toBe('const VERSION = "abc1";');
+  });
+
+  it("falls back to a fixed id when nothing survives sanitizing", () => {
+    const src = `cache-${BUILD_ID_PLACEHOLDER}`;
+    expect(renderServiceWorker(src, '";')).toBe("cache-unknown");
   });
 });
