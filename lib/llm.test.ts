@@ -413,15 +413,20 @@ const westernSummary: WesternPeriodSummary = {
   ],
 };
 
-const aspectEntries: ContentEntry[] = [
-  {
-    key: "aspect/sun/saturn/square",
-    category: "aspect",
-    title: "Sun square Saturn",
-    essence: null,
-    bodyMd: "Pressure meets purpose.",
-  },
-];
+const aspectEntries = {
+  transit: [] as ContentEntry[],
+  natalArchetypes: [
+    {
+      key: "aspect/sun/saturn/square",
+      category: "aspect" as const,
+      title: "Sun square Saturn",
+      essence: null,
+      bodyMd: "Pressure meets purpose.",
+    },
+  ],
+};
+
+const NO_ENTRIES = { transit: [], natalArchetypes: [] };
 
 describe("buildWesternForecastPrompt", () => {
   it("frames the kind, word target, and approximate timing", () => {
@@ -443,6 +448,43 @@ describe("buildWesternForecastPrompt", () => {
     expect(prompt).toContain("Pressure meets purpose.");
   });
 
+  it("separates authored transit prose from natal archetypes", () => {
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, {
+      transit: [
+        {
+          key: "transit_aspect/saturn/sun/square",
+          category: "transit_aspect",
+          title: "Transiting Saturn square natal Sun",
+          essence: null,
+          bodyMd: "A pruning season.",
+        },
+      ],
+      natalArchetypes: aspectEntries.natalArchetypes,
+    });
+    expect(prompt).toContain("## Transit interpretations");
+    expect(prompt).toContain("A pruning season.");
+    expect(prompt).toContain("ground the forecast's headlines in them");
+    expect(prompt).toContain("natal archetypes for the pairs in play");
+    expect(prompt).toContain("adapt their themes to transits");
+  });
+
+  it("drops the adapt instruction when only transit prose is present", () => {
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, {
+      transit: [
+        {
+          key: "transit_aspect/saturn/sun/square",
+          category: "transit_aspect",
+          title: "Transiting Saturn square natal Sun",
+          essence: null,
+          bodyMd: "A pruning season.",
+        },
+      ],
+      natalArchetypes: [],
+    });
+    expect(prompt).not.toContain("adapt their themes to transits");
+    expect(prompt).not.toContain("natal archetypes");
+  });
+
   it("scales the word target by kind and omits an empty entries section", () => {
     const day = buildWesternForecastPrompt(
       {
@@ -450,11 +492,12 @@ describe("buildWesternForecastPrompt", () => {
         period: { ...westernSummary.period, kind: "day" },
       },
       chart,
-      [],
+      NO_ENTRIES,
     );
     expect(day).toContain("daily forecast");
     expect(day).toContain("roughly 250 words");
     expect(day).not.toContain("## Interpretation entries");
+    expect(day).not.toContain("## Transit interpretations");
   });
 
   it("adds solar-chart and uncertain-Moon caveats", () => {
@@ -465,7 +508,7 @@ describe("buildWesternForecastPrompt", () => {
         startPlacements: solarChart.placements,
       },
       solarChart,
-      [],
+      NO_ENTRIES,
     );
     expect(prompt).toContain("solar chart");
     expect(prompt).toContain("natal Moon sign is uncertain");

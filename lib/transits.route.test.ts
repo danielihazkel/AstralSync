@@ -37,8 +37,28 @@ describe("GET /api/transits/[id]", () => {
     const res = await GET(request("/api/transits/1"), params("1"));
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
-    expect(await res.json()).toEqual(canned);
+    // The route decorates the view with per-aspect prose (empty here — the
+    // canned view has no cross aspects).
+    expect(await res.json()).toEqual({ ...canned, prose: {} });
     expect(mockView).toHaveBeenCalledWith(1, undefined);
+  });
+
+  it("attaches transit prose for aspects the library covers", async () => {
+    mockView.mockResolvedValue({
+      ...canned,
+      crossAspects: [
+        { a: "saturn", b: "sun", type: "square", angle: 90, orb: 1.1 },
+        // No transit entry and no natal fallback for this pair/type combo:
+        // moon-moon square exists in neither library.
+        { a: "moon", b: "moon", type: "square", angle: 90, orb: 0.5 },
+      ],
+    });
+    const res = await GET(request("/api/transits/1"), params("1"));
+    const body = await res.json();
+    expect(body.prose["transit_aspect/saturn/sun/square"].title).toBe(
+      "Transiting Saturn square natal Sun",
+    );
+    expect(body.prose["transit_aspect/moon/moon/square"]).toBeUndefined();
   });
 
   it("passes a valid `at` instant through", async () => {

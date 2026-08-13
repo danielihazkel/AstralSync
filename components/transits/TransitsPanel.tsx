@@ -12,12 +12,26 @@ import {
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
 import ForecastCard from "@/components/forecast/ForecastCard";
+import Markdown from "@/components/Markdown";
 import TransitWheel from "./TransitWheel";
 import styles from "./transits.module.css";
 
+/** The route's payload: the transit view plus optional per-aspect prose
+ *  (authored transit entries, natal archetypes as fallback), keyed by the
+ *  directional transit key. Mirrors lib/content.ts transitAspectKey — that
+ *  module is server-only (reads content/ from disk), so the key is built
+ *  inline here. */
+type TransitPayload = TransitData & {
+  prose?: Record<string, { title: string; bodyMd: string }>;
+};
+
+function proseKey(c: { a: string; b: string; type: string }): string {
+  return `transit_aspect/${c.a}/${c.b}/${c.type}`;
+}
+
 type State =
   | { kind: "loading" }
-  | { kind: "data"; data: TransitData }
+  | { kind: "data"; data: TransitPayload }
   | { kind: "offline" }
   | { kind: "error" };
 
@@ -175,23 +189,31 @@ export default function TransitsPanel({
           </p>
         ) : (
           <ul className={styles.aspectList}>
-            {data.crossAspects.map((c, i) => (
-              <li key={`${c.a}-${c.b}-${c.type}-${i}`}>
-                <span className={styles.glyph} aria-hidden="true">
-                  {PLANET_GLYPH_CHARS[c.a] + "︎"}
-                </span>
-                Transiting {PLANET_NAMES[c.a]}{" "}
-                {ASPECT_NAMES[c.type].toLowerCase()} natal{" "}
-                <span className={styles.glyph} aria-hidden="true">
-                  {PLANET_GLYPH_CHARS[c.b] + "︎"}
-                </span>
-                {PLANET_NAMES[c.b]}
-                <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
-                {c.b === "moon" && data.natal.moonUncertain && (
-                  <UncertaintyBadge reason={moonReason} />
-                )}
-              </li>
-            ))}
+            {data.crossAspects.map((c, i) => {
+              const entry = data.prose?.[proseKey(c)];
+              return (
+                <li key={`${c.a}-${c.b}-${c.type}-${i}`}>
+                  <span className={styles.glyph} aria-hidden="true">
+                    {PLANET_GLYPH_CHARS[c.a] + "︎"}
+                  </span>
+                  Transiting {PLANET_NAMES[c.a]}{" "}
+                  {ASPECT_NAMES[c.type].toLowerCase()} natal{" "}
+                  <span className={styles.glyph} aria-hidden="true">
+                    {PLANET_GLYPH_CHARS[c.b] + "︎"}
+                  </span>
+                  {PLANET_NAMES[c.b]}
+                  <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
+                  {c.b === "moon" && data.natal.moonUncertain && (
+                    <UncertaintyBadge reason={moonReason} />
+                  )}
+                  {entry && (
+                    <div className={styles.prose}>
+                      <Markdown md={entry.bodyMd} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

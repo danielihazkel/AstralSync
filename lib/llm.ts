@@ -881,24 +881,37 @@ function renderEntrySections(entries: ContentEntry[]): string {
   return entries.map((e) => `### ${e.title}\n${e.bodyMd}`).join("\n\n");
 }
 
+/** Interpretation entries for a western forecast's strongest pairs, split by
+ *  provenance: authored transit prose vs natal archetypes standing in. */
+export interface ForecastAspectContext {
+  transit: ContentEntry[];
+  natalArchetypes: ContentEntry[];
+}
+
 /**
  * Prompt for a western transit forecast: the period's sky (positions, Moon
  * spans, ingresses/stations, aspect windows) interpreted against the natal
- * chart. `aspectContext` holds the natal `aspect` library entries for the
- * strongest transiting pairs — archetypal pair prose the model is told to
- * adapt to a transit reading. Like buildReadingPrompt, birth details
+ * chart. `aspectContext.transit` holds authored `transit_aspect` entries for
+ * pairs in play; `aspectContext.natalArchetypes` holds natal `aspect`
+ * entries standing in for unauthored pairs, which the model is told to adapt
+ * to a transit reading. Like buildReadingPrompt, birth details
  * (`chart.input`) are never included.
  */
 export function buildWesternForecastPrompt(
   summary: WesternPeriodSummary,
   chart: WheelChart,
-  aspectContext: ContentEntry[],
+  aspectContext: ForecastAspectContext,
 ): string {
   const kind = summary.period.kind;
   const instructions = [
     `You are writing one ${KIND_LABEL[kind]} for an astrology app, based on the current transits over this person's natal chart.`,
     "Below are the period's sky data, the complete natal chart, and interpretation entries for the strongest planetary pairs in play.",
-    "The interpretation entries describe each pair archetypally in a natal context — adapt their themes to transits unfolding over this period, do not restate them.",
+    aspectContext.transit.length > 0
+      ? "The transit interpretation entries describe the named transits directly — ground the forecast's headlines in them."
+      : "",
+    aspectContext.natalArchetypes.length > 0
+      ? "The natal-archetype entries describe each pair archetypally in a natal context — adapt their themes to transits unfolding over this period, do not restate them."
+      : "",
     "Emphasize the strongest and slowest-moving contacts; treat fast Moon movements as day-to-day texture, not headlines.",
     "Event dates come from daily sampling: phrase timing approximately (\"around\", \"early in the week\"), never as precise moments.",
     `Weave everything into a single original forecast of roughly ${FORECAST_WORDS[kind]} words in Markdown`,
@@ -918,8 +931,11 @@ export function buildWesternForecastPrompt(
     instructions,
     `## Period sky data\n${renderWesternPeriodData(summary)}`,
     `## Complete natal chart data\n${renderChartData(chart)}`,
-    aspectContext.length > 0
-      ? `## Interpretation entries (natal archetypes for the pairs in play)\n${renderEntrySections(aspectContext)}`
+    aspectContext.transit.length > 0
+      ? `## Transit interpretations (for the pairs in play)\n${renderEntrySections(aspectContext.transit)}`
+      : "",
+    aspectContext.natalArchetypes.length > 0
+      ? `## Interpretation entries (natal archetypes for the pairs in play — adapt to transits)\n${renderEntrySections(aspectContext.natalArchetypes)}`
       : "",
   ]
     .filter(Boolean)

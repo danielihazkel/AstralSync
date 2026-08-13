@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  getEntry,
+  loadContentIndex,
+  natalAspectKey,
+  transitAspectKey,
+} from "@/lib/content";
 import { getTransitView } from "@/lib/transits";
 import { transitQuerySchema } from "@/lib/validation";
 
@@ -44,5 +50,17 @@ export async function GET(
       { status: 404, headers: NO_STORE },
     );
   }
-  return NextResponse.json(view, { headers: NO_STORE });
+
+  // Optional per-aspect prose, keyed by the directional transit key: an
+  // authored transit_aspect entry when it exists, else the natal archetype
+  // (same degradation path as the forecast prompt and synastry page).
+  const index = loadContentIndex();
+  const prose: Record<string, { title: string; bodyMd: string }> = {};
+  for (const c of view.crossAspects) {
+    const key = transitAspectKey(c.a, c.b, c.type);
+    const entry =
+      getEntry(index, key) ?? getEntry(index, natalAspectKey(c.a, c.b, c.type));
+    if (entry) prose[key] = { title: entry.title, bodyMd: entry.bodyMd };
+  }
+  return NextResponse.json({ ...view, prose }, { headers: NO_STORE });
 }

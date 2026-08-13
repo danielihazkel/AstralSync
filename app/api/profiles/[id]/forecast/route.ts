@@ -5,6 +5,7 @@ import {
   getEntry,
   loadContentIndex,
   natalAspectKey,
+  transitAspectKey,
   type ContentEntry,
 } from "@/lib/content";
 import {
@@ -27,6 +28,7 @@ import {
   buildWesternForecastPrompt,
   llmClientFromEnv,
   LlmUnavailableError,
+  type ForecastAspectContext,
 } from "@/lib/llm";
 import { ensureHebrewSnapshot, getProfileView } from "@/lib/snapshots";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
@@ -117,19 +119,26 @@ export async function GET(
   );
 }
 
-/** Entries for the strongest transiting pairs, deduped, missing keys skipped. */
-function westernEntries(windows: AspectWindow[]): ContentEntry[] {
+/**
+ * Entries for the strongest transiting pairs, deduped, missing keys skipped.
+ * Authored `transit_aspect` prose (directional: `w.a` is the transiting
+ * body) wins; unauthored pairs fall back to the natal `aspect` archetype the
+ * prompt is told to adapt.
+ */
+function westernEntries(windows: AspectWindow[]): ForecastAspectContext {
   const index = loadContentIndex();
   const seen = new Set<string>();
-  const entries: ContentEntry[] = [];
+  const context: ForecastAspectContext = { transit: [], natalArchetypes: [] };
   for (const w of windows) {
-    const key = natalAspectKey(w.a, w.b, w.type);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const entry = getEntry(index, key);
-    if (entry) entries.push(entry);
+    const transitKey = transitAspectKey(w.a, w.b, w.type);
+    const natalKey = natalAspectKey(w.a, w.b, w.type);
+    const transitEntry = getEntry(index, transitKey);
+    const chosen = transitEntry ?? getEntry(index, natalKey);
+    if (!chosen || seen.has(chosen.key)) continue;
+    seen.add(chosen.key);
+    (transitEntry ? context.transit : context.natalArchetypes).push(chosen);
   }
-  return entries;
+  return context;
 }
 
 /**

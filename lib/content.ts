@@ -30,6 +30,10 @@ export const CONTENT_CATEGORIES = [
   // Synastry pair prose, Phase 3c — authoring is the optional 3d Tier 6;
   // the aspect list degrades to prose-less rows until entries land.
   "synastry_aspect",
+  // Transit prose: transiting outer planets over natal points. Directional
+  // keys (transiter first); unauthored pairs fall back to natal `aspect`
+  // archetypes in the forecast prompt and transit list.
+  "transit_aspect",
   "element_dominance",
   "modality_dominance",
   "life_path",
@@ -179,6 +183,20 @@ export function natalAspectKey(a: Planet, b: Planet, type: AspectType): string {
   const [first, second] =
     PLANETS.indexOf(a) <= PLANETS.indexOf(b) ? [a, b] : [b, a];
   return `aspect/${first}/${second}/${type}`;
+}
+
+/**
+ * Canonical transit-aspect key — DIRECTIONAL, never sorted: transiting
+ * Saturn square natal Sun is a different reading from transiting Sun square
+ * natal Saturn. Tier 1 authors the slow movers (Jupiter–Pluto) over the
+ * luminaries; everything else stays on the natal-archetype fallback.
+ */
+export function transitAspectKey(
+  transiting: Planet,
+  natal: Planet,
+  type: AspectType,
+): string {
+  return `transit_aspect/${transiting}/${natal}/${type}`;
 }
 
 export type ReadingSlot =

@@ -15,6 +15,7 @@ import {
   natalAspectKey,
   parseEntryFile,
   resolveReading,
+  transitAspectKey,
 } from "./content";
 
 const FIXTURE_ROOT = path.join(__dirname, "__fixtures__", "content");
@@ -91,6 +92,23 @@ describe("keyFromPath", () => {
 
   it("normalizes Windows separators", () => {
     expect(keyFromPath("life_path\\22.md")).toBe("life_path/22");
+  });
+});
+
+describe("transitAspectKey", () => {
+  it("is directional — transiter first, never sorted", () => {
+    expect(transitAspectKey("saturn", "sun", "square")).toBe(
+      "transit_aspect/saturn/sun/square",
+    );
+    expect(transitAspectKey("sun", "saturn", "square")).toBe(
+      "transit_aspect/sun/saturn/square",
+    );
+  });
+
+  it("round-trips through keyFromPath", () => {
+    expect(keyFromPath("transit_aspect/saturn-sun-square.md")).toBe(
+      transitAspectKey("saturn", "sun", "square"),
+    );
   });
 });
 

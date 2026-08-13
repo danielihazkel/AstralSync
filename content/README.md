@@ -47,22 +47,22 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (356 entries, Phase 3d complete):** `planet_in_sign` ×120
+**English scope (406 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
 framing), `planet_in_house` ×120, `aspect` ×49 (nine pairs across all five
 types, plus conjunction-only Sun–Mercury and Sun–Venus and
 conjunction+sextile Mercury–Venus — the remaining combinations are
-astronomically unreachable at natal orbs), `ascendant_sign` ×12,
+astronomically unreachable at natal orbs), `transit_aspect` ×50 (Tier 1:
+transiting Jupiter–Pluto over natal Sun/Moon across all five types;
+directional keys, transiter first — never sorted), `ascendant_sign` ×12,
 `life_path` / `destiny` / `soul_urge` ×12 each (1–9, 11, 22, 33),
 `element_dominance` ×4, `modality_dominance` ×3, and a `synastry_aspect`
 ×12 starter set. The reading renders sign/house sections for the personal
 planets only; Jupiter–Pluto entries are authored for future surfaces
-(transits, LLM prompts). The AI period forecasts (Phase 3e) reuse the natal
-`aspect` entries as archetypal pair context for the strongest transiting
-pairs; a dedicated `transit_aspect` category (transit-voiced, "moving over"
-framing) is deferred authoring work — adding it is one line in
-`CONTENT_CATEGORIES` plus entries, and the forecast route would prefer it
-over the natal entries once present.
+(transits, LLM prompts). The AI period forecasts and the Transits tab
+prefer `transit_aspect` prose for pairs in play and fall back to the natal
+`aspect` archetypes for everything unauthored (fast-mover pairs stay on the
+fallback by design).
 
 **Hebrew scope (62 entries under `he/`, Phase 2c):** `mazal_month` ×12 (the
 single `adar` entry covers Adar I/II), `day_planet` ×7 + `hour_planet` ×7

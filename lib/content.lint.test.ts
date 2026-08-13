@@ -18,6 +18,16 @@ const heEntries = [...heIndex.entries.values()];
 const LIFE_PATHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 22, 33];
 const ASPECT_TYPES = ["conjunction", "sextile", "square", "trine", "opposition"];
 
+/** Tier 1 transit prose: slow transiters over the luminaries, all types. */
+const TRANSIT_ASPECT_TRANSITERS: Planet[] = [
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto",
+];
+const TRANSIT_ASPECT_NATALS: Planet[] = ["sun", "moon"];
+
 /** Tier 2 pairs authored across all five aspect types (PLANETS order). */
 const FULL_ASPECT_PAIRS: [Planet, Planet][] = [
   ["sun", "moon"],
@@ -66,11 +76,11 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 356 entries", () => {
+  it("contains exactly the 406 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
-    // paths + 4 elements + 3 modalities + 49 natal aspects + 12 destiny
-    // + 12 soul urge + 12 synastry aspects (Phase 3d complete).
-    expect(entries).toHaveLength(356);
+    // paths + 4 elements + 3 modalities + 49 natal aspects + 50 transit
+    // aspects (Tier 1) + 12 destiny + 12 soul urge + 12 synastry aspects.
+    expect(entries).toHaveLength(406);
   });
 
   it("covers every planet in every sign", () => {
@@ -147,6 +157,22 @@ describe("content library lint", () => {
     for (const modality of MODALITIES) {
       expect(entry(`modality_dominance/${modality}`), modality).not.toBeNull();
     }
+  });
+
+  it("covers the Tier 1 transit aspect matrix", () => {
+    for (const transiter of TRANSIT_ASPECT_TRANSITERS) {
+      for (const natal of TRANSIT_ASPECT_NATALS) {
+        for (const type of ASPECT_TYPES) {
+          const key = `transit_aspect/${transiter}/${natal}/${type}`;
+          expect(entry(key), key).not.toBeNull();
+        }
+      }
+    }
+    expect(entries.filter((e) => e.category === "transit_aspect")).toHaveLength(
+      TRANSIT_ASPECT_TRANSITERS.length *
+        TRANSIT_ASPECT_NATALS.length *
+        ASPECT_TYPES.length,
+    );
   });
 
   it("covers the Tier 2 natal aspect matrix", () => {

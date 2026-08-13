@@ -54,6 +54,16 @@
   font-size: 0.92rem;
 }
 
+.prose {
+  margin: 0.35rem 0 0.2rem;
+  padding-left: 0.85rem;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
 .orb {
   color: var(--text-muted);
   font-size: 0.8rem;
