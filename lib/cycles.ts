@@ -60,7 +60,29 @@ export interface CyclesData {
     /** Full chart at the return instant, cast for the birth location. */
     chart: WheelChart;
   } | null;
+  /** Jupiter and Saturn returns, in that order. */
+  planetaryReturns: PlanetaryReturnData[];
   engine: { name: string; version: string };
+}
+
+export type SlowPlanet = "jupiter" | "saturn";
+
+export interface PlanetaryReturnData {
+  planet: SlowPlanet;
+  /** Approximate cycle length in years (~11.86 Jupiter, ~29.46 Saturn). */
+  cycleYears: number;
+  natalLongitude: number;
+  currentLongitude: number;
+  /** Most recent exact crossing ≤ computedAt; null before the first return. */
+  lastExactUtc: string | null;
+  /** All exact crossings within ±18 months of computedAt — a retrograde loop
+   *  over the natal degree produces up to three passes. */
+  crossings: string[];
+  /** Next exact crossing after computedAt. */
+  nextExactUtc: string | null;
+  /** Full chart at lastExactUtc, cast for the birth location; null before
+   *  the first return. */
+  chart: WheelChart | null;
 }
 
 /** Pure: natal chart + instant → progressed placements and natal contacts. */
@@ -232,6 +254,128 @@ export function computeLunarReturn(
   };
 }
 
+const CYCLE_YEARS: Record<SlowPlanet, number> = {
+  jupiter: 11.862,
+  saturn: 29.457,
+};
+
+/** 10-day sampling: Saturn moves ≤ ~0.13°/day and Jupiter ≤ ~0.24°/day, so
+ *  consecutive samples differ by ≤ ~2.4° and no natal-degree crossing can
+ *  hide between them. */
+const RETURN_STEP_MS = 10 * DAY_MS;
+
+function planetLonAt(planet: SlowPlanet, t: Date): number {
+  return astronomyEngineProvider.eclipticLongitude(planet, t);
+}
+
+/** Refine a bracketed crossing. Astronomy.Search finds ascending roots only,
+ *  so a descending crossing (retrograde re-pass) negates the delta. */
+function refineCrossing(
+  planet: SlowPlanet,
+  target: number,
+  from: Date,
+  to: Date,
+  ascending: boolean,
+): Date | null {
+  const found = Astronomy.Search(
+    (t) => {
+      const d = signedDelta(planetLonAt(planet, t.date), target);
+      return ascending ? d : -d;
+    },
+    Astronomy.MakeTime(from),
+    Astronomy.MakeTime(to),
+  );
+  return found ? found.date : null;
+}
+
+/** All instants in [from, to] where the planet crosses `natalLon`, in time
+ *  order — ascending and descending passes both count (retrograde loops give
+ *  up to three per return). Brackets straddling the ±180° wrap are the far
+ *  point of the cycle, not a crossing, and are skipped via the |delta| < 90°
+ *  guard. */
+function slowPlanetCrossings(
+  planet: SlowPlanet,
+  natalLon: number,
+  from: Date,
+  to: Date,
+): Date[] {
+  const out: Date[] = [];
+  let prevT = from;
+  let prevD = signedDelta(planetLonAt(planet, prevT), natalLon);
+  while (prevT.getTime() < to.getTime()) {
+    const t = new Date(Math.min(prevT.getTime() + RETURN_STEP_MS, to.getTime()));
+    const d = signedDelta(planetLonAt(planet, t), natalLon);
+    if (Math.abs(prevD) < 90 && Math.abs(d) < 90 && prevD * d < 0) {
+      const found = refineCrossing(planet, natalLon, prevT, t, d > prevD);
+      if (found) out.push(found);
+    }
+    prevT = t;
+    prevD = d;
+  }
+  return out;
+}
+
+/** Pure: natal chart + instant → the Jupiter/Saturn return picture. Scans
+ *  one full cycle back (clamped to a year after birth — the planet sits on
+ *  its natal degree at birth, and a retrograde re-pass months later is not a
+ *  return) and one forward. */
+export function computePlanetaryReturn(
+  natal: WheelChart,
+  at: Date,
+  planet: SlowPlanet,
+): PlanetaryReturnData {
+  const natalPlacement = natal.placements.find((p) => p.planet === planet)!;
+  const natalLon = natalPlacement.longitude;
+  const cycleYears = CYCLE_YEARS[planet];
+  const cycleMs = cycleYears * TROPICAL_YEAR_DAYS * DAY_MS;
+  const birthMs = new Date(natal.input.utc).getTime();
+
+  const backFrom = new Date(
+    Math.max(birthMs + 365 * DAY_MS, at.getTime() - cycleMs - 180 * DAY_MS),
+  );
+  const past =
+    backFrom.getTime() < at.getTime()
+      ? slowPlanetCrossings(planet, natalLon, backFrom, at)
+      : [];
+  const future = slowPlanetCrossings(
+    planet,
+    natalLon,
+    at,
+    new Date(at.getTime() + cycleMs + 180 * DAY_MS),
+  );
+
+  const last = past.length > 0 ? past[past.length - 1] : null;
+  const windowMs = 548 * DAY_MS; // ±18 months
+  const crossings = [...past, ...future]
+    .filter((d) => Math.abs(d.getTime() - at.getTime()) <= windowMs)
+    .map((d) => d.toISOString());
+
+  let chart: WheelChart | null = null;
+  if (last) {
+    const snapshot = buildChart({
+      utc: last,
+      latitude: natal.input.latitude,
+      longitude: natal.input.longitude,
+      houseSystem: natal.input.houseSystem,
+      // The crossing instant is exact; a solar natal's longitude is itself a
+      // noon estimate — surfaced via natal.isSolarChart in the UI.
+      timeCertainty: "exact",
+    });
+    chart = { ...snapshot, tzWarnings: [] };
+  }
+
+  return {
+    planet,
+    cycleYears,
+    natalLongitude: natalLon,
+    currentLongitude: planetLonAt(planet, at),
+    lastExactUtc: last ? last.toISOString() : null,
+    crossings,
+    nextExactUtc: future.length > 0 ? future[0].toISOString() : null,
+    chart,
+  };
+}
+
 /** Pure: natal chart + instant → the full cycles view. */
 export function computeCycles(
   natal: WheelChart,
@@ -250,6 +394,9 @@ export function computeCycles(
     progressions: computeProgressions(natal, at),
     solarReturn,
     lunarReturn: computeLunarReturn(natal, at),
+    planetaryReturns: (["jupiter", "saturn"] as const).map((p) =>
+      computePlanetaryReturn(natal, at, p),
+    ),
     engine: {
       name: astronomyEngineProvider.name,
       version: astronomyEngineProvider.version,

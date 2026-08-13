@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeCycles,
   computeLunarReturn,
+  computePlanetaryReturn,
   computeProgressions,
   computeSolarReturn,
 } from "./cycles";
@@ -130,6 +131,68 @@ describe("computeLunarReturn", () => {
   });
 });
 
+describe("computePlanetaryReturn", () => {
+  const YEAR_MS = 365.2425 * 86_400_000;
+  const at = new Date(Date.UTC(2026, 7, 13));
+
+  it("finds the 1990 natal's first Saturn return in early 2020", () => {
+    const r = computePlanetaryReturn(NATAL, at, "saturn");
+    expect(new Date(r.lastExactUtc!).getUTCFullYear()).toBe(2020);
+    // The return chart's Saturn sits on the natal Saturn longitude.
+    const returnSaturn = r.chart!.placements.find((p) => p.planet === "saturn")!;
+    expect(separation(returnSaturn.longitude, r.natalLongitude)).toBeLessThan(
+      0.01,
+    );
+    expect(r.chart!.input.latitude).toBe(51.48);
+    // The next return is a full cycle out.
+    const gap = new Date(r.nextExactUtc!).getTime() - new Date(r.lastExactUtc!).getTime();
+    expect(gap / YEAR_MS).toBeGreaterThan(28);
+    expect(gap / YEAR_MS).toBeLessThan(31);
+  });
+
+  it("spaces Jupiter returns about 11.86 years apart", () => {
+    const r = computePlanetaryReturn(NATAL, at, "jupiter");
+    expect(r.lastExactUtc).not.toBeNull();
+    expect(r.nextExactUtc).not.toBeNull();
+    const gap =
+      new Date(r.nextExactUtc!).getTime() - new Date(r.lastExactUtc!).getTime();
+    expect(gap / YEAR_MS).toBeGreaterThan(10.5);
+    expect(gap / YEAR_MS).toBeLessThan(13);
+  });
+
+  it("reports a retrograde triple pass as three crossings", () => {
+    // Natal Saturn at ~358° Pisces (born 1996-03-20) sits inside Saturn's
+    // 2025–26 retrograde loop: passes Apr 2025, Sep 2025, Jan 2026.
+    const natal = chartOf(new Date(Date.UTC(1996, 2, 20, 12, 0, 0)));
+    const r = computePlanetaryReturn(
+      natal,
+      new Date(Date.UTC(2026, 0, 1)),
+      "saturn",
+    );
+    expect(r.crossings).toHaveLength(3);
+    expect(r.crossings.map((c) => new Date(c).getUTCFullYear())).toEqual([
+      2025, 2025, 2026,
+    ]);
+  });
+
+  it("young chart: null last return and chart, non-null next", () => {
+    const kid = chartOf(new Date(Date.UTC(2015, 5, 1, 12, 0, 0)));
+    for (const planet of ["jupiter", "saturn"] as const) {
+      const r = computePlanetaryReturn(kid, at, planet);
+      expect(r.lastExactUtc).toBeNull();
+      expect(r.chart).toBeNull();
+      expect(r.nextExactUtc).not.toBeNull();
+      expect(new Date(r.nextExactUtc!).getTime()).toBeGreaterThan(at.getTime());
+    }
+  });
+
+  it("is deterministic for a fixed instant", () => {
+    expect(computePlanetaryReturn(NATAL, at, "saturn")).toEqual(
+      computePlanetaryReturn(NATAL, at, "saturn"),
+    );
+  });
+});
+
 describe("computeCycles", () => {
   it("assembles the full view with natal flags and engine info", () => {
     const at = new Date(Date.UTC(2026, 7, 13));
@@ -143,6 +206,10 @@ describe("computeCycles", () => {
     expect(view.progressions.placements).toHaveLength(10);
     expect(view.solarReturn.year).toBe(2026);
     expect(view.lunarReturn).not.toBeNull();
+    expect(view.planetaryReturns.map((r) => r.planet)).toEqual([
+      "jupiter",
+      "saturn",
+    ]);
     expect(view.engine.name).toBe("astronomy-engine");
   });
 

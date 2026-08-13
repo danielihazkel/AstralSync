@@ -30,6 +30,7 @@ const canned = {
     nextReturnUtc: "2026-08-26T09:54:02.000Z",
     chart: {} as CyclesData["solarReturn"]["chart"],
   },
+  planetaryReturns: [],
   engine: { name: "astronomy-engine", version: "2.1.19" },
 } satisfies CyclesData;
 

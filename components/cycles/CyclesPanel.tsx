@@ -104,7 +104,7 @@ export default function CyclesPanel({
   const moonReason =
     chart.uncertainties.find((u) => u.field === "moon_sign")?.reason ??
     "The natal Moon sign is uncertain.";
-  const { progressions, solarReturn, lunarReturn } = data;
+  const { progressions, solarReturn, lunarReturn, planetaryReturns } = data;
 
   return (
     <div className={styles.panel}>
@@ -238,6 +238,54 @@ export default function CyclesPanel({
           downloadName={`solar return ${solarReturn.year}`}
         />
       </section>
+
+      {planetaryReturns.map((r) => (
+        <section
+          key={r.planet}
+          aria-label={`${PLANET_NAMES[r.planet]} return`}
+        >
+          <h3 className={styles.sectionTitle}>
+            <span className={styles.glyph} aria-hidden="true">
+              {PLANET_GLYPH_CHARS[r.planet] + "︎"}
+            </span>
+            {PLANET_NAMES[r.planet]} return
+          </h3>
+          <p className={styles.muted}>
+            {PLANET_NAMES[r.planet]} circles the zodiac about every{" "}
+            {r.cycleYears.toFixed(1)} years.{" "}
+            {r.lastExactUtc ? (
+              <>
+                Last exact return{" "}
+                {new Date(r.lastExactUtc).toLocaleDateString()}
+                {r.nextExactUtc &&
+                  ` · next around ${new Date(r.nextExactUtc).toLocaleDateString()}`}
+                .
+              </>
+            ) : r.nextExactUtc ? (
+              <>
+                Your first {PLANET_NAMES[r.planet]} return arrives around{" "}
+                {new Date(r.nextExactUtc).toLocaleDateString()}.
+              </>
+            ) : null}
+            {r.crossings.length > 1 &&
+              ` A retrograde loop makes ${r.crossings.length} exact passes over the natal degree in this window — the theme repeats.`}
+          </p>
+          {r.chart && (
+            <>
+              <p className={styles.muted}>
+                The chart below is cast for the last exact return, at the
+                birth location — it colors the whole{" "}
+                {r.planet === "jupiter" ? "~12-year" : "~29-year"} cycle it
+                opened.
+              </p>
+              <ChartWheel
+                chart={r.chart}
+                downloadName={`${r.planet} return`}
+              />
+            </>
+          )}
+        </section>
+      ))}
     </div>
   );
 }
