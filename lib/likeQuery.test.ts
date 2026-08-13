@@ -1,26 +1,26 @@
-import { describe, expect, it } from "vitest";
-import { escapeLikePrefix } from "./likeQuery";
+﻿import { describe, expect, it } from "vitest";
+import { escapeLike } from "./likeQuery";
 
-describe("escapeLikePrefix", () => {
+describe("escapeLike", () => {
   it("leaves plain strings unchanged", () => {
-    expect(escapeLikePrefix("Tel Aviv")).toBe("Tel Aviv");
-    expect(escapeLikePrefix("ירושלים")).toBe("ירושלים");
+    expect(escapeLike("Tel Aviv")).toBe("Tel Aviv");
+    expect(escapeLike("×™×¨×•×©×œ×™×")).toBe("×™×¨×•×©×œ×™×");
   });
 
   it("escapes percent", () => {
-    expect(escapeLikePrefix("Te%")).toBe("Te\\%");
-    expect(escapeLikePrefix("%%")).toBe("\\%\\%");
+    expect(escapeLike("Te%")).toBe("Te\\%");
+    expect(escapeLike("%%")).toBe("\\%\\%");
   });
 
   it("escapes underscore", () => {
-    expect(escapeLikePrefix("T_")).toBe("T\\_");
+    expect(escapeLike("T_")).toBe("T\\_");
   });
 
   it("escapes backslash itself", () => {
-    expect(escapeLikePrefix("a\\b")).toBe("a\\\\b");
+    expect(escapeLike("a\\b")).toBe("a\\\\b");
   });
 
   it("handles mixed input", () => {
-    expect(escapeLikePrefix("a%b_c\\d")).toBe("a\\%b\\_c\\\\d");
+    expect(escapeLike("a%b_c\\d")).toBe("a\\%b\\_c\\\\d");
   });
 });

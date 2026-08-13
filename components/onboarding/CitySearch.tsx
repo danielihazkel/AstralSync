@@ -50,11 +50,18 @@ export default function CitySearch({
         const res = await fetch(`/api/cities?q=${encodeURIComponent(q)}`, {
           signal: controller.signal,
         });
+        if (!res.ok) {
+          setResults([]);
+          return;
+        }
         const data = await res.json();
         setResults(data.cities ?? []);
-        setSearching(false);
       } catch {
         // Aborted or offline — keep the previous results.
+      } finally {
+        // On abort a newer effect run owns the searching state; clearing it
+        // here would clobber that run's "Searching…" indicator.
+        if (!controller.signal.aborted) setSearching(false);
       }
     }, 300);
     return () => {
