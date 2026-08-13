@@ -16,7 +16,9 @@ const entries = [...index.entries.values()];
 const heIndex = loadContentIndex(contentRoot("he"));
 const heEntries = [...heIndex.entries.values()];
 const LIFE_PATHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 22, 33];
-const ASPECT_TYPES = ["conjunction", "sextile", "square", "trine", "opposition"];
+// Authored aspect prose covers the majors only; minor aspects (quincunx
+// etc.) are read-time overlays with graceful prose fallback.
+const MAJOR_ASPECT_TYPES = ["conjunction", "sextile", "square", "trine", "opposition"];
 
 /** Transit prose: slow transiters over the personal planets, all types —
  *  Tier 1 (luminaries) plus the Tier 2 expansion (Mercury/Venus/Mars).
@@ -139,7 +141,7 @@ describe("content library lint", () => {
     let expected = 0;
     for (let i = 0; i < SYNASTRY_PLANETS.length; i++) {
       for (let j = i; j < SYNASTRY_PLANETS.length; j++) {
-        for (const type of ASPECT_TYPES) {
+        for (const type of MAJOR_ASPECT_TYPES) {
           const key = `synastry_aspect/${SYNASTRY_PLANETS[i]}/${SYNASTRY_PLANETS[j]}/${type}`;
           expect(entry(key), key).not.toBeNull();
           expected++;
@@ -166,7 +168,7 @@ describe("content library lint", () => {
   it("covers the transit aspect matrix (Tiers 1+2)", () => {
     for (const transiter of TRANSIT_ASPECT_TRANSITERS) {
       for (const natal of TRANSIT_ASPECT_NATALS) {
-        for (const type of ASPECT_TYPES) {
+        for (const type of MAJOR_ASPECT_TYPES) {
           const key = `transit_aspect/${transiter}/${natal}/${type}`;
           expect(entry(key), key).not.toBeNull();
         }
@@ -175,13 +177,13 @@ describe("content library lint", () => {
     expect(entries.filter((e) => e.category === "transit_aspect")).toHaveLength(
       TRANSIT_ASPECT_TRANSITERS.length *
         TRANSIT_ASPECT_NATALS.length *
-        ASPECT_TYPES.length,
+        MAJOR_ASPECT_TYPES.length,
     );
   });
 
   it("covers the Tier 2 natal aspect matrix", () => {
     for (const [a, b] of FULL_ASPECT_PAIRS) {
-      for (const type of ASPECT_TYPES) {
+      for (const type of MAJOR_ASPECT_TYPES) {
         expect(entry(`aspect/${a}/${b}/${type}`), `${a}/${b}/${type}`).not.toBeNull();
       }
     }
@@ -190,7 +192,7 @@ describe("content library lint", () => {
     }
     const authored = entries.filter((e) => e.category === "aspect");
     expect(authored).toHaveLength(
-      FULL_ASPECT_PAIRS.length * ASPECT_TYPES.length + PARTIAL_ASPECT_KEYS.length,
+      FULL_ASPECT_PAIRS.length * MAJOR_ASPECT_TYPES.length + PARTIAL_ASPECT_KEYS.length,
     );
   });
 

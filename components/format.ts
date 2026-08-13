@@ -89,6 +89,11 @@ export const ASPECT_NAMES: Record<AspectType, string> = {
   square: "Square",
   trine: "Trine",
   opposition: "Opposition",
+  quincunx: "Quincunx",
+  semisextile: "Semisextile",
+  semisquare: "Semisquare",
+  sesquiquadrate: "Sesquiquadrate",
+  quintile: "Quintile",
 };
 
 export const HOUSE_SYSTEM_NAMES: Record<HouseSystem, string> = {

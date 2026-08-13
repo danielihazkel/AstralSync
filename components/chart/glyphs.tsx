@@ -54,6 +54,13 @@ export const ASPECT_COLOR: Record<AspectType, string> = {
   sextile: "var(--aspect-sextile)",
   square: "var(--aspect-square)",
   opposition: "var(--aspect-opposition)",
+  // Minor aspects share one muted tone — rendered dashed, they read as a
+  // family rather than five more colors competing on the wheel.
+  quincunx: "var(--aspect-minor)",
+  semisextile: "var(--aspect-minor)",
+  semisquare: "var(--aspect-minor)",
+  sesquiquadrate: "var(--aspect-minor)",
+  quintile: "var(--aspect-minor)",
 };
 
 const GLYPH_FONT =

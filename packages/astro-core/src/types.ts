@@ -60,13 +60,21 @@ export type AspectType =
   | "sextile"
   | "square"
   | "trine"
-  | "opposition";
+  | "opposition"
+  | "quincunx"
+  | "semisextile"
+  | "semisquare"
+  | "sesquiquadrate"
+  | "quintile";
 
 export interface OrbConfig {
   /** Max orb in degrees when either body is the Sun or Moon. */
   luminary: number;
   /** Max orb in degrees for all other pairs. */
   default: number;
+  /** Max orb in degrees for minor aspects (all pairs); defaults to 2 when
+   *  minor aspects are requested. */
+  minor?: number;
 }
 
 export const DEFAULT_ORBS: OrbConfig = { luminary: 8, default: 6 };
@@ -103,7 +111,7 @@ export interface Aspect {
   a: Planet;
   b: Planet;
   type: AspectType;
-  /** Exact angle of this aspect type (0, 60, 90, 120, 180). */
+  /** Exact angle of this aspect type (e.g. 0, 60, 90, 120, 180). */
   angle: number;
   /** Deviation from exact, degrees. */
   orb: number;
@@ -117,7 +125,7 @@ export interface CrossAspect {
   a: Planet;
   b: Planet;
   type: AspectType;
-  /** Exact angle of this aspect type (0, 60, 90, 120, 180). */
+  /** Exact angle of this aspect type (e.g. 0, 60, 90, 120, 180). */
   angle: number;
   /** Deviation from exact, degrees. */
   orb: number;

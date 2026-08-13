@@ -24,6 +24,7 @@
   --aspect-sextile: #6fa0c9;
   --aspect-square: #c97a5a;
   --aspect-opposition: #c95a70;
+  --aspect-minor: #8d87a8;
 
   --font-display: Georgia, "Palatino Linotype", "Book Antiqua", serif;
   --font-body: system-ui, -apple-system, sans-serif;
@@ -56,6 +57,7 @@
     --aspect-sextile: #2f5e8a;
     --aspect-square: #a05030;
     --aspect-opposition: #a03050;
+    --aspect-minor: #6a6580;
   }
 
   html {

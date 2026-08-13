@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { detectAspects } from "../src";
+import {
+  ALL_ASPECTS,
+  MINOR_ASPECTS,
+  buildChart,
+  detectAspects,
+  detectCrossAspects,
+} from "../src";
 
 describe("aspect detection", () => {
   it("detects a trine within default planet orb (6°)", () => {
@@ -60,5 +66,86 @@ describe("aspect detection", () => {
       { planet: "saturn", longitude: 30 }, // 30° is no major aspect
     ]);
     expect(aspects).toHaveLength(0);
+  });
+});
+
+describe("minor aspects (opt-in)", () => {
+  it("ignores minors unless the aspect list includes them", () => {
+    const semisextile = [
+      { planet: "mars" as const, longitude: 0 },
+      { planet: "saturn" as const, longitude: 30 },
+    ];
+    expect(detectAspects(semisextile)).toHaveLength(0);
+    const found = detectAspects(semisextile, undefined, ALL_ASPECTS);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ type: "semisextile", angle: 30 });
+  });
+
+  it("detects each minor type at its exact angle", () => {
+    for (const def of MINOR_ASPECTS) {
+      const found = detectAspects(
+        [
+          { planet: "venus", longitude: 100 },
+          { planet: "mars", longitude: 100 + def.angle },
+        ],
+        undefined,
+        MINOR_ASPECTS,
+      );
+      expect(found).toHaveLength(1);
+      expect(found[0].type).toBe(def.type);
+      expect(found[0].orb).toBeCloseTo(0);
+    }
+  });
+
+  it("holds minors to the tight 2° default even for luminaries", () => {
+    const at152_5 = [
+      { planet: "sun" as const, longitude: 0 },
+      { planet: "pluto" as const, longitude: 152.5 }, // quincunx, orb 2.5
+    ];
+    expect(detectAspects(at152_5, undefined, ALL_ASPECTS)).toHaveLength(0);
+    expect(
+      detectAspects(at152_5, { luminary: 8, default: 6, minor: 3 }, ALL_ASPECTS),
+    ).toHaveLength(1);
+  });
+
+  it("prefers the tighter aspect when a separation sits between types", () => {
+    // 146°: 4° from quincunx (beyond minor orb 2), 26° from trine — nothing.
+    // 149°: quincunx orb 1 wins even though trine is also in the list.
+    const found = detectAspects(
+      [
+        { planet: "venus", longitude: 0 },
+        { planet: "mars", longitude: 149 },
+      ],
+      undefined,
+      ALL_ASPECTS,
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0].type).toBe("quincunx");
+  });
+
+  it("cross grid: minors opt-in with the same tight orb", () => {
+    const a = [{ planet: "saturn" as const, longitude: 45.5 }];
+    const b = [{ planet: "sun" as const, longitude: 0 }];
+    expect(detectCrossAspects(a, b)).toHaveLength(0);
+    const found = detectCrossAspects(a, b, undefined, ALL_ASPECTS);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ type: "semisquare", angle: 45 });
+    expect(found[0].orb).toBeCloseTo(0.5);
+  });
+
+  it("buildChart output is byte-identical to the majors-only engine", () => {
+    // Snapshot invariance: widening the aspect engine must not change what
+    // gets stored. This chart has minor-aspect separations available, yet
+    // none may appear and every aspect must be a major type.
+    const chart = buildChart({
+      utc: new Date(Date.UTC(1990, 2, 4, 10, 30, 0)),
+      latitude: 51.48,
+      longitude: 0,
+      timeCertainty: "exact",
+    });
+    const majors = ["conjunction", "sextile", "square", "trine", "opposition"];
+    expect(chart.aspects.length).toBeGreaterThan(0);
+    for (const a of chart.aspects) expect(majors).toContain(a.type);
+    expect(chart.aspects).toEqual(detectAspects(chart.placements));
   });
 });

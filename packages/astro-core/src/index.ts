@@ -1,6 +1,13 @@
 export * from "./types";
 export { buildChart, signOf } from "./chart";
-export { detectAspects, maxOrb, MAJOR_ASPECTS } from "./aspects";
+export {
+  detectAspects,
+  maxOrb,
+  MAJOR_ASPECTS,
+  MINOR_ASPECTS,
+  ALL_ASPECTS,
+} from "./aspects";
+export type { AspectDef } from "./aspects";
 export { detectCrossAspects } from "./crossAspects";
 export { positionsAt, overlayHouses } from "./positions";
 export {
