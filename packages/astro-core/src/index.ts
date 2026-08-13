@@ -22,6 +22,8 @@ export {
 } from "./angles";
 export { compositeChart } from "./composite";
 export type { CompositeChartData } from "./composite";
+export { upcomingEclipses } from "./eclipses";
+export type { EclipseEvent, EclipseKind, EclipseType } from "./eclipses";
 export { pointsAt, meanNode, trueNode, meanLilith } from "./points";
 export type { PointName, PointPlacement, NodeVariant } from "./points";
 export type { EphemerisProvider } from "./ephemeris/interface";
