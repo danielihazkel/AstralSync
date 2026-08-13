@@ -13,6 +13,9 @@ function parseId(raw: string): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+// Profile views carry personal birth data — keep them out of shared caches.
+const NO_STORE = { "Cache-Control": "no-store" };
+
 /** View a profile with its latest snapshot pair, or `?version=N` for history. */
 export async function GET(
   req: NextRequest,
@@ -29,9 +32,12 @@ export async function GET(
   }
   const view = await getProfileView(id, version);
   if (!view) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "not_found" },
+      { status: 404, headers: NO_STORE },
+    );
   }
-  return NextResponse.json(view);
+  return NextResponse.json(view, { headers: NO_STORE });
 }
 
 /**

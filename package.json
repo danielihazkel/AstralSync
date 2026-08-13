@@ -5,7 +5,11 @@
   "workspaces": [
     "packages/*"
   ],
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

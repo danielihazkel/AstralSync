@@ -6,9 +6,15 @@ import {
 } from "@/lib/snapshots";
 import { profileInputSchema } from "@/lib/validation";
 
+// Profile lists carry personal birth data — keep them out of shared caches.
+const NO_STORE = { "Cache-Control": "no-store" };
+
 /** Multi-profile list (PRD §4.6). */
 export async function GET() {
-  return NextResponse.json({ profiles: await listProfiles() });
+  return NextResponse.json(
+    { profiles: await listProfiles() },
+    { headers: NO_STORE },
+  );
 }
 
 /**
