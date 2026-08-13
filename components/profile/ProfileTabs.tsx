@@ -17,6 +17,7 @@ import NumerologyPanel, {
   type NumeroProse,
 } from "@/components/numerology/NumerologyPanel";
 import CyclesPanel from "@/components/cycles/CyclesPanel";
+import JournalPanel from "@/components/journal/JournalPanel";
 import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
@@ -145,6 +146,15 @@ export default function ProfileTabs({
             profileId={profile.id}
             llmEnabled={llmEnabled}
             hebrewAvailable={hebrew !== null}
+          />
+        </div>
+      )}
+      {tab === "Journal" && (
+        <div role="tabpanel" aria-label="Journal">
+          <JournalPanel
+            profileId={profile.id}
+            chart={chart}
+            isLatest={isLatest}
           />
         </div>
       )}

@@ -93,6 +93,13 @@ const hebrewSnapshotSchema = z.object({
   createdAt: isoDate,
 });
 
+const journalEntrySchema = z.object({
+  entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  bodyMd: z.string().min(1).max(10_000),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+
 const readingSchema = z.object({
   astroSnapshotId: z.number().int(),
   numeroSnapshotId: z.number().int().nullish(),
@@ -122,6 +129,8 @@ export const profileExportSchema = z
     // Absent in pre-Mazal exports; sparse for pre-feature versions.
     hebrewSnapshots: z.array(hebrewSnapshotSchema).default([]),
     readings: z.array(readingSchema).default([]),
+    // Absent in pre-journal exports (Phase 3g).
+    journalEntries: z.array(journalEntrySchema).default([]),
   })
   .superRefine((data, ctx) => {
     for (const [path, rows] of [
@@ -314,6 +323,22 @@ export async function importProfile(data: ProfileExport): Promise<number> {
     const readingRows = remapReadingRows(data.readings, astroIdMap, numeroIdMap);
     for (const r of readingRows) {
       await tx.reading.create({ data: r });
+    }
+
+    if (data.journalEntries.length > 0) {
+      await tx.journalEntry.createMany({
+        data: data.journalEntries.map((e) => {
+          const [ey, em, ed] = e.entryDate.split("-").map(Number);
+          return {
+            profileId: profile.id,
+            // @db.Date column: UTC midnight, same as birthDate above.
+            entryDate: new Date(Date.UTC(ey, em - 1, ed)),
+            bodyMd: e.bodyMd,
+            createdAt: new Date(e.createdAt),
+            updatedAt: new Date(e.updatedAt),
+          };
+        }),
+      });
     }
 
     return profile.id;

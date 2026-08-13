@@ -1,0 +1,118 @@
+.panel {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44rem;
+}
+
+.dateRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.92rem;
+}
+
+.dateRow input[type="date"] {
+  background: var(--surface);
+  color: inherit;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  color-scheme: dark;
+}
+
+.sectionTitle {
+  font-size: 1.05rem;
+  margin-bottom: 0.5rem;
+}
+
+.subTitle {
+  font-size: 0.95rem;
+  margin: 0.75rem 0 0.4rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.notice {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.addForm {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+.addForm textarea {
+  width: 100%;
+  background: var(--surface);
+  color: inherit;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  font-size: 0.92rem;
+  resize: vertical;
+}
+
+.entryList {
+  list-style: none;
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.entry {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.entryHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* The date doubles as "show this date's sky" — styled as a link, not a button. */
+.entryDate {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.entryActions {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.entryBody {
+  font-size: 0.92rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}

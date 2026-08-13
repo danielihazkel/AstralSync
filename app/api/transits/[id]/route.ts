@@ -18,9 +18,10 @@ const NO_STORE = { "Cache-Control": "no-store" };
 /**
  * Ephemeral transit read: current placements + cross aspects vs. the
  * profile's latest natal snapshot. Never persisted, never cached (PRD §9).
- * `?at=<ISO instant>` pins the computation instant — a testing hook, not
- * exposed in the UI. Instants far outside ~1700–2200 may exceed the
- * ephemeris' Pluto model and surface as a 500.
+ * `?at=<ISO instant>` pins the computation instant — the Journal tab's
+ * "sky on date X" view (and a testing hook). Instants far outside ~1700–2200
+ * may exceed the ephemeris' Pluto model and surface as a 500; the Journal
+ * date picker clamps to that range client-side.
  */
 export async function GET(
   req: NextRequest,

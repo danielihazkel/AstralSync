@@ -736,12 +736,19 @@ export async function exportProfile(id: number) {
       },
       numeroSnapshots: { orderBy: { version: "asc" } },
       hebrewSnapshots: { orderBy: { version: "asc" } },
+      journalEntries: { orderBy: { entryDate: "asc" } },
     },
   });
   if (!profile) return null;
 
-  const { astroSnapshots, numeroSnapshots, hebrewSnapshots, birthCity, ...columns } =
-    profile;
+  const {
+    astroSnapshots,
+    numeroSnapshots,
+    hebrewSnapshots,
+    journalEntries,
+    birthCity,
+    ...columns
+  } = profile;
   return {
     exportVersion: 1,
     exportedAt: new Date().toISOString(),
@@ -752,6 +759,11 @@ export async function exportProfile(id: number) {
     // Additive (exportVersion stays 1); sparse for pre-feature versions.
     hebrewSnapshots,
     readings: astroSnapshots.flatMap((s) => s.readings),
+    // Additive like hebrewSnapshots (Phase 3g journal notes).
+    journalEntries: journalEntries.map((e) => ({
+      ...e,
+      entryDate: dateOnly(e.entryDate),
+    })),
   };
 }
 

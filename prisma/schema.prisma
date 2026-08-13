@@ -95,6 +95,7 @@ model Profile {
   numeroSnapshots NumeroSnapshot[]
   hebrewSnapshots HebrewSnapshot[]
   forecasts       Forecast[]
+  journalEntries  JournalEntry[]
 
   synastryReadingsAsA SynastryReading[] @relation("synastryA")
   synastryReadingsAsB SynastryReading[] @relation("synastryB")
@@ -221,6 +222,25 @@ model SynastryReading {
 
   @@unique([profileAId, profileBId])
   @@map("synastry_reading")
+}
+
+// User journal notes pinned to a civil date. Intentionally NOT write-once —
+// notes are the user's own words, freely editable and deletable (the
+// Forecast "discardable" stance, not the snapshot one). The transit sky for
+// entryDate is never stored here: it is a deterministic recompute from the
+// immutable natal snapshot via /api/transits/[id]?at= (PRD §9).
+model JournalEntry {
+  id        Int      @id @default(autoincrement())
+  profileId Int      @map("profile_id")
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  /// Civil local date the note is about (not when it was written).
+  entryDate DateTime @map("entry_date") @db.Date
+  bodyMd    String   @map("body_md") @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([profileId, entryDate])
+  @@map("journal_entry")
 }
 
 model Forecast {

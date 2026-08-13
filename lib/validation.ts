@@ -130,13 +130,60 @@ export const profileInputSchema = profileInputBase
 
 export type ProfileInput = z.infer<typeof profileInputSchema>;
 
-/** GET /api/transits/[id] query. `at` is a testing hook (fixed-instant
- *  transits), not exposed in the UI; defaults to now when absent. */
+/** GET /api/transits/[id] query. `at` pins the computation instant — the
+ *  Journal tab's "sky on date X" view (and a testing hook); defaults to now
+ *  when absent. */
 export const transitQuerySchema = z.object({
   at: z.iso.datetime({ offset: true }).optional(),
 });
 
 export type TransitQuery = z.infer<typeof transitQuerySchema>;
+
+/** "YYYY-MM-DD" that is a real calendar date. */
+const civilDateString = z
+  .string()
+  .regex(DATE_RE, "expected YYYY-MM-DD")
+  .refine((s) => {
+    const [y, m, d] = s.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return (
+      date.getUTCFullYear() === y &&
+      date.getUTCMonth() === m - 1 &&
+      date.getUTCDate() === d
+    );
+  }, "not a real calendar date");
+
+/** POST /api/profiles/[id]/journal body. */
+export const journalCreateSchema = z.object({
+  entryDate: civilDateString,
+  bodyMd: z.string().trim().min(1).max(10_000),
+});
+
+export type JournalCreateInput = z.infer<typeof journalCreateSchema>;
+
+/** PUT /api/profiles/[id]/journal/[entryId] body — at least one field. */
+export const journalUpdateSchema = z
+  .object({
+    entryDate: civilDateString.optional(),
+    bodyMd: z.string().trim().min(1).max(10_000).optional(),
+  })
+  .refine((v) => v.entryDate !== undefined || v.bodyMd !== undefined, {
+    message: "nothing to update",
+  });
+
+export type JournalUpdateInput = z.infer<typeof journalUpdateSchema>;
+
+/** GET /api/profiles/[id]/journal query — optional inclusive date range. */
+export const journalListQuerySchema = z
+  .object({
+    from: civilDateString.optional(),
+    to: civilDateString.optional(),
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to, {
+    message: "from must not be after to",
+  });
+
+export type JournalListQuery = z.infer<typeof journalListQuerySchema>;
 
 /** /api/profiles/[id]/forecast query/body: which forecast cell. `date` is a
  *  testing hook ("compute the period containing this civil date"), defaulting
