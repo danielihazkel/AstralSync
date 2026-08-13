@@ -7,6 +7,7 @@ import styles from "./chart.module.css";
  */
 export default function UncertaintyBadge({ reason }: { reason: string }) {
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- focusable on purpose: keyboard users need focus to reach the title tooltip / screen-reader text
     <span className={styles.uncertainBadge} title={reason} tabIndex={0}>
       <span aria-hidden="true">?</span>
       <span className={styles.srOnly}>Uncertain: {reason}</span>

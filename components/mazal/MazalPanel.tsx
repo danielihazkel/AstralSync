@@ -159,6 +159,7 @@ export default function MazalPanel({
       {summary.chips.length > 0 && (
         <div className={styles.chipRow} aria-label="Uncertainty notes">
           {summary.chips.map((u) => (
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- focusable on purpose: keyboard users need focus to reach the title tooltip
             <span key={u.field} className={styles.chip} title={u.reason} tabIndex={0}>
               {u.field.replace(/_/g, " ")}
             </span>

@@ -87,7 +87,10 @@ export default function ChartWheel({
     if (localStorage.getItem(SHOW_POINTS_KEY) === "false") setShowPoints(false);
     if (localStorage.getItem(NODE_VARIANT_KEY) === "mean") setNodeVariant("mean");
   }, []);
-  const activePoints = points && showPoints ? points[nodeVariant] : [];
+  const activePoints = useMemo(
+    () => (points && showPoints ? points[nodeVariant] : []),
+    [points, showPoints, nodeVariant],
+  );
 
   const layout = useMemo(
     () => layoutWheel(chart, undefined, activePoints),

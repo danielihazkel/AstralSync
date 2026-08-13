@@ -57,7 +57,7 @@ describe("meanLilith", () => {
 
   it("advances ~40.7° per year prograde (8.85-year apsidal cycle)", () => {
     const later = new Date(Date.UTC(2001, 0, 1, 12, 0, 0));
-    let motion = norm360(meanLilith(later) - meanLilith(J2000));
+    const motion = norm360(meanLilith(later) - meanLilith(J2000));
     expect(motion).toBeGreaterThan(40);
     expect(motion).toBeLessThan(41.5);
   });
