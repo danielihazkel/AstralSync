@@ -45,44 +45,61 @@ export function streamGenerationResponse({
           // The client went away; the abort signal handles the rest.
         }
       };
-
-      let bodyMd = "";
-      try {
-        for await (const delta of stream) {
-          bodyMd += delta;
-          send("delta", { delta });
+      // SSE comment heartbeat: one ping immediately (the provider's
+      // time-to-first-token is the longest silent gap) and every 15s after,
+      // so idle-timeout proxies don't kill a slow generation. Clients parse
+      // only `data:` lines; comments pass through untouched.
+      const ping = () => {
+        try {
+          controller.enqueue(encoder.encode(": ping\n\n"));
+        } catch {
+          // The client went away; the abort signal handles the rest.
         }
-      } catch (e) {
-        if (e instanceof LlmUnavailableError) {
+      };
+      ping();
+      const heartbeat = setInterval(ping, 15_000);
+
+      try {
+        let bodyMd = "";
+        try {
+          for await (const delta of stream) {
+            bodyMd += delta;
+            send("delta", { delta });
+          }
+        } catch (e) {
+          if (e instanceof LlmUnavailableError) {
+            console.error(`[api] ${label} (stream):`, e);
+            send("error", { error: "llm_unavailable", message: e.message });
+            controller.close();
+            return;
+          }
           console.error(`[api] ${label} (stream):`, e);
-          send("error", { error: "llm_unavailable", message: e.message });
+          send("error", { error: "internal" });
           controller.close();
           return;
         }
-        console.error(`[api] ${label} (stream):`, e);
-        send("error", { error: "internal" });
-        controller.close();
-        return;
-      }
 
-      if (signal.aborted || bodyMd === "") {
-        // Disconnected or empty generation: persist nothing, slot stays free.
-        if (!signal.aborted) {
-          send("error", { error: "llm_unavailable", message: "empty generation" });
+        if (signal.aborted || bodyMd === "") {
+          // Disconnected or empty generation: persist nothing, slot stays free.
+          if (!signal.aborted) {
+            send("error", { error: "llm_unavailable", message: "empty generation" });
+          }
+          controller.close();
+          return;
+        }
+
+        try {
+          const outcome = await persist(bodyMd);
+          if ("done" in outcome) send("done", outcome.done);
+          else send("error", { error: outcome.errorCode });
+        } catch (e) {
+          console.error(`[api] ${label} (persist):`, e);
+          send("error", { error: "internal" });
         }
         controller.close();
-        return;
+      } finally {
+        clearInterval(heartbeat);
       }
-
-      try {
-        const outcome = await persist(bodyMd);
-        if ("done" in outcome) send("done", outcome.done);
-        else send("error", { error: outcome.errorCode });
-      } catch (e) {
-        console.error(`[api] ${label} (persist):`, e);
-        send("error", { error: "internal" });
-      }
-      controller.close();
     },
   });
 

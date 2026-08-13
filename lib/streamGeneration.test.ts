@@ -16,11 +16,10 @@ async function readEvents(res: Response): Promise<SseEvent[]> {
   const events: SseEvent[] = [];
   for (const block of text.split("\n\n")) {
     if (block.trim() === "") continue;
-    const lines = block.split("\n");
-    const event = lines
-      .find((l) => l.startsWith("event:"))!
-      .slice(6)
-      .trim();
+    const lines = block.split("\n").filter((l) => !l.startsWith(":"));
+    const eventLine = lines.find((l) => l.startsWith("event:"));
+    if (!eventLine) continue; // heartbeat comment block
+    const event = eventLine.slice(6).trim();
     const data = JSON.parse(
       lines.find((l) => l.startsWith("data:"))!.slice(5).trim(),
     );
@@ -111,6 +110,30 @@ describe("streamGenerationResponse", () => {
 
     await readEvents(res);
     expect(persist).not.toHaveBeenCalled();
+  });
+
+  it("pings before the first token and during silent gaps", async () => {
+    vi.useFakeTimers();
+    try {
+      const res = streamGenerationResponse({
+        stream: streamOf(async function* () {
+          await new Promise((r) => setTimeout(r, 40_000));
+          yield "late";
+        }),
+        signal: new AbortController().signal,
+        label: "test",
+        persist: async (bodyMd: string) => ({ done: { bodyMd } }),
+      });
+      const textPromise = res.text();
+      await vi.advanceTimersByTimeAsync(40_000);
+      const text = await textPromise;
+      // One immediate ping plus interval pings across the 40s silent gap.
+      const pings = text.split("\n\n").filter((b) => b.trim() === ": ping");
+      expect(pings.length).toBeGreaterThanOrEqual(3);
+      expect(text.indexOf(": ping")).toBeLessThan(text.indexOf("event: delta"));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("treats an empty generation as unavailability, persisting nothing", async () => {

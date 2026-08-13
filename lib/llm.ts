@@ -37,10 +37,13 @@ import type {
  */
 
 export class LlmUnavailableError extends Error {
-  constructor(message: string, cause?: unknown) {
+  /** HTTP status of the provider's final response, when one arrived. */
+  status?: number;
+  constructor(message: string, cause?: unknown, status?: number) {
     super(message);
     this.name = "LlmUnavailableError";
     this.cause = cause;
+    this.status = status;
   }
 }
 
@@ -70,18 +73,151 @@ export interface LlmClient {
   ): AsyncIterable<string>;
 }
 
-const TIMEOUT_MS = 60_000;
-// Readings ask for ~400 words; the cap bounds spend on a runaway completion.
-const MAX_TOKENS = 1_200;
-// Chat answers ask for ~150 words; a tighter cap bounds per-turn spend.
-const CHAT_MAX_TOKENS = 600;
-const TEMPERATURE = 0.7;
+/** Generation knobs, overridable per deployment via the environment. */
+export interface LlmTuning {
+  /** Wall-clock budget for one call including transient-failure retries. */
+  timeoutMs: number;
+  /** Readings ask for ~400 words; the cap bounds a runaway completion. */
+  maxTokens: number;
+  /** Chat answers ask for ~150 words; a tighter cap bounds per-turn spend. */
+  chatMaxTokens: number;
+  temperature: number;
+}
 
-/** The request signal for a streaming call: the 60s cap, plus the caller's
- *  abort when provided. */
-function streamSignal(signal?: AbortSignal): AbortSignal {
-  const timeout = AbortSignal.timeout(TIMEOUT_MS);
-  return signal ? AbortSignal.any([timeout, signal]) : timeout;
+export const DEFAULT_LLM_TUNING: LlmTuning = {
+  timeoutMs: 60_000,
+  maxTokens: 1_200,
+  chatMaxTokens: 600,
+  temperature: 0.7,
+};
+
+function numFromEnv(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return raw !== undefined && raw !== "" && Number.isFinite(n) ? n : fallback;
+}
+
+export function llmTuningFromEnv(
+  env: Record<string, string | undefined> = process.env,
+): LlmTuning {
+  return {
+    timeoutMs: numFromEnv(env.READING_LLM_TIMEOUT_MS, DEFAULT_LLM_TUNING.timeoutMs),
+    maxTokens: numFromEnv(env.READING_LLM_MAX_TOKENS, DEFAULT_LLM_TUNING.maxTokens),
+    chatMaxTokens: numFromEnv(
+      env.READING_LLM_CHAT_MAX_TOKENS,
+      DEFAULT_LLM_TUNING.chatMaxTokens,
+    ),
+    temperature: numFromEnv(
+      env.READING_LLM_TEMPERATURE,
+      DEFAULT_LLM_TUNING.temperature,
+    ),
+  };
+}
+
+/** Provider token usage, logged per call — the app's only spend telemetry. */
+interface LlmUsage {
+  input?: number;
+  output?: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+}
+
+function asCount(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+function reportUsage(
+  provider: string,
+  model: string,
+  kind: "generate" | "stream" | "chat",
+  usage: LlmUsage,
+): void {
+  console.log(`[llm] usage ${JSON.stringify({ provider, model, kind, ...usage })}`);
+}
+
+// Transient provider failures worth retrying; 4xx (except timeout/rate-limit)
+// are deterministic and fail fast — including the 400s the param-adaptation
+// flow inspects.
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 529]);
+const RETRY_MAX_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 500;
+const RETRY_AFTER_CAP_MS = 20_000;
+
+/** Parse a Retry-After header (delta-seconds or HTTP-date), capped. */
+function retryAfterMs(res: Response): number | null {
+  const raw = res.headers.get("retry-after");
+  if (!raw) return null;
+  const secs = Number(raw);
+  if (Number.isFinite(secs) && secs >= 0) {
+    return Math.min(secs * 1000, RETRY_AFTER_CAP_MS);
+  }
+  const at = Date.parse(raw);
+  if (!Number.isNaN(at)) {
+    return Math.min(Math.max(0, at - Date.now()), RETRY_AFTER_CAP_MS);
+  }
+  return null;
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * POST with transient-failure retry: network errors and 408/429/5xx get up
+ * to two more attempts with Retry-After-aware exponential backoff + jitter.
+ * Retries cover only the window up to response headers — a streaming body is
+ * never retried mid-read — and `timeoutMs` is the wall-clock budget for all
+ * attempts together, preserving the original single-timeout semantics. The
+ * caller's own abort (client disconnect) is never retried. The final
+ * response is returned as-is; status handling stays with the caller.
+ */
+async function fetchWithRetry(
+  url: string,
+  body: unknown,
+  headers: Record<string, string>,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const started = Date.now();
+  for (let attempt = 0; ; attempt++) {
+    const timeout = AbortSignal.timeout(Math.max(1, timeoutMs - (Date.now() - started)));
+    let res: Response | null = null;
+    let failure: unknown = null;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+        signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
+      });
+    } catch (e) {
+      failure = e;
+      if (signal?.aborted) {
+        throw new LlmUnavailableError(`LLM request to ${url} failed`, e);
+      }
+    }
+    if (res && !RETRYABLE_STATUSES.has(res.status)) return res;
+
+    const delay =
+      (res ? retryAfterMs(res) : null) ??
+      RETRY_BASE_DELAY_MS * 2 ** attempt + Math.random() * 250;
+    const budgetLeft = timeoutMs - (Date.now() - started);
+    if (attempt >= RETRY_MAX_ATTEMPTS - 1 || delay >= budgetLeft) {
+      if (res) return res;
+      throw new LlmUnavailableError(`LLM request to ${url} failed`, failure);
+    }
+    res?.body?.cancel().catch(() => {});
+    await sleep(delay);
+  }
+}
+
+/** Throw the caller-facing error for a non-ok provider response. */
+async function throwForStatus(url: string, res: Response): Promise<never> {
+  // Provider error bodies name the actual problem (bad key, unknown model,
+  // quota); a bare status is undiagnosable.
+  const detail = (await res.text().catch(() => "")).slice(0, 300);
+  throw new LlmUnavailableError(
+    `LLM request to ${url} returned ${res.status}${detail ? `: ${detail}` : ""}`,
+    undefined,
+    res.status,
+  );
 }
 
 /**
@@ -93,25 +229,11 @@ async function* postLines(
   url: string,
   body: unknown,
   headers: Record<string, string>,
+  timeoutMs: number,
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify(body),
-      signal: streamSignal(signal),
-    });
-  } catch (e) {
-    throw new LlmUnavailableError(`LLM request to ${url} failed`, e);
-  }
-  if (!res.ok) {
-    const detail = (await res.text().catch(() => "")).slice(0, 300);
-    throw new LlmUnavailableError(
-      `LLM request to ${url} returned ${res.status}${detail ? `: ${detail}` : ""}`,
-    );
-  }
+  const res = await fetchWithRetry(url, body, headers, timeoutMs, signal);
+  if (!res.ok) await throwForStatus(url, res);
   if (!res.body) {
     throw new LlmUnavailableError(`LLM request to ${url} returned no body`);
   }
@@ -138,31 +260,34 @@ async function* postLines(
   }
 }
 
-async function post(url: string, body: unknown, headers: Record<string, string>) {
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-  } catch (e) {
-    throw new LlmUnavailableError(`LLM request to ${url} failed`, e);
-  }
-  if (!res.ok) {
-    // Provider error bodies name the actual problem (bad key, unknown model,
-    // quota); a bare status is undiagnosable.
-    const detail = (await res.text().catch(() => "")).slice(0, 300);
-    throw new LlmUnavailableError(
-      `LLM request to ${url} returned ${res.status}${detail ? `: ${detail}` : ""}`,
-    );
-  }
+async function post(
+  url: string,
+  body: unknown,
+  headers: Record<string, string>,
+  timeoutMs: number,
+) {
+  const res = await fetchWithRetry(url, body, headers, timeoutMs);
+  if (!res.ok) await throwForStatus(url, res);
   return res.json() as Promise<Record<string, unknown>>;
 }
 
+/** Ollama's final NDJSON document carries the call's token counts. */
+function ollamaUsage(json: {
+  prompt_eval_count?: unknown;
+  eval_count?: unknown;
+}): LlmUsage {
+  return {
+    input: asCount(json.prompt_eval_count),
+    output: asCount(json.eval_count),
+  };
+}
+
 /** Ollama native API: POST {base}/api/generate, non-streaming. */
-export function ollamaClient(baseUrl: string, model: string): LlmClient {
+export function ollamaClient(
+  baseUrl: string,
+  model: string,
+  tuning: LlmTuning = DEFAULT_LLM_TUNING,
+): LlmClient {
   return {
     modelName: model,
     async generate(prompt) {
@@ -172,13 +297,15 @@ export function ollamaClient(baseUrl: string, model: string): LlmClient {
           model,
           prompt,
           stream: false,
-          options: { num_predict: MAX_TOKENS, temperature: TEMPERATURE },
+          options: { num_predict: tuning.maxTokens, temperature: tuning.temperature },
         },
         {},
+        tuning.timeoutMs,
       );
       if (typeof json.response !== "string" || json.response === "") {
         throw new LlmUnavailableError("Ollama returned no response text");
       }
+      reportUsage("ollama", model, "generate", ollamaUsage(json));
       return json.response;
     },
     async *generateStream(prompt, signal) {
@@ -189,14 +316,20 @@ export function ollamaClient(baseUrl: string, model: string): LlmClient {
           model,
           prompt,
           stream: true,
-          options: { num_predict: MAX_TOKENS, temperature: TEMPERATURE },
+          options: { num_predict: tuning.maxTokens, temperature: tuning.temperature },
         },
         {},
+        tuning.timeoutMs,
         signal,
       );
       for await (const line of lines) {
         if (line.trim() === "") continue;
-        let json: { response?: unknown; done?: unknown };
+        let json: {
+          response?: unknown;
+          done?: unknown;
+          prompt_eval_count?: unknown;
+          eval_count?: unknown;
+        };
         try {
           json = JSON.parse(line);
         } catch {
@@ -205,7 +338,10 @@ export function ollamaClient(baseUrl: string, model: string): LlmClient {
         if (typeof json.response === "string" && json.response !== "") {
           yield json.response;
         }
-        if (json.done === true) return;
+        if (json.done === true) {
+          reportUsage("ollama", model, "stream", ollamaUsage(json));
+          return;
+        }
       }
     },
     async *generateChat(system, messages, signal) {
@@ -217,14 +353,23 @@ export function ollamaClient(baseUrl: string, model: string): LlmClient {
           model,
           messages: [{ role: "system", content: system }, ...messages],
           stream: true,
-          options: { num_predict: CHAT_MAX_TOKENS, temperature: TEMPERATURE },
+          options: {
+            num_predict: tuning.chatMaxTokens,
+            temperature: tuning.temperature,
+          },
         },
         {},
+        tuning.timeoutMs,
         signal,
       );
       for await (const line of lines) {
         if (line.trim() === "") continue;
-        let json: { message?: { content?: unknown }; done?: unknown };
+        let json: {
+          message?: { content?: unknown };
+          done?: unknown;
+          prompt_eval_count?: unknown;
+          eval_count?: unknown;
+        };
         try {
           json = JSON.parse(line);
         } catch {
@@ -232,7 +377,10 @@ export function ollamaClient(baseUrl: string, model: string): LlmClient {
         }
         const content = json.message?.content;
         if (typeof content === "string" && content !== "") yield content;
-        if (json.done === true) return;
+        if (json.done === true) {
+          reportUsage("ollama", model, "chat", ollamaUsage(json));
+          return;
+        }
       }
     },
   };
@@ -267,6 +415,7 @@ export function openAiCompatClient(
   baseUrl: string,
   model: string,
   apiKey: string,
+  tuning: LlmTuning = DEFAULT_LLM_TUNING,
 ): LlmClient {
   return {
     modelName: model,
@@ -277,14 +426,19 @@ export function openAiCompatClient(
         messages: [{ role: "user", content: prompt }],
         // Legacy names first — the broadly compatible baseline; newer OpenAI
         // models get their spelling via the adaptive retry below.
-        max_tokens: MAX_TOKENS,
-        temperature: TEMPERATURE,
+        max_tokens: tuning.maxTokens,
+        temperature: tuning.temperature,
       };
       let json: Record<string, unknown>;
       // At most two adaptations (max_tokens rename + temperature drop).
       for (let attempt = 0; ; attempt++) {
         try {
-          json = await post(url, body, { authorization: `Bearer ${apiKey}` });
+          json = await post(
+            url,
+            body,
+            { authorization: `Bearer ${apiKey}` },
+            tuning.timeoutMs,
+          );
           break;
         } catch (e) {
           const adapted =
@@ -294,6 +448,15 @@ export function openAiCompatClient(
           if (!adapted) throw e;
           body = adapted;
         }
+      }
+      const usage = json.usage as
+        | { prompt_tokens?: unknown; completion_tokens?: unknown }
+        | undefined;
+      if (usage) {
+        reportUsage("api", model, "generate", {
+          input: asCount(usage.prompt_tokens),
+          output: asCount(usage.completion_tokens),
+        });
       }
       const choices = json.choices as
         | { message?: { content?: unknown } }[]
@@ -310,11 +473,13 @@ export function openAiCompatClient(
         {
           model,
           messages: [{ role: "user", content: prompt }],
-          max_tokens: MAX_TOKENS,
-          temperature: TEMPERATURE,
+          max_tokens: tuning.maxTokens,
+          temperature: tuning.temperature,
           stream: true,
         },
         apiKey,
+        tuning,
+        "stream",
         signal,
       );
     },
@@ -324,11 +489,13 @@ export function openAiCompatClient(
         {
           model,
           messages: [{ role: "system", content: system }, ...messages],
-          max_tokens: CHAT_MAX_TOKENS,
-          temperature: TEMPERATURE,
+          max_tokens: tuning.chatMaxTokens,
+          temperature: tuning.temperature,
           stream: true,
         },
         apiKey,
+        tuning,
+        "chat",
         signal,
       );
     },
@@ -338,19 +505,34 @@ export function openAiCompatClient(
 /**
  * OpenAI-dialect SSE consumption shared by generateStream and generateChat.
  * Param adaptation applies only before the first byte: postLines fails fast
- * on a 400, so nothing has been emitted when we retry.
+ * on a 400, so nothing has been emitted when we retry. Usage is logged when
+ * the server volunteers it in a chunk (many compat servers don't, and
+ * `stream_options.include_usage` is deliberately not sent — unknown params
+ * 400 on strict compat servers and the adaptation loop only knows two
+ * renames).
  */
 async function* openAiSseStream(
   url: string,
   initialBody: Record<string, unknown>,
   apiKey: string,
+  tuning: LlmTuning,
+  kind: "stream" | "chat",
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
+  const model = String(initialBody.model ?? "");
+  let usage: LlmUsage | null = null;
+  const reportIfPresent = () => {
+    if (usage) reportUsage("api", model, kind, usage);
+  };
   let body = initialBody;
   for (let attempt = 0; ; attempt++) {
-    const iter = postLines(url, body, { authorization: `Bearer ${apiKey}` }, signal)[
-      Symbol.asyncIterator
-    ]();
+    const iter = postLines(
+      url,
+      body,
+      { authorization: `Bearer ${apiKey}` },
+      tuning.timeoutMs,
+      signal,
+    )[Symbol.asyncIterator]();
     let result: IteratorResult<string>;
     try {
       result = await iter.next();
@@ -366,11 +548,21 @@ async function* openAiSseStream(
     while (!result.done) {
       const data = sseData(result.value);
       if (data !== null) {
-        if (data === "[DONE]") return;
+        if (data === "[DONE]") {
+          reportIfPresent();
+          return;
+        }
         try {
           const json = JSON.parse(data) as {
             choices?: { delta?: { content?: unknown } }[];
+            usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
           };
+          if (json.usage) {
+            usage = {
+              input: asCount(json.usage.prompt_tokens),
+              output: asCount(json.usage.completion_tokens),
+            };
+          }
           const delta = json.choices?.[0]?.delta?.content;
           if (typeof delta === "string" && delta !== "") yield delta;
         } catch {
@@ -379,6 +571,7 @@ async function* openAiSseStream(
       }
       result = await iter.next();
     }
+    reportIfPresent();
     return;
   }
 }
@@ -394,6 +587,7 @@ export function anthropicClient(
   baseUrl: string,
   model: string,
   apiKey: string,
+  tuning: LlmTuning = DEFAULT_LLM_TUNING,
 ): LlmClient {
   return {
     modelName: model,
@@ -402,11 +596,16 @@ export function anthropicClient(
         `${baseUrl.replace(/\/$/, "")}/v1/messages`,
         {
           model,
-          max_tokens: MAX_TOKENS,
+          max_tokens: tuning.maxTokens,
           messages: [{ role: "user", content: prompt }],
         },
         { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        tuning.timeoutMs,
       );
+      const usage = json.usage as Record<string, unknown> | undefined;
+      if (usage) {
+        reportUsage("anthropic", model, "generate", anthropicUsage(usage));
+      }
       if (json.stop_reason === "refusal") {
         throw new LlmUnavailableError("Anthropic declined the request (refusal)");
       }
@@ -425,11 +624,13 @@ export function anthropicClient(
         `${baseUrl.replace(/\/$/, "")}/v1/messages`,
         {
           model,
-          max_tokens: MAX_TOKENS,
+          max_tokens: tuning.maxTokens,
           messages: [{ role: "user", content: prompt }],
           stream: true,
         },
         apiKey,
+        tuning,
+        "stream",
         signal,
       );
     },
@@ -438,15 +639,33 @@ export function anthropicClient(
         `${baseUrl.replace(/\/$/, "")}/v1/messages`,
         {
           model,
-          max_tokens: CHAT_MAX_TOKENS,
-          system,
+          max_tokens: tuning.chatMaxTokens,
+          // Cache breakpoint on the system block: every chat turn re-sends
+          // the full chart + stored reading, so turn 2+ reads the prefix at
+          // the cached-input rate. Below-minimum prompts silently skip
+          // caching — never an error.
+          system: [
+            { type: "text", text: system, cache_control: { type: "ephemeral" } },
+          ],
           messages,
           stream: true,
         },
         apiKey,
+        tuning,
+        "chat",
         signal,
       );
     },
+  };
+}
+
+/** Map Anthropic's usage field names to the log's compact ones. */
+function anthropicUsage(usage: Record<string, unknown>): LlmUsage {
+  return {
+    input: asCount(usage.input_tokens),
+    output: asCount(usage.output_tokens),
+    cacheRead: asCount(usage.cache_read_input_tokens),
+    cacheWrite: asCount(usage.cache_creation_input_tokens),
   };
 }
 
@@ -455,12 +674,18 @@ async function* anthropicSseStream(
   url: string,
   body: Record<string, unknown>,
   apiKey: string,
+  tuning: LlmTuning,
+  kind: "stream" | "chat",
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
+  const model = String(body.model ?? "");
+  // message_start carries input/cache counts; message_delta the output count.
+  let usage: LlmUsage = {};
   const lines = postLines(
     url,
     body,
     { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    tuning.timeoutMs,
     signal,
   );
   for await (const line of lines) {
@@ -468,6 +693,8 @@ async function* anthropicSseStream(
     if (data === null) continue;
     let json: {
       type?: unknown;
+      message?: { usage?: Record<string, unknown> };
+      usage?: Record<string, unknown>;
       delta?: { type?: unknown; text?: unknown; stop_reason?: unknown };
       error?: { message?: unknown };
     };
@@ -477,6 +704,11 @@ async function* anthropicSseStream(
       continue;
     }
     switch (json.type) {
+      case "message_start":
+        if (json.message?.usage) {
+          usage = { ...usage, ...anthropicUsage(json.message.usage) };
+        }
+        break;
       case "content_block_delta":
         if (
           json.delta?.type === "text_delta" &&
@@ -487,6 +719,9 @@ async function* anthropicSseStream(
         }
         break;
       case "message_delta":
+        if (json.usage) {
+          usage.output = asCount(json.usage.output_tokens) ?? usage.output;
+        }
         if (json.delta?.stop_reason === "refusal") {
           throw new LlmUnavailableError(
             "Anthropic declined the request (refusal)",
@@ -498,6 +733,7 @@ async function* anthropicSseStream(
           `Anthropic stream error: ${String(json.error?.message ?? "unknown")}`,
         );
       case "message_stop":
+        reportUsage("anthropic", model, kind, usage);
         return;
     }
   }
@@ -509,17 +745,28 @@ export function llmClientFromEnv(
 ): LlmClient | null {
   const mode = env.READING_LLM ?? "off";
   const model = env.READING_LLM_MODEL;
+  const tuning = llmTuningFromEnv(env);
   if (mode === "ollama" && model) {
-    return ollamaClient(env.READING_LLM_BASE_URL ?? "http://localhost:11434", model);
+    return ollamaClient(
+      env.READING_LLM_BASE_URL ?? "http://localhost:11434",
+      model,
+      tuning,
+    );
   }
   if (mode === "api" && model && env.READING_LLM_BASE_URL && env.READING_LLM_API_KEY) {
-    return openAiCompatClient(env.READING_LLM_BASE_URL, model, env.READING_LLM_API_KEY);
+    return openAiCompatClient(
+      env.READING_LLM_BASE_URL,
+      model,
+      env.READING_LLM_API_KEY,
+      tuning,
+    );
   }
   if (mode === "anthropic" && model && env.READING_LLM_API_KEY) {
     return anthropicClient(
       env.READING_LLM_BASE_URL ?? "https://api.anthropic.com",
       model,
       env.READING_LLM_API_KEY,
+      tuning,
     );
   }
   return null;

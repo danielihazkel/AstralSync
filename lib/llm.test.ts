@@ -708,18 +708,76 @@ describe("clients", () => {
     ).rejects.toBeInstanceOf(LlmUnavailableError);
   });
 
-  it("wraps network failures and error statuses in LlmUnavailableError", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new TypeError("fetch failed");
-    }));
-    await expect(
-      ollamaClient("http://localhost:11434", "m").generate("p"),
-    ).rejects.toBeInstanceOf(LlmUnavailableError);
+  it("wraps network failures and error statuses in LlmUnavailableError after retries", async () => {
+    vi.useFakeTimers();
+    try {
+      const netFail = vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      });
+      vi.stubGlobal("fetch", netFail);
+      const p1 = ollamaClient("http://localhost:11434", "m").generate("p");
+      const a1 = expect(p1).rejects.toBeInstanceOf(LlmUnavailableError);
+      await vi.runAllTimersAsync();
+      await a1;
+      expect(netFail).toHaveBeenCalledTimes(3);
 
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("down", { status: 503 })));
+      const down = vi.fn(async () => new Response("down", { status: 503 }));
+      vi.stubGlobal("fetch", down);
+      const p2 = ollamaClient("http://localhost:11434", "m").generate("p");
+      const a2 = expect(p2).rejects.toMatchObject({ status: 503 });
+      await vi.runAllTimersAsync();
+      await a2;
+      expect(down).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("honors Retry-After on a 429 and then succeeds", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response("busy", {
+            status: 429,
+            headers: { "retry-after": "1" },
+          }),
+        )
+        .mockResolvedValueOnce(new Response(JSON.stringify({ response: "ok" })));
+      vi.stubGlobal("fetch", fetchMock);
+      const promise = ollamaClient("http://localhost:11434", "m").generate("p");
+      await vi.advanceTimersByTimeAsync(999);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2);
+      await expect(promise).resolves.toBe("ok");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never retries once the stream body has started", async () => {
+    const encoder = new TextEncoder();
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode('{"response":"x","done":false}\n'),
+              );
+              controller.error(new Error("connection reset"));
+            },
+          }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
     await expect(
-      ollamaClient("http://localhost:11434", "m").generate("p"),
+      collect(ollamaClient("http://localhost:11434", "m").generateStream!("p")),
     ).rejects.toBeInstanceOf(LlmUnavailableError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces the upstream error body in the failure message", async () => {
@@ -955,5 +1013,119 @@ describe("clients", () => {
     await expect(
       anthropicClient("https://x", "m", "k").generate("p"),
     ).rejects.toBeInstanceOf(LlmUnavailableError);
+  });
+
+  it("applies env tuning overrides to request bodies", async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) =>
+      new Response(JSON.stringify({ response: "text" })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = llmClientFromEnv({
+      READING_LLM: "ollama",
+      READING_LLM_MODEL: "m",
+      READING_LLM_MAX_TOKENS: "555",
+      READING_LLM_TEMPERATURE: "0.2",
+    })!;
+    await client.generate("p");
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body.options).toEqual({ num_predict: 555, temperature: 0.2 });
+  });
+
+  it("anthropic chat sends the system prompt as a cache_control block", async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) =>
+      streamResponse([
+        'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"hi"}}\n\n',
+        'data: {"type":"message_stop"}\n\n',
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const deltas = await collect(
+      anthropicClient("https://x", "m", "k").generateChat!("sys", [
+        { role: "user", content: "q" },
+      ]),
+    );
+    expect(deltas).toEqual(["hi"]);
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.system).toEqual([
+      { type: "text", text: "sys", cache_control: { type: "ephemeral" } },
+    ]);
+    expect(body.max_tokens).toBe(600);
+  });
+
+  it("logs provider usage, including anthropic cache reads", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          new Response(
+            JSON.stringify({
+              content: [{ type: "text", text: "t" }],
+              stop_reason: "end_turn",
+              usage: {
+                input_tokens: 100,
+                output_tokens: 50,
+                cache_read_input_tokens: 900,
+              },
+            }),
+          ),
+        ),
+      );
+      await anthropicClient("https://x", "m", "k").generate("p");
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          '[llm] usage {"provider":"anthropic","model":"m","kind":"generate","input":100,"output":50,"cacheRead":900}',
+        ),
+      );
+
+      log.mockClear();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          new Response(
+            JSON.stringify({
+              response: "t",
+              prompt_eval_count: 12,
+              eval_count: 34,
+            }),
+          ),
+        ),
+      );
+      await ollamaClient("http://localhost:11434", "m").generate("p");
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining('"provider":"ollama","model":"m","kind":"generate","input":12,"output":34'),
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("reports anthropic stream usage accumulated across events", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          streamResponse([
+            'data: {"type":"message_start","message":{"usage":{"input_tokens":70,"cache_read_input_tokens":600}}}\n\n',
+            'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"t"}}\n\n',
+            'data: {"type":"message_delta","usage":{"output_tokens":41}}\n\n',
+            'data: {"type":"message_stop"}\n\n',
+          ]),
+        ),
+      );
+      await collect(
+        anthropicClient("https://x", "m", "k").generateChat!("sys", [
+          { role: "user", content: "q" },
+        ]),
+      );
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining('"kind":"chat","input":70,"output":41,"cacheRead":600'),
+      );
+    } finally {
+      log.mockRestore();
+    }
   });
 });
