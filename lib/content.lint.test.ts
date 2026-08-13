@@ -18,7 +18,9 @@ const heEntries = [...heIndex.entries.values()];
 const LIFE_PATHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 22, 33];
 const ASPECT_TYPES = ["conjunction", "sextile", "square", "trine", "opposition"];
 
-/** Tier 1 transit prose: slow transiters over the luminaries, all types. */
+/** Transit prose: slow transiters over the personal planets, all types —
+ *  Tier 1 (luminaries) plus the Tier 2 expansion (Mercury/Venus/Mars).
+ *  Fast-mover transits stay on the natal-archetype fallback by design. */
 const TRANSIT_ASPECT_TRANSITERS: Planet[] = [
   "jupiter",
   "saturn",
@@ -26,7 +28,13 @@ const TRANSIT_ASPECT_TRANSITERS: Planet[] = [
   "neptune",
   "pluto",
 ];
-const TRANSIT_ASPECT_NATALS: Planet[] = ["sun", "moon"];
+const TRANSIT_ASPECT_NATALS: Planet[] = [
+  "sun",
+  "moon",
+  "mercury",
+  "venus",
+  "mars",
+];
 
 /** Tier 2 pairs authored across all five aspect types (PLANETS order). */
 const FULL_ASPECT_PAIRS: [Planet, Planet][] = [
@@ -76,11 +84,11 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 406 entries", () => {
+  it("contains exactly the 519 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
-    // paths + 4 elements + 3 modalities + 49 natal aspects + 50 transit
-    // aspects (Tier 1) + 12 destiny + 12 soul urge + 12 synastry aspects.
-    expect(entries).toHaveLength(406);
+    // paths + 4 elements + 3 modalities + 49 natal aspects + 125 transit
+    // aspects (Tiers 1+2) + 12 destiny + 12 soul urge + 50 synastry aspects.
+    expect(entries).toHaveLength(519);
   });
 
   it("covers every planet in every sign", () => {
@@ -124,26 +132,22 @@ describe("content library lint", () => {
     }
   });
 
-  it("covers the Tier 6 synastry aspect starter set", () => {
-    const SYNASTRY_KEYS = [
-      "synastry_aspect/sun/moon/conjunction",
-      "synastry_aspect/sun/moon/square",
-      "synastry_aspect/sun/moon/trine",
-      "synastry_aspect/venus/mars/conjunction",
-      "synastry_aspect/venus/mars/square",
-      "synastry_aspect/venus/mars/trine",
-      "synastry_aspect/sun/venus/conjunction",
-      "synastry_aspect/sun/mars/conjunction",
-      "synastry_aspect/moon/venus/conjunction",
-      "synastry_aspect/moon/mars/conjunction",
-      "synastry_aspect/sun/sun/conjunction",
-      "synastry_aspect/moon/moon/conjunction",
-    ];
-    for (const key of SYNASTRY_KEYS) {
-      expect(entry(key), key).not.toBeNull();
+  it("covers the full personal-planet synastry matrix", () => {
+    // Every sorted pair (PLANETS order, same-planet pairs included) among
+    // the personal relationship planets, across all five aspect types.
+    const SYNASTRY_PLANETS: Planet[] = ["sun", "moon", "venus", "mars"];
+    let expected = 0;
+    for (let i = 0; i < SYNASTRY_PLANETS.length; i++) {
+      for (let j = i; j < SYNASTRY_PLANETS.length; j++) {
+        for (const type of ASPECT_TYPES) {
+          const key = `synastry_aspect/${SYNASTRY_PLANETS[i]}/${SYNASTRY_PLANETS[j]}/${type}`;
+          expect(entry(key), key).not.toBeNull();
+          expected++;
+        }
+      }
     }
     expect(entries.filter((e) => e.category === "synastry_aspect")).toHaveLength(
-      SYNASTRY_KEYS.length,
+      expected,
     );
   });
 
@@ -159,7 +163,7 @@ describe("content library lint", () => {
     }
   });
 
-  it("covers the Tier 1 transit aspect matrix", () => {
+  it("covers the transit aspect matrix (Tiers 1+2)", () => {
     for (const transiter of TRANSIT_ASPECT_TRANSITERS) {
       for (const natal of TRANSIT_ASPECT_NATALS) {
         for (const type of ASPECT_TYPES) {
