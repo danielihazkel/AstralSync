@@ -24,6 +24,11 @@ import type {
 export const CHAT_MAX_TURNS = 8;
 /** Max characters per history message after server-side clamping. */
 export const CHAT_MAX_MESSAGE_CHARS = 1_000;
+/** Abuse backstop: questions per profile per rolling hour, enforced
+ *  server-side (the turn cap above lives in client-held history and resets
+ *  with it). Three full conversations an hour is generous for real use. */
+export const CHAT_HOURLY_LIMIT = 3 * CHAT_MAX_TURNS;
+export const CHAT_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 /** System prompt for the chat: instructions + the same data blocks the
  *  stored reading was generated from, plus that reading. */

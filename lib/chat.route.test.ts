@@ -117,6 +117,18 @@ describe("POST /api/profiles/[id]/chat", () => {
     expect((await res.json()).error).toBe("chat_limit");
   });
 
+  it("429 chat_rate_limited once the hourly backstop is spent", async () => {
+    // Distinct profile id: the limiter is a route-module singleton shared
+    // across this file's tests.
+    let last: Response | null = null;
+    for (let i = 0; i < 25; i++) {
+      last = await POST(request({ question: `q${i}` }), params("77"));
+    }
+    expect(last!.status).toBe(429);
+    expect((await last!.json()).error).toBe("chat_rate_limited");
+    expect(Number(last!.headers.get("Retry-After"))).toBeGreaterThan(0);
+  });
+
   it("400 invalid_history when the history does not alternate", async () => {
     const res = await POST(
       request({

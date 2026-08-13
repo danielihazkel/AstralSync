@@ -3,8 +3,11 @@ import {
   buildChatSystemPrompt,
   chatTurnCount,
   composeChatMessages,
+  CHAT_HOURLY_LIMIT,
+  CHAT_LIMIT_WINDOW_MS,
   CHAT_MAX_TURNS,
 } from "@/lib/chat";
+import { createChatLimiter } from "@/lib/chatLimiter";
 import { llmClientFromEnv } from "@/lib/llm";
 import { getProfileView } from "@/lib/snapshots";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
@@ -22,6 +25,12 @@ function parseId(raw: unknown): number | null {
 }
 
 const NO_STORE = { "Cache-Control": "no-store" };
+
+// Module-level singleton: one limiter per server process.
+const limiter = createChatLimiter({
+  limit: CHAT_HOURLY_LIMIT,
+  windowMs: CHAT_LIMIT_WINDOW_MS,
+});
 
 /**
  * The ephemeral "ask about your chart" chat: POST { question, history }
@@ -64,6 +73,21 @@ export async function POST(
     return NextResponse.json(
       { error: "chat_limit" },
       { status: 409, headers: NO_STORE },
+    );
+  }
+  // The turn cap above is per-conversation UX; this is the server-side
+  // hourly backstop a cleared history can't reset.
+  const verdict = limiter.consume(id);
+  if (!verdict.allowed) {
+    return NextResponse.json(
+      { error: "chat_rate_limited" },
+      {
+        status: 429,
+        headers: {
+          ...NO_STORE,
+          "Retry-After": String(Math.ceil(verdict.retryAfterMs / 1000)),
+        },
+      },
     );
   }
   const messages = composeChatMessages(history, question);

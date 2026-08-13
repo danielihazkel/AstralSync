@@ -55,9 +55,11 @@ export default function ChatPanel({ profileId }: { profileId: number }) {
     setError(
       result.errorCode === "chat_limit"
         ? "This conversation has reached its question limit."
-        : result.status === 502 || result.errorCode === "llm_unavailable"
-          ? "The language model isn't reachable right now — try again once it's running."
-          : "Could not send the question.",
+        : result.errorCode === "chat_rate_limited" || result.status === 429
+          ? "That's a lot of questions in one hour — come back in a bit."
+          : result.status === 502 || result.errorCode === "llm_unavailable"
+            ? "The language model isn't reachable right now — try again once it's running."
+            : "Could not send the question.",
     );
   }
 
