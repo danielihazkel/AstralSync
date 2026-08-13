@@ -98,11 +98,8 @@ export function downloadSvg(svg: SVGSVGElement, baseName: string): void {
   }
 }
 
-export function downloadPng(
-  svg: SVGSVGElement,
-  baseName: string,
-  scale = 2,
-): Promise<void> {
+/** Rasterize the wheel to a PNG Blob — shared by download and Web Share. */
+export function pngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const blob = new Blob([serializeSvg(svg)], { type: "image/svg+xml" });
     const url = URL.createObjectURL(blob);
@@ -119,15 +116,12 @@ export function downloadPng(
         return;
       }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((pngBlob) => {
-        if (!pngBlob) {
+      canvas.toBlob((png) => {
+        if (!png) {
           reject(new Error("PNG encoding failed"));
           return;
         }
-        const pngUrl = URL.createObjectURL(pngBlob);
-        triggerDownload(pngUrl, `${sanitizeFileName(baseName)}.png`);
-        setTimeout(() => URL.revokeObjectURL(pngUrl), 10_000);
-        resolve();
+        resolve(png);
       }, "image/png");
     };
     img.onerror = () => {
@@ -136,4 +130,15 @@ export function downloadPng(
     };
     img.src = url;
   });
+}
+
+export async function downloadPng(
+  svg: SVGSVGElement,
+  baseName: string,
+  scale = 2,
+): Promise<void> {
+  const png = await pngBlob(svg, scale);
+  const pngUrl = URL.createObjectURL(png);
+  triggerDownload(pngUrl, `${sanitizeFileName(baseName)}.png`);
+  setTimeout(() => URL.revokeObjectURL(pngUrl), 10_000);
 }

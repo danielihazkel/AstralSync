@@ -9,6 +9,27 @@
   gap: 0.35rem;
 }
 
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+
+.printButton {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  padding: 0.3rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.printButton:hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
 .subline {
   color: var(--text-muted);
   font-size: 0.9rem;
@@ -227,4 +248,20 @@
 
 .legendSwatchB {
   border: 1.5px solid var(--aspect-sextile);
+}
+
+/* Print: the comparison itself is the artifact — pickers, action buttons
+   and navigation stay off paper; sections avoid mid-page breaks. */
+@media print {
+  .page button,
+  .page select,
+  .printButton,
+  .picker {
+    display: none;
+  }
+
+  .page section,
+  .overlayTables > div {
+    break-inside: avoid;
+  }
 }

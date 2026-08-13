@@ -1,0 +1,127 @@
+.report {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.actions {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+
+.printButton {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent-bright);
+  padding: 0.4rem 1rem;
+}
+
+.printButton:hover {
+  background: var(--accent-dim);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.birthLine {
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.section {
+  break-inside: avoid;
+}
+
+.sectionTitle {
+  font-size: 1.15rem;
+  margin-bottom: 0.6rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: normal;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.75rem 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 0.35rem 0.75rem 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.glyph {
+  color: var(--accent);
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols", "Apple Symbols", serif;
+  margin-right: 0.4rem;
+}
+
+.retro {
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.aspectList {
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.92rem;
+}
+
+.orb {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.readingSection {
+  break-inside: avoid;
+  margin-bottom: 1.1rem;
+}
+
+.readingTitle {
+  font-size: 1rem;
+}
+
+.readingSource {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin: 0.1rem 0 0.4rem;
+}
+
+.readingBody {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.numberRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2rem;
+  font-size: 0.95rem;
+}
+
+.numberRow strong {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--accent-bright);
+  margin-right: 0.35rem;
+}
+
+@media print {
+  .actions {
+    display: none;
+  }
+}

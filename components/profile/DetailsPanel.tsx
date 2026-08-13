@@ -119,6 +119,13 @@ export default function DetailsPanel({
             — every snapshot version, nothing held back
           </span>
         </p>
+        <p className={styles.actionRow}>
+          <a href={`/profiles/${profile.id}/print`}>Printable report</a>
+          <span className={styles.hint}>
+            — chart, placements, reading and numerology on one page; use your
+            browser&rsquo;s print dialog to save it as a PDF
+          </span>
+        </p>
         <div className={styles.deleteRow}>
           <DeleteProfileButton
             profileId={profile.id}

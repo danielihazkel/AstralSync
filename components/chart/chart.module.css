@@ -310,7 +310,8 @@
 }
 
 @media print {
-  .downloadRow {
+  .downloadRow,
+  .pointControls {
     display: none;
   }
 }

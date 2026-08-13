@@ -1,0 +1,223 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import {
+  detectPatterns,
+  overlayHouses,
+  partOfFortunePlacement,
+  pointsAt,
+} from "@astralsync/astro-core";
+import { loadContentIndex, resolveReading } from "@/lib/content";
+import { getProfileName, getProfileView } from "@/lib/snapshots";
+import { toNumeroReadingInput, toWheelChart } from "@/lib/view-types";
+import {
+  ASPECT_NAMES,
+  PLANET_NAMES,
+  SIGN_NAMES,
+  TIME_CERTAINTY_LABELS,
+  formatBirthDate,
+  formatDegreeInSign,
+} from "@/components/format";
+import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
+import BigThree from "@/components/profile/BigThree";
+import ChartWheel from "@/components/chart/ChartWheel";
+import ChartPatterns from "@/components/chart/ChartPatterns";
+import Markdown from "@/components/Markdown";
+import PrintButton from "@/components/print/PrintButton";
+import styles from "./print.module.css";
+
+// Snapshot data lives in the local DB; render per-request.
+export const dynamic = "force-dynamic";
+
+function parsePositiveInt(raw: string | undefined): number | null {
+  if (raw === undefined) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const id = parsePositiveInt((await params).id);
+  if (id === null) return {};
+  const name = await getProfileName(id);
+  return name ? { title: `${name} — report` } : {};
+}
+
+/**
+ * One long printable report — the tabbed profile page only mounts its active
+ * panel, so printing it can never capture the whole chart. This route
+ * composes the stored pieces (same lib calls as the profile page, no data
+ * duplication) and leans on the global print palette; the browser's "Save
+ * as PDF" is the export engine.
+ */
+export default async function PrintReportPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const id = parsePositiveInt((await params).id);
+  if (id === null) notFound();
+  const view = await getProfileView(id);
+  if (!view) notFound();
+
+  const chart = toWheelChart(view.astro);
+  const birthUtc = new Date(chart.input.utc);
+  const cusps = chart.houses?.cusps ?? null;
+  const points = {
+    mean: overlayHouses(pointsAt(birthUtc, "mean"), cusps),
+    true: overlayHouses(pointsAt(birthUtc, "true"), cusps),
+  };
+  if (chart.houses && cusps) {
+    const sunLon = chart.placements.find((p) => p.planet === "sun")!.longitude;
+    const moonLon = chart.placements.find((p) => p.planet === "moon")!.longitude;
+    const fortune = overlayHouses(
+      [partOfFortunePlacement(chart.houses.ascendant, sunLon, moonLon, cusps)],
+      cusps,
+    )[0];
+    points.mean.push(fortune);
+    points.true.push(fortune);
+  }
+  const { profile } = view;
+  const numeroInput = toNumeroReadingInput(view.numero);
+  const reading = resolveReading(
+    chart,
+    numeroInput,
+    view.astro.contentVersion,
+    loadContentIndex(),
+  );
+  const showHouses = !chart.isSolarChart;
+
+  return (
+    <main className={styles.report}>
+      <div className={styles.actions}>
+        <Link href={`/profiles/${profile.id}`}>← Back to the profile</Link>
+        <PrintButton className={styles.printButton} />
+      </div>
+
+      <header>
+        <h1>{profile.displayName}</h1>
+        <p className={styles.birthLine}>
+          {formatBirthDate(profile.birthDate)}
+          {profile.birthTime ? ` at ${profile.birthTime}` : " — time unknown"} (
+          {TIME_CERTAINTY_LABELS[profile.timeCertainty].toLowerCase()})
+          {profile.birthCity &&
+            ` · ${[profile.birthCity.name, profile.birthCity.admin1, profile.birthCity.countryCode].filter(Boolean).join(", ")}`}
+        </p>
+      </header>
+
+      <BigThree chart={chart} />
+
+      <section className={styles.section} aria-label="Chart wheel">
+        <ChartWheel
+          chart={chart}
+          points={points}
+          downloadName={`${profile.displayName} chart`}
+        />
+        <ChartPatterns patterns={detectPatterns(chart.placements)} />
+      </section>
+
+      <section className={styles.section} aria-label="Placements">
+        <h2 className={styles.sectionTitle}>Placements</h2>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th scope="col">Planet</th>
+              <th scope="col">Position</th>
+              {showHouses && <th scope="col">House</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {chart.placements.map((p) => (
+              <tr key={p.planet}>
+                <td>
+                  <span className={styles.glyph} aria-hidden="true">
+                    {PLANET_GLYPH_CHARS[p.planet] + "︎"}
+                  </span>
+                  {PLANET_NAMES[p.planet]}
+                  {p.retrograde && (
+                    <span className={styles.retro} title="Retrograde">
+                      {" "}
+                      ℞
+                    </span>
+                  )}
+                </td>
+                <td>
+                  {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
+                </td>
+                {showHouses && <td>{p.house}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {chart.aspects.length > 0 && (
+        <section className={styles.section} aria-label="Aspects">
+          <h2 className={styles.sectionTitle}>Aspects</h2>
+          <ul className={styles.aspectList}>
+            {[...chart.aspects]
+              .sort((x, y) => x.orb - y.orb)
+              .map((a) => (
+                <li key={`${a.a}-${a.b}-${a.type}`}>
+                  {PLANET_NAMES[a.a]} {ASPECT_NAMES[a.type].toLowerCase()}{" "}
+                  {PLANET_NAMES[a.b]}
+                  <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
+      <section className={styles.section} aria-label="Reading">
+        <h2 className={styles.sectionTitle}>Reading</h2>
+        {reading.sections.map((s) => (
+          <div key={s.key ?? s.title} className={styles.readingSection}>
+            <h3 className={styles.readingTitle}>{s.title}</h3>
+            <p className={styles.readingSource}>{s.source}</p>
+            <div className={styles.readingBody}>
+              <Markdown md={s.bodyMd} />
+            </div>
+          </div>
+        ))}
+        {view.astro.llmReading && (
+          <div className={styles.readingSection}>
+            <h3 className={styles.readingTitle}>AI synthesis</h3>
+            <p className={styles.readingSource}>
+              Generated {new Date(view.astro.llmReading.createdAt).toLocaleDateString()}
+              {view.astro.llmReading.modelName &&
+                ` · ${view.astro.llmReading.modelName}`}
+            </p>
+            <div className={styles.readingBody}>
+              <Markdown md={view.astro.llmReading.bodyMd} />
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className={styles.section} aria-label="Numerology">
+        <h2 className={styles.sectionTitle}>Numerology</h2>
+        <p className={styles.numberRow}>
+          <span>
+            <strong>{numeroInput.lifePath}</strong> Life Path
+            {numeroInput.isMaster && " (master)"}
+          </span>
+          {numeroInput.destiny && (
+            <span>
+              <strong>{numeroInput.destiny.value}</strong> Destiny
+              {numeroInput.destiny.isMaster && " (master)"}
+            </span>
+          )}
+          {numeroInput.soulUrge && (
+            <span>
+              <strong>{numeroInput.soulUrge.value}</strong> Soul Urge
+              {numeroInput.soulUrge.isMaster && " (master)"}
+            </span>
+          )}
+        </p>
+      </section>
+    </main>
+  );
+}

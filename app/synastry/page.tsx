@@ -11,6 +11,7 @@ import {
 } from "@/lib/synastry";
 import { synastryQuerySchema } from "@/lib/validation";
 import PairPicker from "@/components/synastry/PairPicker";
+import PrintButton from "@/components/print/PrintButton";
 import { PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
@@ -48,6 +49,7 @@ function OverlayTable({
       <h3 className={styles.sectionTitle}>
         {owner.displayName}&rsquo;s planets in {host.displayName}&rsquo;s houses
       </h3>
+      <div className="tableWrap">
       <table className={styles.table}>
         <thead>
           <tr>
@@ -79,6 +81,7 @@ function OverlayTable({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -160,9 +163,12 @@ export default async function SynastryPage({
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1>
-          {a.displayName} × {b.displayName}
-        </h1>
+        <div className={styles.titleRow}>
+          <h1>
+            {a.displayName} × {b.displayName}
+          </h1>
+          <PrintButton className={styles.printButton} />
+        </div>
         {[a, b].map((side) => (
           <p key={side.profileId} className={styles.subline}>
             <Link href={`/profiles/${side.profileId}`}>
