@@ -1,8 +1,11 @@
-import { buildChart, houseOf } from "@astralsync/astro-core";
+import { buildChart, houseOf, type CrossAspect } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
+import type { ContentEntry, ContentIndex } from "./content";
 import {
   computeComposite,
   computeSynastry,
+  normalizePair,
+  resolveSynastryEntries,
   synastryAspectKey,
   type SynastryInputSide,
 } from "./synastry";
@@ -201,5 +204,56 @@ describe("synastryQuerySchema", () => {
     [{ a: "7", b: "7" }, "same profile"],
   ])("rejects %j (%s)", (query, _label) => {
     expect(synastryQuerySchema.safeParse(query).success).toBe(false);
+  });
+});
+
+describe("normalizePair", () => {
+  it("orders the smaller id first regardless of input order", () => {
+    expect(normalizePair(3, 7)).toEqual([3, 7]);
+    expect(normalizePair(7, 3)).toEqual([3, 7]);
+    expect(normalizePair(5, 5)).toEqual([5, 5]);
+  });
+});
+
+describe("resolveSynastryEntries", () => {
+  const entry = (key: string): ContentEntry => ({
+    key,
+    category: key.split("/")[0] as ContentEntry["category"],
+    title: key,
+    essence: null,
+    bodyMd: `body of ${key}`,
+  });
+  const index = (...keys: string[]): ContentIndex => ({
+    version: "test",
+    entries: new Map(keys.map((k) => [k, entry(k)])),
+  });
+  const aspects: CrossAspect[] = [
+    { a: "sun", b: "moon", type: "square", angle: 90, orb: 0.5 },
+    { a: "venus", b: "mars", type: "trine", angle: 120, orb: 2.0 },
+  ];
+
+  it("prefers the synastry entry and falls back to the natal archetype", () => {
+    const idx = index(
+      "synastry_aspect/sun/moon/square",
+      "aspect/sun/moon/square",
+      "aspect/venus/mars/trine",
+    );
+    const entries = resolveSynastryEntries(aspects, idx);
+    expect(entries.map((e) => e.key)).toEqual([
+      "synastry_aspect/sun/moon/square",
+      "aspect/venus/mars/trine",
+    ]);
+  });
+
+  it("skips pairs with no entry in either library and dedupes", () => {
+    const idx = index("aspect/sun/moon/square");
+    const doubled = [...aspects, aspects[0]];
+    const entries = resolveSynastryEntries(doubled, idx);
+    expect(entries.map((e) => e.key)).toEqual(["aspect/sun/moon/square"]);
+  });
+
+  it("only considers the tightest `limit` aspects", () => {
+    const idx = index("aspect/venus/mars/trine");
+    expect(resolveSynastryEntries(aspects, idx, 1)).toEqual([]);
   });
 });

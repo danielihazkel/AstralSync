@@ -10,8 +10,11 @@ import {
   renderHebrewPeriodData,
   renderMazalData,
   renderNumerologyData,
+  renderSynastryData,
   renderWesternPeriodData,
 } from "./promptData";
+// Type-only: lib/synastry pulls in prisma, which this module must not load.
+import type { SynastryData } from "./synastry";
 import { LineBuffer, sseData } from "./sse";
 import type {
   NumeroDerivation,
@@ -859,6 +862,57 @@ export function buildHebrewReadingPrompt(
       ? `## Complete numerology data\n${renderNumerologyData(numerology)}`
       : "",
     `## Interpretation entries (Hebrew source material)\n${sections}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Prompt for the AI synastry/composite reading: both charts, the cross
+ * aspects, and the composite, plus resolved library entries for the tightest
+ * contacts (`synastry_aspect` with natal `aspect` fallback — see
+ * resolveSynastryEntries). Display names are user-chosen labels; the birth
+ * instant and coordinates are never rendered (renderSynastryData contract).
+ */
+export function buildSynastryReadingPrompt(
+  view: SynastryData,
+  entries: ContentEntry[],
+): string {
+  const aName = view.a.displayName;
+  const bName = view.b.displayName;
+  const solarSide = view.a.isSolarChart
+    ? aName
+    : view.b.isSolarChart
+      ? bName
+      : null;
+  const moonSide = view.a.moonUncertain
+    ? aName
+    : view.b.moonUncertain
+      ? bName
+      : null;
+  const instructions = [
+    `You are writing one synthesized relationship reading for an astrology app, comparing ${aName}'s and ${bName}'s natal charts.`,
+    "Below are both complete charts, the cross aspects between them, the midpoint composite chart, and interpretation entries for the strongest contacts.",
+    "Weave the synastry contacts and the composite into a single original reading of roughly 400 words in Markdown",
+    "(paragraphs, optional **bold** and *italic*, optional - lists; no headings, no HTML, no links).",
+    "Synthesize rather than restate: name where the two charts reinforce each other and where they grind, and what the composite adds about the relationship's own character.",
+    `Address both people by name (${aName} and ${bName}), gender-neutrally. Be concrete and even-handed — warmth and friction both. No promises, no fortune-telling, no compatibility scores.`,
+    solarSide
+      ? `${solarSide}'s birth time is unknown (solar chart): avoid house-based claims for that side and hedge anything resting on exact degrees.`
+      : "",
+    moonSide
+      ? `${moonSide}'s Moon sign is uncertain: hedge any claims that depend on that Moon.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return [
+    instructions,
+    `## Complete synastry data\n${renderSynastryData(view)}`,
+    entries.length > 0
+      ? `## Interpretation entries (for the strongest contacts)\n${renderEntrySections(entries)}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n\n");

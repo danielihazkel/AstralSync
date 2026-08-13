@@ -6,6 +6,8 @@ import {
   type HebrewPeriodSummary,
   type WesternPeriodSummary,
 } from "./forecast";
+// Type-only: lib/synastry pulls in prisma, which this module must not load.
+import type { SynastryData } from "./synastry";
 import type {
   NumeroDerivation,
   StoredHebrewGematria,
@@ -370,5 +372,45 @@ export function renderHebrewPeriodData(summary: HebrewPeriodSummary): string {
     }
   }
 
+  return lines.join("\n");
+}
+
+/**
+ * Both charts, the cross-aspect list, and the composite — the AI synastry
+ * reading's data block. The natal sides go through renderChartData (which by
+ * contract never renders the birth instant or coordinates); the composite is
+ * rendered locally because its `input` is an epoch placeholder that must not
+ * feed the node recomputation renderChartData performs.
+ */
+export function renderSynastryData(view: SynastryData): string {
+  const lines: string[] = [
+    `### ${view.a.displayName}'s natal chart`,
+    renderChartData(view.a.chart),
+    "",
+    `### ${view.b.displayName}'s natal chart`,
+    renderChartData(view.b.chart),
+    "",
+    "### Cross aspects (tightest first)",
+  ];
+  const eitherSolar = view.a.isSolarChart || view.b.isSolarChart;
+  for (const c of view.aspects) {
+    const orb = eitherSolar ? "" : ` — orb ${degreeLabel(c.orb)}`;
+    lines.push(
+      `- ${view.a.displayName}'s ${cap(c.a)} ${c.type} ${view.b.displayName}'s ${cap(c.b)}${orb}`,
+    );
+  }
+  if (view.aspects.length === 0) lines.push("- none within orb");
+
+  lines.push("", "### Composite (midpoint) chart — the relationship's own chart");
+  lines.push("Placements (midpoints, signs and degrees; no houses):");
+  for (const p of view.composite.chart.placements) {
+    lines.push(`- ${cap(p.planet)}: ${cap(p.sign)} ${degreeLabel(p.degreeInSign)}`);
+  }
+  if (view.composite.chart.aspects.length > 0) {
+    lines.push("Composite aspects:");
+    for (const a of view.composite.chart.aspects) {
+      lines.push(`- ${cap(a.a)} ${a.type} ${cap(a.b)} — orb ${degreeLabel(a.orb)}`);
+    }
+  }
   return lines.join("\n");
 }

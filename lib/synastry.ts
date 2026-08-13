@@ -10,6 +10,7 @@ import {
   type Placement,
   type Planet,
 } from "@astralsync/astro-core";
+import { getEntry, natalAspectKey, type ContentEntry, type ContentIndex } from "./content";
 import { prisma } from "./db";
 import type { StoredChart, WheelChart } from "./view-types";
 
@@ -155,6 +156,65 @@ export function synastryAspectKey(
   const [first, second] =
     PLANETS.indexOf(a) <= PLANETS.indexOf(b) ? [a, b] : [b, a];
   return `synastry_aspect/${first}/${second}/${type}`;
+}
+
+/** The canonical stored order for a profile pair: smaller id first, so
+ *  (a, b) and (b, a) share one synastry-reading slot. */
+export function normalizePair(a: number, b: number): [number, number] {
+  return a <= b ? [a, b] : [b, a];
+}
+
+/**
+ * Library entries for the tightest cross-aspects (deduped): the authored
+ * `synastry_aspect` entry when it exists, else the natal `aspect` archetype
+ * — the same degradation path the synastry page uses for per-row prose.
+ * Feeds the AI synastry reading prompt.
+ */
+export function resolveSynastryEntries(
+  aspects: CrossAspect[],
+  index: ContentIndex,
+  limit = 12,
+): ContentEntry[] {
+  const entries: ContentEntry[] = [];
+  const seen = new Set<string>();
+  for (const c of aspects.slice(0, limit)) {
+    const entry =
+      getEntry(index, synastryAspectKey(c.a, c.b, c.type)) ??
+      getEntry(index, natalAspectKey(c.a, c.b, c.type));
+    if (!entry || seen.has(entry.key)) continue;
+    seen.add(entry.key);
+    entries.push(entry);
+  }
+  return entries;
+}
+
+export interface StoredSynastryReading {
+  bodyMd: string;
+  modelName: string | null;
+  contentVersion: string | null;
+  createdAt: Date;
+  aVersion: number;
+  bVersion: number;
+}
+
+/** The stored AI reading for a pair (order-insensitive), or null. */
+export async function getSynastryReading(
+  aId: number,
+  bId: number,
+): Promise<StoredSynastryReading | null> {
+  const [pairA, pairB] = normalizePair(aId, bId);
+  const row = await prisma.synastryReading.findUnique({
+    where: { profileAId_profileBId: { profileAId: pairA, profileBId: pairB } },
+  });
+  if (!row) return null;
+  return {
+    bodyMd: row.bodyMd,
+    modelName: row.modelName,
+    contentVersion: row.contentVersion,
+    createdAt: row.createdAt,
+    aVersion: row.aVersion,
+    bVersion: row.bVersion,
+  };
 }
 
 async function loadSide(profileId: number): Promise<SynastryInputSide | null> {

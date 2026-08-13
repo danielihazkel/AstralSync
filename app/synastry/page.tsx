@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEntry, loadContentIndex, natalAspectKey } from "@/lib/content";
+import { llmClientFromEnv } from "@/lib/llm";
 import { listProfiles } from "@/lib/snapshots";
-import { getSynastryView, synastryAspectKey } from "@/lib/synastry";
+import {
+  getSynastryReading,
+  getSynastryView,
+  normalizePair,
+  synastryAspectKey,
+} from "@/lib/synastry";
 import { synastryQuerySchema } from "@/lib/validation";
 import PairPicker from "@/components/synastry/PairPicker";
 import { PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/format";
@@ -13,6 +19,7 @@ import CompositePanel from "@/components/synastry/CompositePanel";
 import CrossAspectList, {
   type AspectProse,
 } from "@/components/synastry/CrossAspectList";
+import SynastryReadingPanel from "@/components/synastry/SynastryReadingPanel";
 import type { SynastrySide } from "@/lib/synastry";
 import styles from "@/components/synastry/synastry.module.css";
 
@@ -120,6 +127,16 @@ export default async function SynastryPage({
   if (!view) notFound();
   const { a, b, aspects, composite } = view;
 
+  // The pair's stored AI reading (order-insensitive slot) + staleness.
+  const storedReading = await getSynastryReading(query.data.a, query.data.b);
+  const [pairA] = normalizePair(query.data.a, query.data.b);
+  const currentA = a.profileId === pairA ? a.version : b.version;
+  const currentB = a.profileId === pairA ? b.version : a.version;
+  const readingStale =
+    storedReading !== null &&
+    (storedReading.aVersion !== currentA || storedReading.bVersion !== currentB);
+  const llmEnabled = llmClientFromEnv() !== null;
+
   // Optional pair prose from the content library (3d Tier 6) — absent keys
   // simply render nothing, same degradation as the reading resolvers.
   const index = loadContentIndex();
@@ -196,6 +213,14 @@ export default async function SynastryPage({
         aName={a.displayName}
         bName={b.displayName}
         prose={compositeProse}
+      />
+
+      <SynastryReadingPanel
+        a={query.data.a}
+        b={query.data.b}
+        reading={storedReading}
+        stale={readingStale}
+        llmEnabled={llmEnabled}
       />
 
       <p className={styles.muted}>

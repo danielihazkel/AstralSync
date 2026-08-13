@@ -1,12 +1,13 @@
 import { z } from "zod";
 import type { ProfileBirthData } from "./snapshots";
-import { isValidTimeZone } from "./tz";
+import { isValidTimeZone } from "./tzValidate";
 
 /**
  * Request validation for the profile API (Phase 1d). Pure — timezone
  * defaulting (lat/lng → IANA zone) is the caller's job so this module
- * stays free of lookups. (`isValidTimeZone` is an Intl probe, not a
- * lookup — it keeps a client-supplied zone from reaching offset math.)
+ * stays free of lookups. (`isValidTimeZone` is a client-safe Intl probe,
+ * not a lookup — it keeps a client-supplied zone from reaching offset
+ * math. It must come from tzValidate, never tz, which loads geo-tz.)
  */
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
