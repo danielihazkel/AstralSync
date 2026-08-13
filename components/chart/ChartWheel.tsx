@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Planet } from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
 import {
@@ -16,6 +16,7 @@ import {
   PLANET_GLYPH_CHARS,
   SIGN_GLYPH_CHARS,
 } from "./glyphs";
+import DownloadChartButton from "./DownloadChartButton";
 import PlacementDetail, { type Selection } from "./PlacementDetail";
 import SolarChartNotice from "./SolarChartNotice";
 import styles from "./chart.module.css";
@@ -43,8 +44,15 @@ function planetAriaLabel(chart: WheelChart, planet: Planet): string {
  * card. Glyph positions are collision-adjusted; ticks and aspect chords stay
  * at the true longitudes.
  */
-export default function ChartWheel({ chart }: { chart: WheelChart }) {
+export default function ChartWheel({
+  chart,
+  downloadName = "chart",
+}: {
+  chart: WheelChart;
+  downloadName?: string;
+}) {
   const layout = useMemo(() => layoutWheel(chart), [chart]);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [pinned, setPinned] = useState<Selection>(null);
   const [hovered, setHovered] = useState<Selection>(null);
   const selection = hovered ?? pinned;
@@ -94,6 +102,7 @@ export default function ChartWheel({ chart }: { chart: WheelChart }) {
     <div className={styles.wheelWrap}>
       <div className={styles.wheelColumn}>
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${layout.size} ${layout.size}`}
           className={styles.wheel}
           role="img"
@@ -307,6 +316,8 @@ export default function ChartWheel({ chart }: { chart: WheelChart }) {
             </g>
           ))}
         </svg>
+
+        <DownloadChartButton svgRef={svgRef} baseName={downloadName} />
 
         {chart.houses?.fallbackApplied && (
           <p className={styles.fallbackChip}>

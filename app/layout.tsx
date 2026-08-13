@@ -5,7 +5,7 @@ import { THEME_COLOR } from "@/lib/pwa/manifest";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AstralSync",
+  title: { default: "AstralSync", template: "%s · AstralSync" },
   description: "Natal charts and numerology, fully offline.",
 };
 
@@ -40,7 +40,13 @@ export default function RootLayout({
           >
             ✶ AstralSync
           </Link>
-          <nav>
+          <nav style={{ display: "flex", gap: "1.25rem" }}>
+            <Link href="/" style={{ color: "var(--text-muted)" }}>
+              Profiles
+            </Link>
+            <Link href="/synastry" style={{ color: "var(--text-muted)" }}>
+              Synastry
+            </Link>
             <Link href="/onboarding" style={{ color: "var(--text-muted)" }}>
               New profile
             </Link>

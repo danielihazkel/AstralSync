@@ -675,6 +675,15 @@ export async function ensureHebrewSnapshot(profileId: number): Promise<void> {
   }
 }
 
+/** Display name only, for page metadata — cheaper than a full view. */
+export async function getProfileName(id: number): Promise<string | null> {
+  const profile = await prisma.profile.findUnique({
+    where: { id },
+    select: { displayName: true },
+  });
+  return profile?.displayName ?? null;
+}
+
 export async function listProfiles() {
   const profiles = await prisma.profile.findMany({
     orderBy: { createdAt: "asc" },

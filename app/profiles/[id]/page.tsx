@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
@@ -5,6 +6,7 @@ import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
 import {
   ensureHebrewSnapshot,
+  getProfileName,
   getProfileView,
   listSnapshotVersions,
 } from "@/lib/snapshots";
@@ -31,6 +33,18 @@ function parsePositiveInt(raw: string | undefined): number | null {
   if (raw === undefined) return null;
   const n = Number(raw);
   return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** Per-profile browser-tab title (composed via the layout's title template). */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const id = parsePositiveInt((await params).id);
+  if (id === null) return {};
+  const name = await getProfileName(id);
+  return name ? { title: name } : {};
 }
 
 export default async function ProfilePage({
@@ -96,6 +110,9 @@ export default async function ProfilePage({
   return (
     <main>
       <header className={styles.header}>
+        <p className={styles.muted}>
+          <Link href="/">← All profiles</Link>
+        </p>
         <h1>{profile.displayName}</h1>
         <p className={styles.birthLine}>
           {formatBirthDate(profile.birthDate)}

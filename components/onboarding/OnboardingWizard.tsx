@@ -344,8 +344,11 @@ export default function OnboardingWizard({
             </label>
             <p className={styles.hint}>
               Why we ask: the full birth name is only used to calculate the
-              Destiny/Expression and Soul Urge numbers. It never leaves this
-              machine, and you can skip it — the Life Path number comes from
+              Destiny/Expression and Soul Urge numbers, and is stored only in
+              your local database. If you later generate an AI reading with an
+              external provider, the name&rsquo;s letter-value derivation is
+              part of the prompt sent to it (with a local model, nothing leaves
+              this machine). You can skip it — the Life Path number comes from
               the birth date alone.
             </p>
             <label className={styles.field}>
@@ -365,7 +368,9 @@ export default function OnboardingWizard({
               <strong>gematria</strong> Destiny number (standard letter values,
               final forms handled) and the mispar-katan name reading on the
               Mazal tab. It can accompany the Latin name — you get both
-              systems. Soul Urge is not offered for unvocalized Hebrew.
+              systems. Soul Urge is not offered for unvocalized Hebrew. Like
+              the birth name, its gematria derivation is included in AI-reading
+              prompts if you use an external provider.
             </p>
             {script === "hebrew" && (
               <p className={styles.notice}>

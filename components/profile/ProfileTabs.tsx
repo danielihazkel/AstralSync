@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { ResolvedReading } from "@/lib/content";
 import type { ResolvedHebrewReading } from "@/lib/hebrewReading";
 import type {
@@ -18,17 +18,8 @@ import NumerologyPanel, {
 import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
+import { TABS, paramFromTab, tabFromParam, type Tab } from "./tabParam";
 import styles from "./profile.module.css";
-
-const TABS = [
-  "Chart",
-  "Reading",
-  "Numerology",
-  "Mazal",
-  "Transits",
-  "Details",
-] as const;
-type Tab = (typeof TABS)[number];
 
 export default function ProfileTabs({
   profile,
@@ -55,7 +46,18 @@ export default function ProfileTabs({
   hebrewReading: ResolvedHebrewReading | null;
   llmEnabled: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>("Chart");
+  // Tab state lives in ?tab= so views are bookmarkable and survive reloads.
+  // history.replaceState is the App Router's shallow-update path: no server
+  // refetch, and useSearchParams re-renders this component. replaceState
+  // (not push) keeps tab flips out of the back stack; copying the current
+  // params preserves ?version=.
+  const searchParams = useSearchParams();
+  const tab: Tab = tabFromParam(searchParams.get("tab"));
+  function setTab(t: Tab) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", paramFromTab(t));
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  }
 
   return (
     <div>
@@ -75,7 +77,10 @@ export default function ProfileTabs({
 
       {tab === "Chart" && (
         <div role="tabpanel" aria-label="Chart">
-          <ChartWheel chart={chart} />
+          <ChartWheel
+            chart={chart}
+            downloadName={`${profile.displayName} chart`}
+          />
         </div>
       )}
       {tab === "Reading" && (

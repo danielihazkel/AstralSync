@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEntry, loadContentIndex } from "@/lib/content";
+import { listProfiles } from "@/lib/snapshots";
 import { getSynastryView, synastryAspectKey } from "@/lib/synastry";
 import { synastryQuerySchema } from "@/lib/validation";
+import PairPicker from "@/components/synastry/PairPicker";
 import { PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
@@ -78,7 +80,40 @@ export default async function SynastryPage({
 }: {
   searchParams: Promise<{ a?: string; b?: string }>;
 }) {
-  const query = synastryQuerySchema.safeParse(await searchParams);
+  const params = await searchParams;
+  // Reached without a pair (e.g. the header link): offer the picker instead
+  // of a 404. Present-but-invalid ids still 404 below.
+  if (params.a === undefined && params.b === undefined) {
+    const profiles = await listProfiles();
+    return (
+      <main className={styles.page}>
+        <header className={styles.header}>
+          <h1>Synastry</h1>
+        </header>
+        <p className={styles.muted}>
+          Compare two charts side by side: cross aspects at natal orbs and
+          mutual house overlays, always recomputed from the stored snapshots.
+        </p>
+        {profiles.length >= 2 ? (
+          <PairPicker
+            profiles={profiles.map((p) => ({
+              id: p.id,
+              displayName: p.displayName,
+            }))}
+          />
+        ) : (
+          <p className={styles.muted}>
+            Synastry needs two profiles —{" "}
+            <Link href="/onboarding">create another chart</Link> to compare.
+          </p>
+        )}
+        <p className={styles.muted}>
+          <Link href="/">← All profiles</Link>
+        </p>
+      </main>
+    );
+  }
+  const query = synastryQuerySchema.safeParse(params);
   if (!query.success) notFound();
   const view = await getSynastryView(query.data.a, query.data.b);
   if (!view) notFound();

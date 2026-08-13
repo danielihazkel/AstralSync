@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ReadingSlot, ResolvedReading } from "@/lib/content";
 import type { AstroView } from "@/lib/view-types";
 import Markdown from "@/components/Markdown";
+import DiscardReadingButton from "./DiscardReadingButton";
 import { ELEMENTS, MODALITIES } from "@/lib/dominance";
 import styles from "./profile.module.css";
 
@@ -165,6 +166,11 @@ export default function ReadingPanel({
           </p>
           <div className={styles.readingBody}>
             <Markdown md={llmReading.bodyMd} />
+          </div>
+          <div className={styles.actionRow}>
+            <DiscardReadingButton
+              endpoint={`/api/profiles/${profileId}/reading?version=${version}`}
+            />
           </div>
         </section>
       ) : (

@@ -1,12 +1,7 @@
 import Link from "next/link";
-import type { Sign } from "@astralsync/astro-core";
 import { listProfiles } from "@/lib/snapshots";
-import {
-  SIGN_NAMES,
-  TIME_CERTAINTY_LABELS,
-  formatBirthDate,
-} from "@/components/format";
-import DeleteProfileButton from "@/components/profiles/DeleteProfileButton";
+import ImportProfileButton from "@/components/profiles/ImportProfileButton";
+import ProfileList from "@/components/profiles/ProfileList";
 import PairPicker from "@/components/synastry/PairPicker";
 import styles from "./page.module.css";
 
@@ -30,35 +25,17 @@ export default async function Home() {
           <Link href="/onboarding" className={styles.cta}>
             Create your first chart
           </Link>
+          <p className={styles.tagline}>
+            Have an export file? <ImportProfileButton />
+          </p>
         </div>
       ) : (
-        <ul className={styles.list}>
-          {profiles.map((p) => (
-            <li key={p.id} className={styles.card}>
-              <Link href={`/profiles/${p.id}`} className={styles.cardLink}>
-                <span className={styles.name}>{p.displayName}</span>
-                <span className={styles.meta}>
-                  {formatBirthDate(p.birthDate)}
-                  {p.sunSign ? ` · ${SIGN_NAMES[p.sunSign as Sign]} Sun` : ""}
-                </span>
-                <span className={styles.tags}>
-                  {p.isSolarChart && (
-                    <span className={styles.tag}>Solar chart</span>
-                  )}
-                  {p.timeCertainty === "approx" && (
-                    <span className={styles.tag}>
-                      {TIME_CERTAINTY_LABELS.approx}
-                    </span>
-                  )}
-                </span>
-              </Link>
-              <DeleteProfileButton
-                profileId={p.id}
-                displayName={p.displayName}
-              />
-            </li>
-          ))}
-        </ul>
+        <ProfileList
+          profiles={profiles.map((p) => ({
+            ...p,
+            createdAt: p.createdAt.toISOString(),
+          }))}
+        />
       )}
 
       {profiles.length >= 2 && (
@@ -68,6 +45,12 @@ export default async function Home() {
             displayName: p.displayName,
           }))}
         />
+      )}
+
+      {profiles.length > 0 && (
+        <p className={styles.tagline} style={{ marginTop: "2rem" }}>
+          Restore a profile from an export file: <ImportProfileButton />
+        </p>
       )}
     </main>
   );

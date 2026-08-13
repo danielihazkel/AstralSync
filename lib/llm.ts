@@ -1,5 +1,16 @@
 import type { ResolvedReading } from "./content";
 import type { ResolvedHebrewReading } from "./hebrewReading";
+import {
+  renderChartData,
+  renderMazalData,
+  renderNumerologyData,
+} from "./promptData";
+import type {
+  NumeroDerivation,
+  StoredHebrewGematria,
+  StoredMazal,
+  WheelChart,
+} from "./view-types";
 
 /**
  * Optional LLM synthesis hook (PRD §5): a single combined reading per
@@ -28,6 +39,9 @@ export interface LlmClient {
 }
 
 const TIMEOUT_MS = 60_000;
+// Readings ask for ~400 words; the cap bounds spend on a runaway completion.
+const MAX_TOKENS = 1_200;
+const TEMPERATURE = 0.7;
 
 async function post(url: string, body: unknown, headers: Record<string, string>) {
   let res: Response;
@@ -42,7 +56,12 @@ async function post(url: string, body: unknown, headers: Record<string, string>)
     throw new LlmUnavailableError(`LLM request to ${url} failed`, e);
   }
   if (!res.ok) {
-    throw new LlmUnavailableError(`LLM request to ${url} returned ${res.status}`);
+    // Provider error bodies name the actual problem (bad key, unknown model,
+    // quota); a bare status is undiagnosable.
+    const detail = (await res.text().catch(() => "")).slice(0, 300);
+    throw new LlmUnavailableError(
+      `LLM request to ${url} returned ${res.status}${detail ? `: ${detail}` : ""}`,
+    );
   }
   return res.json() as Promise<Record<string, unknown>>;
 }
@@ -54,7 +73,12 @@ export function ollamaClient(baseUrl: string, model: string): LlmClient {
     async generate(prompt) {
       const json = await post(
         `${baseUrl.replace(/\/$/, "")}/api/generate`,
-        { model, prompt, stream: false },
+        {
+          model,
+          prompt,
+          stream: false,
+          options: { num_predict: MAX_TOKENS, temperature: TEMPERATURE },
+        },
         {},
       );
       if (typeof json.response !== "string" || json.response === "") {
@@ -76,7 +100,14 @@ export function openAiCompatClient(
     async generate(prompt) {
       const json = await post(
         `${baseUrl.replace(/\/$/, "")}/v1/chat/completions`,
-        { model, messages: [{ role: "user", content: prompt }] },
+        {
+          model,
+          messages: [{ role: "user", content: prompt }],
+          // max_tokens (not max_completion_tokens) for broad compatibility
+          // across OpenAI-compatible providers.
+          max_tokens: MAX_TOKENS,
+          temperature: TEMPERATURE,
+        },
         { authorization: `Bearer ${apiKey}` },
       );
       const choices = json.choices as
@@ -107,12 +138,15 @@ export function llmClientFromEnv(
 }
 
 /**
- * Prompt for the stored synthesis. Built only from chart facts and the
- * already-resolved library entries — no names or birth details.
+ * Prompt for the stored synthesis: the complete chart and numerology data
+ * plus the already-resolved library entries. Birth details (`chart.input`:
+ * instant, coordinates) are never included; the name appears only through
+ * the numerology word derivations.
  */
 export function buildReadingPrompt(
   resolved: ResolvedReading,
-  opts: { isSolarChart: boolean },
+  chart: WheelChart,
+  numerology: NumeroDerivation | null,
 ): string {
   const { dominance } = resolved;
   const counts = Object.entries(dominance.counts)
@@ -124,47 +158,73 @@ export function buildReadingPrompt(
     .map((s) => `### ${s.title} (${s.source})\n${s.bodyMd}`)
     .join("\n\n");
 
-  return [
+  const instructions = [
     "You are writing one synthesized natal reading for an astrology and numerology app.",
-    "Below are the individual interpretation entries that apply to this chart.",
-    "Weave them into a single original reading of roughly 400 words in Markdown",
+    "Below are the complete chart and numerology data for this person, followed by the individual interpretation entries that apply.",
+    "Ground the reading in the complete data — you may draw on any placement, aspect, or number, not only those covered by the interpretation entries.",
+    "Weave everything into a single original reading of roughly 400 words in Markdown",
     "(paragraphs, optional **bold** and *italic*, optional - lists; no headings, no HTML, no links).",
     "Synthesize rather than restate: name the tensions and reinforcements between the placements.",
     "Address the reader as \"you\". Be concrete and even-handed — strengths and friction both.",
-    opts.isSolarChart
+    chart.isSolarChart
       ? "Birth time is unknown (solar chart): do not mention houses or a rising sign."
       : "",
     `Element distribution across the ten planets: ${counts} (dominant: ${dominance.dominant}).`,
-    "",
-    sections,
   ]
     .filter(Boolean)
     .join("\n");
+
+  return [
+    instructions,
+    `## Complete chart data\n${renderChartData(chart)}`,
+    numerology
+      ? `## Complete numerology data\n${renderNumerologyData(numerology)}`
+      : "",
+    `## Interpretation entries\n${sections}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /**
- * Prompt for the Mazal-tab synthesis: the resolveHebrewReading sections are
- * already Hebrew (including the data-rendered date section), so the whole
- * prompt — instructions included — is Hebrew and asks for Hebrew output.
- * Like buildReadingPrompt, it carries no birth details beyond what the
- * sections themselves state. Suppressed slots (planetary hour on unknown
- * time, name gematria without a Hebrew name) are simply absent — no caveat
- * flags needed.
+ * Prompt for the Mazal-tab synthesis: the complete Mazal chart, gematria,
+ * and numerology data plus the resolveHebrewReading sections. The sections
+ * are Hebrew source material, but the instructions ask for an English
+ * reading (Hebrew terms transliterated). Like buildReadingPrompt, birth
+ * details (`mazal.input`) are never included; the Hebrew name appears via
+ * the gematria derivation, as it already does in the name_gematria section.
+ * Suppressed data (planetary hour on unknown time, name gematria without a
+ * Hebrew name) is simply absent — no caveat flags needed.
  */
-export function buildHebrewReadingPrompt(resolved: ResolvedHebrewReading): string {
+export function buildHebrewReadingPrompt(
+  resolved: ResolvedHebrewReading,
+  mazal: StoredMazal,
+  gematria: StoredHebrewGematria,
+  numerology: NumeroDerivation | null,
+): string {
   const sections = resolved.sections
     .map((s) => `### ${s.title} (${s.source})\n${s.bodyMd}`)
     .join("\n\n");
 
-  return [
-    "אתה כותב קריאה אחת משולבת עבור אפליקציית אסטרולוגיה יהודית (מזלות) ונומרולוגיה.",
-    "למטה מופיעים פרקי הפרשנות החלים על המפה העברית הזו.",
-    "ארוג אותם לקריאה אחת מקורית בעברית בלבד, באורך של כ־300 עד 400 מילים, בפורמט Markdown",
-    "(פסקאות, אפשר **הדגשה** ו־*הטיה*; בלי כותרות, בלי HTML, בלי קישורים).",
-    "שלב ואחד את הרעיונות במקום לסכם כל פרק בנפרד: הצבע על החיזוקים והמתחים שביניהם.",
-    "פנה אל הקוראים בגוף שני מכבד ונייטרלי ככל האפשר מבחינה מגדרית.",
-    "היה קונקרטי ומאוזן — גם חוזקות וגם נקודות חיכוך. בלי הבטחות ובלי ניבוי עתידות.",
-    "",
-    sections,
+  const instructions = [
+    "You are writing one synthesized reading for the Jewish astrology (Mazal) and gematria tab of an astrology and numerology app.",
+    "Below are the complete Mazal chart and numerology data for this person, followed by the interpretation entries that apply.",
+    "The interpretation entries are written in Hebrew: draw on their ideas and translate them — do not quote them untranslated.",
+    "Write the reading entirely in English. Keep key Hebrew terms transliterated (mazal, Sefer Yetzirah, gematria, mispar katan), with a brief gloss where helpful.",
+    "Weave everything into a single original reading of roughly 300 to 400 words in Markdown",
+    "(paragraphs, optional **bold** and *italic*; no headings, no HTML, no links).",
+    "Synthesize rather than summarize each entry separately: point out the reinforcements and tensions between them.",
+    "Address the reader as \"you\", gender-neutrally. Be concrete and even-handed — strengths and friction both. No promises, no fortune-telling.",
   ].join("\n");
+
+  return [
+    instructions,
+    `## Complete Mazal chart data\n${renderMazalData(mazal, gematria)}`,
+    numerology
+      ? `## Complete numerology data\n${renderNumerologyData(numerology)}`
+      : "",
+    `## Interpretation entries (Hebrew source material)\n${sections}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }

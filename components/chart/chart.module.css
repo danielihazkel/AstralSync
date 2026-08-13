@@ -210,3 +210,37 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+.downloadRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.downloadLabel {
+  color: var(--text-muted);
+}
+
+.downloadButton {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  padding: 0.2rem 0.6rem;
+}
+
+.downloadButton:hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
+.downloadError {
+  color: var(--danger);
+}
+
+@media print {
+  .downloadRow {
+    display: none;
+  }
+}

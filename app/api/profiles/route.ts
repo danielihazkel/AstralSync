@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(view, { status: 201 });
   } catch (e) {
     if (e instanceof UnknownCityError) {
+      console.error("[api] profiles POST:", e);
       return NextResponse.json(
         { error: "unknown_city", message: e.message },
         { status: 400 },

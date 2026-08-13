@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   // geo-tz reads its timezone boundary data from node_modules at runtime and
   // must not be bundled.
   serverExternalPackages: ["geo-tz", "@prisma/client"],
+  // lib/content.ts reads content/ from process.cwd() at runtime; without this,
+  // standalone/containerized builds ship with an empty content library.
+  outputFileTracingIncludes: {
+    "/*": ["content/**/*"],
+  },
   async headers() {
     return [
       {

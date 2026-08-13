@@ -31,6 +31,46 @@
   --radius: 8px;
 }
 
+/* Ink-friendly print palette: every component (the SVG wheels included)
+   reads these tokens, so one override block flips the whole page. */
+@media print {
+  :root {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-raised: #f5f3ee;
+    --border: #ccc;
+    --border-strong: #999;
+    --text: #1a1a1a;
+    --text-muted: #555;
+    --heading: #222;
+    --accent: #8a6b2f;
+    --accent-bright: #8a6b2f;
+    --accent-dim: rgba(138, 107, 47, 0.15);
+    --danger: #a23b3b;
+    --warn: #8a6b2f;
+    --warn-bg: rgba(138, 107, 47, 0.1);
+    --ok: #2e6e50;
+
+    --aspect-conjunction: #8a6b2f;
+    --aspect-trine: #2e6e50;
+    --aspect-sextile: #2f5e8a;
+    --aspect-square: #a05030;
+    --aspect-opposition: #a03050;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-image: none;
+  }
+
+  body > header {
+    display: none;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

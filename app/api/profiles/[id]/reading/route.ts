@@ -4,7 +4,11 @@ import { prisma } from "@/lib/db";
 import { getProfileView } from "@/lib/snapshots";
 import { resolveReading } from "@/lib/content";
 import { buildReadingPrompt, llmClientFromEnv, LlmUnavailableError } from "@/lib/llm";
-import { toNumeroReadingInput, toWheelChart } from "@/lib/view-types";
+import {
+  toNumeroDerivation,
+  toNumeroReadingInput,
+  toWheelChart,
+} from "@/lib/view-types";
 
 function parseId(raw: unknown): number | null {
   const id = Number(raw);
@@ -56,10 +60,11 @@ export async function POST(
   let bodyMd: string;
   try {
     bodyMd = await client.generate(
-      buildReadingPrompt(resolved, { isSolarChart: chart.isSolarChart }),
+      buildReadingPrompt(resolved, chart, toNumeroDerivation(view.numero)),
     );
   } catch (e) {
     if (e instanceof LlmUnavailableError) {
+      console.error("[api] reading:", e);
       return NextResponse.json(
         { error: "llm_unavailable", message: e.message },
         { status: 502 },
@@ -95,4 +100,48 @@ export async function POST(
     }
     throw e;
   }
+}
+
+/**
+ * Discard a stored AI reading (`?version=N`, defaulting to the latest
+ * snapshot). The freed unique slot lets POST generate a fresh one — the only
+ * sanctioned way to replace a bad generation, since readings are otherwise
+ * write-once per snapshot.
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const id = parseId((await params).id);
+  if (id === null) {
+    return NextResponse.json({ error: "invalid_id" }, { status: 400 });
+  }
+  const versionRaw = req.nextUrl.searchParams.get("version");
+  const version = versionRaw === null ? undefined : parseId(versionRaw);
+  if (version === null) {
+    return NextResponse.json({ error: "invalid_version" }, { status: 400 });
+  }
+  const view = await getProfileView(id, version);
+  if (!view) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+  try {
+    await prisma.reading.delete({
+      where: {
+        astroSnapshotId_generator: {
+          astroSnapshotId: view.astro.snapshotId,
+          generator: "llm",
+        },
+      },
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2025"
+    ) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    throw e;
+  }
+  return NextResponse.json({ deleted: true });
 }

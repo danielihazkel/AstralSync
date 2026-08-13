@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { CrossAspect, Planet } from "@astralsync/astro-core";
 import type { SynastrySide } from "@/lib/synastry";
 import {
@@ -16,6 +16,7 @@ import {
   PLANET_GLYPH_CHARS,
   SIGN_GLYPH_CHARS,
 } from "@/components/chart/glyphs";
+import DownloadChartButton from "@/components/chart/DownloadChartButton";
 import SolarChartNotice from "@/components/chart/SolarChartNotice";
 import chartStyles from "@/components/chart/chart.module.css";
 import styles from "./synastry.module.css";
@@ -49,6 +50,7 @@ export default function BiWheel({
   b: SynastrySide;
   aspects: CrossAspect[];
 }) {
+  const svgRef = useRef<SVGSVGElement>(null);
   const layout = useMemo(
     () =>
       layoutBiWheel(a.chart, {
@@ -122,6 +124,7 @@ export default function BiWheel({
     <div className={chartStyles.wheelWrap}>
       <div className={chartStyles.wheelColumn}>
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${layout.size} ${layout.size}`}
           className={chartStyles.wheel}
           role="img"
@@ -316,6 +319,11 @@ export default function BiWheel({
             </g>
           ))}
         </svg>
+
+        <DownloadChartButton
+          svgRef={svgRef}
+          baseName={`${a.displayName} ${b.displayName} synastry`}
+        />
 
         <p className={styles.legend}>
           <span>

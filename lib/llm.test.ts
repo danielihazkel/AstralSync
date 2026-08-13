@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ResolvedReading } from "./content";
 import type { ResolvedHebrewReading } from "./hebrewReading";
+import type {
+  NumeroDerivation,
+  StoredHebrewGematria,
+  StoredMazal,
+  WheelChart,
+} from "./view-types";
 import {
   buildHebrewReadingPrompt,
   buildReadingPrompt,
@@ -86,9 +92,104 @@ const resolved: ResolvedReading = {
   missingKeys: [],
 };
 
+const chart: WheelChart = {
+  schemaVersion: 1,
+  input: {
+    utc: "2000-08-09T10:00:00.000Z",
+    latitude: 32.1,
+    longitude: 34.8,
+    houseSystem: "placidus",
+    timeCertainty: "exact",
+  },
+  isSolarChart: false,
+  houses: {
+    system: "placidus",
+    requestedSystem: "placidus",
+    fallbackApplied: false,
+    cusps: [222.5, 252, 282, 312, 342, 12, 42.5, 72, 102, 132, 162, 192],
+    ascendant: 222.5,
+    mc: 132,
+  },
+  placements: [
+    {
+      planet: "sun",
+      longitude: 137.07,
+      sign: "leo",
+      degreeInSign: 17.07,
+      house: 10,
+      retrograde: false,
+    },
+    {
+      planet: "pluto",
+      longitude: 245.5,
+      sign: "sagittarius",
+      degreeInSign: 5.5,
+      house: 2,
+      retrograde: true,
+    },
+  ],
+  aspects: [
+    { a: "sun", b: "moon", type: "trine", angle: 120, orb: 1.05 },
+    { a: "sun", b: "pluto", type: "square", angle: 90, orb: 5.2 },
+  ],
+  bigThree: { sun: "leo", moon: "sagittarius", ascendant: "scorpio" },
+  uncertainties: [],
+  engine: { name: "test", version: "0" },
+  tzWarnings: [],
+};
+
+const solarChart: WheelChart = {
+  ...chart,
+  isSolarChart: true,
+  houses: null,
+  placements: chart.placements.map((p) => ({ ...p, house: null })),
+  bigThree: { ...chart.bigThree, ascendant: null },
+};
+
+const numero: NumeroDerivation = {
+  lifePath: {
+    value: 7,
+    isMaster: false,
+    derivation: {
+      components: [
+        { part: "month", raw: 8, steps: [], reduced: 8 },
+        { part: "day", raw: 9, steps: [], reduced: 9 },
+        { part: "year", raw: 2000, steps: [2], reduced: 2 },
+      ],
+      total: 19,
+      steps: [10, 1],
+    },
+  },
+  destiny: {
+    system: "pythagorean",
+    value: 11,
+    isMaster: true,
+    derivation: {
+      words: [
+        {
+          word: "Dana",
+          letters: [
+            { char: "d", value: 4 },
+            { char: "a", value: 1, isVowel: true },
+            { char: "n", value: 5 },
+            { char: "a", value: 1, isVowel: true },
+          ],
+          subtotal: 11,
+          steps: [],
+          reduced: 11,
+        },
+      ],
+      total: 11,
+      steps: [],
+    },
+  },
+  soulUrge: null,
+  hebrewDestiny: null,
+};
+
 describe("buildReadingPrompt", () => {
   it("includes entry titles, bodies, and the element distribution", () => {
-    const prompt = buildReadingPrompt(resolved, { isSolarChart: false });
+    const prompt = buildReadingPrompt(resolved, chart, numero);
     expect(prompt).toContain("Sun in Leo");
     expect(prompt).toContain("Sun body.");
     expect(prompt).toContain("water 4");
@@ -96,16 +197,40 @@ describe("buildReadingPrompt", () => {
     expect(prompt).not.toContain("solar chart");
   });
 
+  it("includes the complete chart data — outer planets, houses, aspects", () => {
+    const prompt = buildReadingPrompt(resolved, chart, numero);
+    expect(prompt).toContain("## Complete chart data");
+    expect(prompt).toContain("Pluto: Sagittarius 5°30′, 2nd house, retrograde");
+    expect(prompt).toContain("Ascendant (rising): Scorpio 12°30′");
+    expect(prompt).toContain("7th house cusp: Taurus 12°30′");
+    expect(prompt).toContain("Sun square Pluto — orb 5°12′");
+  });
+
+  it("includes the complete numerology data with derivations", () => {
+    const prompt = buildReadingPrompt(resolved, chart, numero);
+    expect(prompt).toContain("## Complete numerology data");
+    expect(prompt).toContain("Life Path: 7");
+    expect(prompt).toContain("Destiny (Expression): 11 (master number)");
+    expect(prompt).toContain("Dana: d=4 a=1 n=5 a=1; 11");
+    expect(buildReadingPrompt(resolved, chart, null)).not.toContain(
+      "## Complete numerology data",
+    );
+  });
+
   it("excludes the composed synthesis section from the source material", () => {
-    expect(buildReadingPrompt(resolved, { isSolarChart: false })).not.toContain(
+    expect(buildReadingPrompt(resolved, chart, numero)).not.toContain(
       "Composed.",
     );
   });
 
-  it("adds the solar-chart caveat", () => {
-    expect(buildReadingPrompt(resolved, { isSolarChart: true })).toContain(
-      "solar chart",
-    );
+  it("adds the solar-chart caveat and suppresses houses in the data block", () => {
+    const prompt = buildReadingPrompt(resolved, solarChart, numero);
+    expect(prompt).toContain("solar chart");
+    expect(prompt).toContain("Pluto: Sagittarius, retrograde");
+    expect(prompt).not.toContain("2nd house");
+    expect(prompt).not.toContain("house cusp");
+    expect(prompt).not.toContain("Ascendant (rising)");
+    expect(prompt).not.toContain("orb");
   });
 });
 
@@ -133,19 +258,97 @@ const resolvedHebrew: ResolvedHebrewReading = {
   missingKeys: [],
 };
 
+const hebrewDateParts = {
+  year: 5760,
+  month: 10,
+  day: 24,
+  monthKey: "tevet" as const,
+  monthName: "Tevet",
+  weekday: 6,
+  renderGematriya: "כ״ד טֵבֵת תש״ס",
+};
+
+const mazal: StoredMazal = {
+  schemaVersion: 1,
+  input: {
+    civilDate: { year: 2000, month: 1, day: 1 },
+    utc: "2000-01-01T10:00:00.000Z",
+    latitude: 32.1,
+    longitude: 34.8,
+    tzId: "Asia/Jerusalem",
+    timeCertainty: "unknown",
+  },
+  hebrewDate: {
+    civil: hebrewDateParts,
+    effective: hebrewDateParts,
+    afterSunset: false,
+    sunsetUtc: null,
+    ambiguity: "unknown_time",
+  },
+  mazal: { month: "tevet", mazal: "gdi", hebrew: "גדי", sign: "capricorn" },
+  seferYetzirah: {
+    month: "tevet",
+    letter: "ע",
+    letterName: "Ayin",
+    tribe: "dan",
+    tribeHebrew: "דן",
+    faculty: "anger",
+    facultyHebrew: "רוגז",
+  },
+  dayPlanet: { weekday: 6, planet: "saturn", ambiguous: true },
+  planetaryHour: null,
+  uncertainties: [{ field: "birth_time", reason: "Birth time unknown." }],
+  engine: { name: "test", version: "0" },
+};
+
+const gematria: StoredHebrewGematria = {
+  dateGematria: {
+    value: 5,
+    isMaster: false,
+    derivation: {
+      components: [
+        { part: "day", raw: 24, steps: [6], reduced: 6 },
+        { part: "year", raw: 5760, steps: [18, 9], reduced: 9 },
+      ],
+      total: 15,
+      steps: [6],
+    },
+  },
+  katanName: null,
+};
+
 describe("buildHebrewReadingPrompt", () => {
-  it("writes the instructions in Hebrew and asks for Hebrew output", () => {
-    const prompt = buildHebrewReadingPrompt(resolvedHebrew);
-    expect(prompt).toContain("בעברית בלבד");
+  it("writes the instructions in English and asks for English output", () => {
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
+    expect(prompt).toContain("entirely in English");
+    expect(prompt).not.toContain("בעברית בלבד");
     expect(prompt).toContain("300");
     expect(prompt).toContain("400");
-    // No English instruction text leaks in from the astro prompt.
-    expect(prompt).not.toContain("Address the reader");
+    // No instruction text leaks in from the astro prompt.
     expect(prompt).not.toContain("Element distribution");
   });
 
+  it("includes the complete Mazal data, skipping the null planetary hour", () => {
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
+    expect(prompt).toContain("## Complete Mazal chart data");
+    expect(prompt).toContain("24 Tevet 5760");
+    expect(prompt).toContain("Mazal (month sign): Tevet — Gdi (Capricorn)");
+    expect(prompt).toContain("Day planet: Saturday — Saturn");
+    expect(prompt).toContain("Hebrew date gematria: 5");
+    expect(prompt).not.toContain("Planetary hour");
+    expect(prompt).not.toContain("Name gematria");
+  });
+
+  it("includes the numerology data when available", () => {
+    const withNumero = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
+    expect(withNumero).toContain("## Complete numerology data");
+    expect(withNumero).toContain("Life Path: 7");
+    const withoutNumero = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, null);
+    expect(withoutNumero).not.toContain("## Complete numerology data");
+  });
+
   it("includes every section with its title, source, and body", () => {
-    const prompt = buildHebrewReadingPrompt(resolvedHebrew);
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
     expect(prompt).toContain("### התאריך העברי (1.1.2000)");
     expect(prompt).toContain("כ״ד טֵבֵת תש״ס");
     expect(prompt).toContain("### מזל גדי — חודש טבת (חודש טבת — מזל גדי)");
@@ -194,6 +397,41 @@ describe("clients", () => {
     await expect(
       ollamaClient("http://localhost:11434", "m").generate("p"),
     ).rejects.toBeInstanceOf(LlmUnavailableError);
+  });
+
+  it("surfaces the upstream error body in the failure message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("model 'x' not found", { status: 404 })),
+    );
+    await expect(
+      ollamaClient("http://localhost:11434", "m").generate("p"),
+    ).rejects.toThrow(/404: model 'x' not found/);
+  });
+
+  it("sends the token cap and temperature to both APIs", async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) =>
+      new Response(JSON.stringify({ response: "text" })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await ollamaClient("http://localhost:11434", "m").generate("p");
+    const ollamaBody = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(ollamaBody.options).toEqual({ num_predict: 1200, temperature: 0.7 });
+
+    const chatMock = vi.fn(async (..._args: unknown[]) =>
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: "text" } }] }),
+      ),
+    );
+    vi.stubGlobal("fetch", chatMock);
+    await openAiCompatClient("https://x", "m", "k").generate("p");
+    const chatBody = JSON.parse(
+      (chatMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(chatBody.max_tokens).toBe(1200);
+    expect(chatBody.temperature).toBe(0.7);
   });
 
   it("treats an empty generation as unavailable", async () => {

@@ -8,7 +8,11 @@ import {
   llmClientFromEnv,
   LlmUnavailableError,
 } from "@/lib/llm";
-import { toStoredHebrewGematria, toStoredMazal } from "@/lib/view-types";
+import {
+  toNumeroDerivation,
+  toStoredHebrewGematria,
+  toStoredMazal,
+} from "@/lib/view-types";
 
 function parseId(raw: unknown): number | null {
   const id = Number(raw);
@@ -55,17 +59,27 @@ export async function POST(
     return NextResponse.json({ error: "already_generated" }, { status: 409 });
   }
 
+  const mazal = toStoredMazal(view.hebrew);
+  const gematria = toStoredHebrewGematria(view.hebrew);
   const resolved = resolveHebrewReading(
-    toStoredMazal(view.hebrew),
-    toStoredHebrewGematria(view.hebrew),
+    mazal,
+    gematria,
     view.hebrew.contentVersion,
   );
 
   let bodyMd: string;
   try {
-    bodyMd = await client.generate(buildHebrewReadingPrompt(resolved));
+    bodyMd = await client.generate(
+      buildHebrewReadingPrompt(
+        resolved,
+        mazal,
+        gematria,
+        toNumeroDerivation(view.numero),
+      ),
+    );
   } catch (e) {
     if (e instanceof LlmUnavailableError) {
+      console.error("[api] hebrew-reading:", e);
       return NextResponse.json(
         { error: "llm_unavailable", message: e.message },
         { status: 502 },
@@ -78,8 +92,8 @@ export async function POST(
     const reading = await prisma.reading.create({
       data: {
         astroSnapshotId: view.astro.snapshotId,
-        // Derived solely from the Hebrew snapshot — honest provenance.
-        numeroSnapshotId: null,
+        // The prompt now draws on the numero snapshot too — honest provenance.
+        numeroSnapshotId: view.numero.snapshotId,
         bodyMd,
         generator: "hebrew_llm",
         modelName: client.modelName,
@@ -102,4 +116,46 @@ export async function POST(
     }
     throw e;
   }
+}
+
+/**
+ * Discard a stored Mazal AI reading (`?version=N`, defaulting to the latest
+ * snapshot). Frees the unique slot so POST can generate a replacement.
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const id = parseId((await params).id);
+  if (id === null) {
+    return NextResponse.json({ error: "invalid_id" }, { status: 400 });
+  }
+  const versionRaw = req.nextUrl.searchParams.get("version");
+  const version = versionRaw === null ? undefined : parseId(versionRaw);
+  if (version === null) {
+    return NextResponse.json({ error: "invalid_version" }, { status: 400 });
+  }
+  const view = await getProfileView(id, version);
+  if (!view) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+  try {
+    await prisma.reading.delete({
+      where: {
+        astroSnapshotId_generator: {
+          astroSnapshotId: view.astro.snapshotId,
+          generator: "hebrew_llm",
+        },
+      },
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2025"
+    ) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    throw e;
+  }
+  return NextResponse.json({ deleted: true });
 }

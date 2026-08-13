@@ -63,6 +63,7 @@ export async function PUT(
     return NextResponse.json(view);
   } catch (e) {
     if (e instanceof UnknownCityError) {
+      console.error("[api] profiles PUT:", e);
       return NextResponse.json(
         { error: "unknown_city", message: e.message },
         { status: 400 },
@@ -73,6 +74,7 @@ export async function PUT(
       e.code === "P2002"
     ) {
       // A concurrent edit already claimed this version number.
+      console.error("[api] profiles PUT version conflict:", e);
       return NextResponse.json({ error: "conflict" }, { status: 409 });
     }
     throw e;

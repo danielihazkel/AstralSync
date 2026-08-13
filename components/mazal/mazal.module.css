@@ -122,3 +122,9 @@
     margin-top: 0.5rem;
   }
 }
+
+@media print {
+  .actionRow {
+    display: none;
+  }
+}

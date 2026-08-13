@@ -7,6 +7,7 @@ import type { ResolvedHebrewReading } from "@/lib/hebrewReading";
 import type { HebrewView } from "@/lib/view-types";
 import { toStoredHebrewGematria, toStoredMazal } from "@/lib/view-types";
 import Markdown from "@/components/Markdown";
+import DiscardReadingButton from "@/components/profile/DiscardReadingButton";
 import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs";
 import { buildMazalSummary } from "./mazalSummary";
 import styles from "./mazal.module.css";
@@ -191,8 +192,19 @@ export default function MazalPanel({
             on {dateOnly(hebrew.llmReading.createdAt)} — stored with this
             snapshot.
           </p>
-          <div className={styles.hebrewBody} lang="he" dir={reading.dir}>
+          {/* Stored readings are never regenerated: ones from before the
+              English-prompt switch stay Hebrew, so pick lang/dir per body. */}
+          <div
+            className={styles.hebrewBody}
+            lang={/[֐-׿]/.test(hebrew.llmReading.bodyMd) ? "he" : "en"}
+            dir={/[֐-׿]/.test(hebrew.llmReading.bodyMd) ? "rtl" : "ltr"}
+          >
             <Markdown md={hebrew.llmReading.bodyMd} />
+          </div>
+          <div className={styles.actionRow}>
+            <DiscardReadingButton
+              endpoint={`/api/profiles/${profileId}/hebrew-reading?version=${version}`}
+            />
           </div>
         </section>
       ) : (
@@ -203,7 +215,7 @@ export default function MazalPanel({
             </button>
             <span className={styles.muted}>
               {" "}
-              Written in Hebrew. Runs once for this chart version and is
+              Written in English. Runs once for this chart version and is
               stored permanently.
             </span>
             {genError && <p className={styles.error}>{genError}</p>}

@@ -224,3 +224,11 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Print: the active panel is the artifact; chrome and actions stay off paper. */
+@media print {
+  .tabs,
+  .actionRow {
+    display: none;
+  }
+}
