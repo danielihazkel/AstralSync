@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Sign } from "@astralsync/astro-core";
 import type { ResolvedHebrewReading } from "@/lib/hebrewReading";
 import type { HebrewView } from "@/lib/view-types";
 import { toStoredHebrewGematria, toStoredMazal } from "@/lib/view-types";
 import Markdown from "@/components/Markdown";
+import { useStreamedGeneration } from "@/components/useStreamedGeneration";
 import DiscardReadingButton from "@/components/profile/DiscardReadingButton";
 import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs";
 import { buildMazalSummary } from "./mazalSummary";
@@ -37,25 +38,30 @@ export default function MazalPanel({
   llmEnabled: boolean;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
+  const { busy, streamText, generate: streamGenerate, reset } = useStreamedGeneration();
+  const llmReading = hebrew?.llmReading ?? null;
+
+  // Once the stored reading arrives (post-refresh), drop the live preview so
+  // a later discard doesn't resurrect stale text.
+  useEffect(() => {
+    if (llmReading) reset();
+  }, [llmReading, reset]);
 
   async function generate() {
-    setBusy(true);
     setGenError(null);
-    const res = await fetch(`/api/profiles/${profileId}/hebrew-reading`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version }),
-    }).catch(() => null);
-    setBusy(false);
-    if (res?.ok || res?.status === 409) {
+    const result = await streamGenerate(
+      `/api/profiles/${profileId}/hebrew-reading?stream=1`,
+      { version },
+    );
+    if (result.ok || result.status === 409 || result.errorCode === "already_generated") {
       // 409 ⇒ generated concurrently or hook toggled — refresh shows reality.
       router.refresh();
       return;
     }
+    reset();
     setGenError(
-      res?.status === 502
+      result.status === 502 || result.errorCode === "llm_unavailable"
         ? "The language model isn't reachable right now. Your chart and readings are unaffected — try again once it's running."
         : "Could not generate the reading.",
     );
@@ -208,19 +214,35 @@ export default function MazalPanel({
           </div>
         </section>
       ) : (
-        llmEnabled && (
-          <div className={styles.actionRow}>
-            <button onClick={generate} disabled={busy}>
-              {busy ? "Generating…" : "Generate AI reading"}
-            </button>
-            <span className={styles.muted}>
-              {" "}
-              Written in English. Runs once for this chart version and is
-              stored permanently.
-            </span>
-            {genError && <p className={styles.error}>{genError}</p>}
-          </div>
-        )
+        <>
+          {streamText !== null && (
+            <section
+              className={styles.hebrewSection}
+              aria-label="AI synthesis (generating)"
+            >
+              <h3 className={styles.hebrewTitle}>AI synthesis</h3>
+              <p className={styles.hebrewSource}>
+                {busy ? "Generating…" : "Finishing up…"}
+              </p>
+              <div className={styles.hebrewBody} lang="en" dir="ltr" aria-live="polite">
+                <Markdown md={streamText} />
+              </div>
+            </section>
+          )}
+          {llmEnabled && (
+            <div className={styles.actionRow}>
+              <button onClick={generate} disabled={busy}>
+                {busy ? "Generating…" : "Generate AI reading"}
+              </button>
+              <span className={styles.muted}>
+                {" "}
+                Written in English. Runs once for this chart version and is
+                stored permanently.
+              </span>
+              {genError && <p className={styles.error}>{genError}</p>}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

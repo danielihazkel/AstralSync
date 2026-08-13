@@ -29,6 +29,7 @@ import {
   LlmUnavailableError,
 } from "@/lib/llm";
 import { ensureHebrewSnapshot, getProfileView } from "@/lib/snapshots";
+import { streamGenerationResponse } from "@/lib/streamGeneration";
 import { forecastParamsSchema, type ForecastParams } from "@/lib/validation";
 import { toStoredHebrewGematria, toStoredMazal } from "@/lib/view-types";
 
@@ -217,6 +218,41 @@ export async function POST(
     contentVersion = index.version;
   }
 
+  // Shared by both paths: persistence semantics are identical.
+  const persist = async (bodyMd: string) => {
+    try {
+      const forecast = await createForecast({
+        profileId: id,
+        mode: parsed.mode,
+        kind: parsed.kind,
+        periodStart: period.start,
+        natalVersion,
+        bodyMd,
+        modelName: client.modelName,
+        contentVersion,
+      });
+      return { done: { period, forecast: serializeForecast(forecast) } };
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002"
+      ) {
+        // A concurrent request generated this period first; keep that one.
+        return { errorCode: "already_generated" };
+      }
+      throw e;
+    }
+  };
+
+  if (req.nextUrl.searchParams.get("stream") === "1" && client.generateStream) {
+    return streamGenerationResponse({
+      stream: client.generateStream(prompt, req.signal),
+      signal: req.signal,
+      label: "forecast",
+      persist,
+    });
+  }
+
   let bodyMd: string;
   try {
     bodyMd = await client.generate(prompt);
@@ -231,34 +267,12 @@ export async function POST(
     throw e;
   }
 
-  try {
-    const forecast = await createForecast({
-      profileId: id,
-      mode: parsed.mode,
-      kind: parsed.kind,
-      periodStart: period.start,
-      natalVersion,
-      bodyMd,
-      modelName: client.modelName,
-      contentVersion,
-    });
-    return NextResponse.json(
-      { period, forecast: serializeForecast(forecast) },
-      { headers: NO_STORE },
-    );
-  } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2002"
-    ) {
-      // A concurrent request generated this period first; keep that one.
-      return NextResponse.json(
-        { error: "already_generated" },
-        { status: 409, headers: NO_STORE },
-      );
-    }
-    throw e;
-  }
+  const outcome = await persist(bodyMd);
+  if ("done" in outcome) return NextResponse.json(outcome.done, { headers: NO_STORE });
+  return NextResponse.json(
+    { error: outcome.errorCode },
+    { status: 409, headers: NO_STORE },
+  );
 }
 
 /** DELETE ?mode=&kind=&date?= — discard the period's forecast, freeing the

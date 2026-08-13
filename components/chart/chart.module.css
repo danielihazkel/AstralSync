@@ -102,6 +102,24 @@
   fill: var(--warn);
 }
 
+.pointControls {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pointControls select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+}
+
 .fallbackChip {
   display: inline-block;
   margin-top: 0.5rem;

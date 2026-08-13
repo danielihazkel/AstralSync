@@ -3,6 +3,10 @@
 import { useMemo } from "react";
 import type { TransitData } from "@/lib/transits";
 import type { WheelChart } from "@/lib/view-types";
+
+/** The slice of TransitData the wheel actually draws — progressions reuse
+ *  the same two-ring layout with a different body label. */
+export type RingBodies = Pick<TransitData, "placements" | "crossAspects">;
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -29,9 +33,12 @@ import styles from "./transits.module.css";
 export default function TransitWheel({
   chart,
   transits,
+  bodyLabel = "Transiting",
 }: {
   chart: WheelChart;
-  transits: TransitData;
+  transits: RingBodies;
+  /** Label for the outer-ring bodies ("Transiting" or "Progressed"). */
+  bodyLabel?: string;
 }) {
   const layout = useMemo(
     () => layoutTransitWheel(chart, transits),
@@ -44,7 +51,7 @@ export default function TransitWheel({
       viewBox={`0 0 ${layout.size} ${layout.size}`}
       className={chartStyles.wheel}
       role="img"
-      aria-label="Transit wheel: current planets around the natal chart"
+      aria-label={`${bodyLabel} planets around the natal chart`}
     >
       {/* Transit band boundary */}
       <circle
@@ -148,7 +155,7 @@ export default function TransitWheel({
       {layout.crossAspects.map((c, i) => (
         <g key={`${c.a}-${c.b}-${c.type}-${i}`}>
           <title>
-            {`Transiting ${PLANET_NAMES[c.a]} ${ASPECT_NAMES[c.type].toLowerCase()} natal ${PLANET_NAMES[c.b]}, orb ${c.orb.toFixed(1)}°`}
+            {`${bodyLabel} ${PLANET_NAMES[c.a]} ${ASPECT_NAMES[c.type].toLowerCase()} natal ${PLANET_NAMES[c.b]}, orb ${c.orb.toFixed(1)}°`}
           </title>
           <line
             x1={c.from.x}
@@ -171,7 +178,7 @@ export default function TransitWheel({
         return (
           <g key={`transit-${p.planet}`}>
             <title>
-              {`Transiting ${PLANET_NAMES[p.planet]}, ${formatDegreeInSign(placement.degreeInSign)} ${SIGN_NAMES[placement.sign]}${placement.retrograde ? ", retrograde" : ""}`}
+              {`${bodyLabel} ${PLANET_NAMES[p.planet]}, ${formatDegreeInSign(placement.degreeInSign)} ${SIGN_NAMES[placement.sign]}${placement.retrograde ? ", retrograde" : ""}`}
             </title>
             <line
               x1={p.tickFrom.x}

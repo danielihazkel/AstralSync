@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEntry, loadContentIndex } from "@/lib/content";
+import { getEntry, loadContentIndex, natalAspectKey } from "@/lib/content";
 import { listProfiles } from "@/lib/snapshots";
 import { getSynastryView, synastryAspectKey } from "@/lib/synastry";
 import { synastryQuerySchema } from "@/lib/validation";
@@ -9,6 +9,7 @@ import { PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/forma
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
 import BiWheel from "@/components/synastry/BiWheel";
+import CompositePanel from "@/components/synastry/CompositePanel";
 import CrossAspectList, {
   type AspectProse,
 } from "@/components/synastry/CrossAspectList";
@@ -117,7 +118,7 @@ export default async function SynastryPage({
   if (!query.success) notFound();
   const view = await getSynastryView(query.data.a, query.data.b);
   if (!view) notFound();
-  const { a, b, aspects } = view;
+  const { a, b, aspects, composite } = view;
 
   // Optional pair prose from the content library (3d Tier 6) — absent keys
   // simply render nothing, same degradation as the reading resolvers.
@@ -127,6 +128,14 @@ export default async function SynastryPage({
     const key = synastryAspectKey(c.a, c.b, c.type);
     const entry = getEntry(index, key);
     if (entry) prose[key] = { title: entry.title, bodyMd: entry.bodyMd };
+  }
+  // Composite aspects reuse natal pair prose as archetypal context, the
+  // same degradation path the forecast route uses.
+  const compositeProse: Record<string, AspectProse> = {};
+  for (const c of composite.chart.aspects) {
+    const key = natalAspectKey(c.a, c.b, c.type);
+    const entry = getEntry(index, key);
+    if (entry) compositeProse[key] = { title: entry.title, bodyMd: entry.bodyMd };
   }
 
   const eitherSolar = a.isSolarChart || b.isSolarChart;
@@ -181,6 +190,13 @@ export default async function SynastryPage({
         {!b.isSolarChart && <OverlayTable owner={a} host={b} />}
         {!a.isSolarChart && <OverlayTable owner={b} host={a} />}
       </section>
+
+      <CompositePanel
+        composite={composite}
+        aName={a.displayName}
+        bName={b.displayName}
+        prose={compositeProse}
+      />
 
       <p className={styles.muted}>
         <Link href="/">← All profiles</Link>

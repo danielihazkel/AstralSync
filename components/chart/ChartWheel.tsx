@@ -1,11 +1,16 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import type { Planet } from "@astralsync/astro-core";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  NodeVariant,
+  Planet,
+  PointPlacement,
+} from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
+  POINT_NAMES,
   SIGN_NAMES,
   formatDegreeInSign,
 } from "@/components/format";
@@ -14,12 +19,33 @@ import {
   ASPECT_COLOR,
   Glyph,
   PLANET_GLYPH_CHARS,
+  POINT_GLYPH_CHARS,
   SIGN_GLYPH_CHARS,
 } from "./glyphs";
 import DownloadChartButton from "./DownloadChartButton";
 import PlacementDetail, { type Selection } from "./PlacementDetail";
 import SolarChartNotice from "./SolarChartNotice";
 import styles from "./chart.module.css";
+
+/** Points available per node variant, computed server-side from the stored
+ *  UTC instant. Both variants ship so the toggle is instant and offline. */
+export interface ChartPoints {
+  mean: PointPlacement[];
+  true: PointPlacement[];
+}
+
+const SHOW_POINTS_KEY = "chart.showPoints";
+const NODE_VARIANT_KEY = "chart.nodeVariant";
+
+function pointAriaLabel(p: PointPlacement): string {
+  const parts = [
+    POINT_NAMES[p.point],
+    `${formatDegreeInSign(p.degreeInSign)} ${SIGN_NAMES[p.sign]}`,
+  ];
+  if (p.house !== null) parts.push(`house ${p.house}`);
+  if (p.retrograde) parts.push("retrograde");
+  return parts.join(", ");
+}
 
 function planetAriaLabel(chart: WheelChart, planet: Planet): string {
   const p = chart.placements.find((pl) => pl.planet === planet)!;
@@ -46,12 +72,27 @@ function planetAriaLabel(chart: WheelChart, planet: Planet): string {
  */
 export default function ChartWheel({
   chart,
+  points = null,
   downloadName = "chart",
 }: {
   chart: WheelChart;
+  points?: ChartPoints | null;
   downloadName?: string;
 }) {
-  const layout = useMemo(() => layoutWheel(chart), [chart]);
+  // Preferences load after mount (localStorage is unavailable during SSR);
+  // the pre-hydration frame renders the defaults.
+  const [showPoints, setShowPoints] = useState(true);
+  const [nodeVariant, setNodeVariant] = useState<NodeVariant>("true");
+  useEffect(() => {
+    if (localStorage.getItem(SHOW_POINTS_KEY) === "false") setShowPoints(false);
+    if (localStorage.getItem(NODE_VARIANT_KEY) === "mean") setNodeVariant("mean");
+  }, []);
+  const activePoints = points && showPoints ? points[nodeVariant] : [];
+
+  const layout = useMemo(
+    () => layoutWheel(chart, undefined, activePoints),
+    [chart, activePoints],
+  );
   const svgRef = useRef<SVGSVGElement>(null);
   const [pinned, setPinned] = useState<Selection>(null);
   const [hovered, setHovered] = useState<Selection>(null);
@@ -70,6 +111,7 @@ export default function ChartWheel({
   function isPlanetActive(planet: Planet): boolean {
     if (!selection) return true;
     if (selection.kind === "planet") return selection.planet === planet;
+    if (selection.kind === "point") return false;
     const a = chart.aspects[selection.index];
     return a ? a.a === planet || a.b === planet : true;
   }
@@ -90,6 +132,9 @@ export default function ChartWheel({
       ((cur.kind === "planet" &&
         next.kind === "planet" &&
         cur.planet === next.planet) ||
+        (cur.kind === "point" &&
+          next.kind === "point" &&
+          cur.point === next.point) ||
         (cur.kind === "aspect" &&
           next.kind === "aspect" &&
           cur.index === next.index))
@@ -250,6 +295,69 @@ export default function ChartWheel({
             </g>
           ))}
 
+          {/* Point ticks and glyphs (nodes, Lilith) */}
+          {layout.points.map((p) => {
+            const placement = activePoints.find((ap) => ap.point === p.point)!;
+            return (
+              <g key={p.point}>
+                <line
+                  x1={p.tickFrom.x}
+                  y1={p.tickFrom.y}
+                  x2={p.tickTo.x}
+                  y2={p.tickTo.y}
+                  className={styles.tick}
+                />
+                <g
+                  role="button"
+                  tabIndex={0}
+                  aria-label={pointAriaLabel(placement)}
+                  className={styles.planet}
+                  opacity={
+                    !selection ||
+                    (selection.kind === "point" && selection.point === p.point)
+                      ? 0.85
+                      : 0.3
+                  }
+                  onMouseEnter={() =>
+                    setHovered({ kind: "point", point: p.point })
+                  }
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => togglePin({ kind: "point", point: p.point })}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      togglePin({ kind: "point", point: p.point });
+                    }
+                  }}
+                >
+                  <circle
+                    cx={p.glyphPoint.x}
+                    cy={p.glyphPoint.y}
+                    r={13}
+                    className={styles.planetHalo}
+                  />
+                  <Glyph
+                    char={POINT_GLYPH_CHARS[p.point]}
+                    x={p.glyphPoint.x}
+                    y={p.glyphPoint.y}
+                    size={15}
+                    fill="var(--text-muted)"
+                  />
+                  {p.retrograde && (
+                    <text
+                      x={p.glyphPoint.x + 10}
+                      y={p.glyphPoint.y + 9}
+                      className={styles.retro}
+                      aria-hidden="true"
+                    >
+                      ℞
+                    </text>
+                  )}
+                </g>
+              </g>
+            );
+          })}
+
           {/* Planet ticks at true longitudes */}
           {layout.planets.map((p) => (
             <line
@@ -317,6 +425,42 @@ export default function ChartWheel({
           ))}
         </svg>
 
+        {points && (
+          <div className={styles.pointControls}>
+            <label>
+              <input
+                type="checkbox"
+                checked={showPoints}
+                onChange={(e) => {
+                  setShowPoints(e.target.checked);
+                  localStorage.setItem(SHOW_POINTS_KEY, String(e.target.checked));
+                  if (!e.target.checked) {
+                    setPinned((cur) => (cur?.kind === "point" ? null : cur));
+                    setHovered((cur) => (cur?.kind === "point" ? null : cur));
+                  }
+                }}
+              />{" "}
+              Nodes &amp; Lilith
+            </label>
+            {showPoints && (
+              <label>
+                Node:{" "}
+                <select
+                  value={nodeVariant}
+                  onChange={(e) => {
+                    const v = e.target.value as NodeVariant;
+                    setNodeVariant(v);
+                    localStorage.setItem(NODE_VARIANT_KEY, v);
+                  }}
+                >
+                  <option value="true">True</option>
+                  <option value="mean">Mean</option>
+                </select>
+              </label>
+            )}
+          </div>
+        )}
+
         <DownloadChartButton svgRef={svgRef} baseName={downloadName} />
 
         {chart.houses?.fallbackApplied && (
@@ -327,7 +471,12 @@ export default function ChartWheel({
         {chart.isSolarChart && <SolarChartNotice chart={chart} />}
       </div>
 
-      <PlacementDetail chart={chart} selection={selection} pinned={pinned} />
+      <PlacementDetail
+        chart={chart}
+        points={activePoints}
+        selection={selection}
+        pinned={pinned}
+      />
     </div>
   );
 }

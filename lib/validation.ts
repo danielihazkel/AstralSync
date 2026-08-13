@@ -168,6 +168,23 @@ export const synastryQuerySchema = z
 
 export type SynastryQuery = z.infer<typeof synastryQuerySchema>;
 
+/** POST /api/profiles/[id]/chat body. History is client-held (nothing is
+ *  persisted); the server clamps and re-validates it regardless. */
+export const chatSchema = z.object({
+  question: z.string().trim().min(1).max(1_000),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string().max(4_000),
+      }),
+    )
+    .max(16)
+    .default([]),
+});
+
+export type ChatInput = z.infer<typeof chatSchema>;
+
 /** Parsed input → the pure computation shape used by lib/snapshots.ts. */
 export function toProfileBirthData(
   input: ProfileInput,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { overlayHouses, pointsAt } from "@astralsync/astro-core";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
@@ -72,6 +73,15 @@ export default async function ProfilePage({
   if (!view) notFound();
 
   const chart = toWheelChart(view.astro);
+  // Calculated points (nodes, Lilith) are ephemeral: recomputed from the
+  // stored instant on every read, never persisted. Both node variants ship
+  // so the client toggle needs no round trip.
+  const birthUtc = new Date(chart.input.utc);
+  const cusps = chart.houses?.cusps ?? null;
+  const points = {
+    mean: overlayHouses(pointsAt(birthUtc, "mean"), cusps),
+    true: overlayHouses(pointsAt(birthUtc, "true"), cusps),
+  };
   const latestVersion = versions[0]?.version ?? view.astro.version;
   const isLatest = view.astro.version === latestVersion;
   const { profile } = view;
@@ -165,6 +175,7 @@ export default async function ProfilePage({
         numero={view.numero}
         numeroProse={numeroProse}
         chart={chart}
+        points={points}
         versions={versions}
         isLatest={isLatest}
         reading={reading}

@@ -1,6 +1,11 @@
 import { buildChart, houseOf } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { computeSynastry, synastryAspectKey, type SynastryInputSide } from "./synastry";
+import {
+  computeComposite,
+  computeSynastry,
+  synastryAspectKey,
+  type SynastryInputSide,
+} from "./synastry";
 import { synastryQuerySchema } from "./validation";
 import type { WheelChart } from "./view-types";
 
@@ -56,6 +61,33 @@ describe("computeSynastry", () => {
       );
       expect(Math.abs(sep - c.angle)).toBeCloseTo(c.orb, 6);
     }
+  });
+
+  it("includes the midpoint composite view", () => {
+    const view = computeSynastry(SIDE_A, SIDE_B);
+    const { chart } = view.composite;
+    expect(chart.placements).toHaveLength(10);
+    expect(chart.houses).toBeNull();
+    expect(chart.isSolarChart).toBe(false);
+    expect(view.composite.eitherSolar).toBe(false);
+    // Each composite planet is equidistant from both natal positions.
+    for (const p of chart.placements) {
+      const lonA = CHART_A.placements.find((x) => x.planet === p.planet)!.longitude;
+      const lonB = CHART_B.placements.find((x) => x.planet === p.planet)!.longitude;
+      const sep = (from: number) =>
+        Math.abs((((p.longitude - from) % 360) + 540) % 360 - 180);
+      expect(sep(lonA)).toBeCloseTo(sep(lonB), 6);
+    }
+    expect(chart.bigThree.ascendant).toBeNull();
+  });
+
+  it("flags the composite when a side is solar or its Moon is uncertain", () => {
+    const solar = chartOf(new Date(Date.UTC(1995, 5, 15, 12, 0, 0)), "unknown");
+    const composite = computeComposite(CHART_A, solar);
+    expect(composite.eitherSolar).toBe(true);
+    expect(composite.moonUncertain).toBe(
+      solar.uncertainties.some((u) => u.field === "moon_sign"),
+    );
   });
 
   it("sorts aspects by orb, tightest first", () => {

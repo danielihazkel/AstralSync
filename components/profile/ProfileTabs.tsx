@@ -10,12 +10,13 @@ import type {
   ProfileData,
   WheelChart,
 } from "@/lib/view-types";
-import ChartWheel from "@/components/chart/ChartWheel";
+import ChartWheel, { type ChartPoints } from "@/components/chart/ChartWheel";
 import ForecastPanel from "@/components/forecast/ForecastPanel";
 import MazalPanel from "@/components/mazal/MazalPanel";
 import NumerologyPanel, {
   type NumeroProse,
 } from "@/components/numerology/NumerologyPanel";
+import CyclesPanel from "@/components/cycles/CyclesPanel";
 import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
@@ -28,6 +29,7 @@ export default function ProfileTabs({
   numero,
   numeroProse,
   chart,
+  points = null,
   versions,
   isLatest,
   reading,
@@ -40,6 +42,7 @@ export default function ProfileTabs({
   numero: NumeroView;
   numeroProse: NumeroProse;
   chart: WheelChart;
+  points?: ChartPoints | null;
   versions: SnapshotVersionInfo[];
   isLatest: boolean;
   reading: ResolvedReading;
@@ -80,6 +83,7 @@ export default function ProfileTabs({
         <div role="tabpanel" aria-label="Chart">
           <ChartWheel
             chart={chart}
+            points={points}
             downloadName={`${profile.displayName} chart`}
           />
         </div>
@@ -123,6 +127,15 @@ export default function ProfileTabs({
             chart={chart}
             isLatest={isLatest}
             llmEnabled={llmEnabled}
+          />
+        </div>
+      )}
+      {tab === "Cycles" && (
+        <div role="tabpanel" aria-label="Cycles">
+          <CyclesPanel
+            profileId={profile.id}
+            chart={chart}
+            isLatest={isLatest}
           />
         </div>
       )}

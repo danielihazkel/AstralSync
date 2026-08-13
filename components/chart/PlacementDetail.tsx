@@ -1,10 +1,11 @@
 "use client";
 
-import type { Planet } from "@astralsync/astro-core";
+import type { Planet, PointName, PointPlacement } from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
+  POINT_NAMES,
   SIGN_NAMES,
   formatDegreeInSign,
 } from "@/components/format";
@@ -13,16 +14,19 @@ import styles from "./chart.module.css";
 
 export type Selection =
   | { kind: "planet"; planet: Planet }
+  | { kind: "point"; point: PointName }
   | { kind: "aspect"; index: number }
   | null;
 
 /** Detail card for the hovered/pinned wheel selection. */
 export default function PlacementDetail({
   chart,
+  points = [],
   selection,
   pinned,
 }: {
   chart: WheelChart;
+  points?: PointPlacement[];
   selection: Selection;
   pinned: Selection;
 }) {
@@ -82,6 +86,36 @@ export default function PlacementDetail({
             </ul>
           </>
         )}
+        {!pinned && (
+          <p className={styles.detailHint}>Click to pin this selection.</p>
+        )}
+      </aside>
+    );
+  }
+
+  if (selection.kind === "point") {
+    const p = points.find((pt) => pt.point === selection.point);
+    if (!p) return null;
+    return (
+      <aside className={styles.detail} aria-live="polite">
+        <h3 className={styles.detailTitle}>
+          {POINT_NAMES[p.point]}
+          {p.retrograde && <span className={styles.retroTag}> ℞ retrograde</span>}
+        </h3>
+        <dl className={styles.detailList}>
+          <dt>Position</dt>
+          <dd>
+            {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
+          </dd>
+          {p.house !== null && (
+            <>
+              <dt>House</dt>
+              <dd>{p.house}</dd>
+            </>
+          )}
+          <dt>Longitude</dt>
+          <dd>{p.longitude.toFixed(2)}°</dd>
+        </dl>
         {!pinned && (
           <p className={styles.detailHint}>Click to pin this selection.</p>
         )}

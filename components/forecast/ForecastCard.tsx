@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Markdown from "@/components/Markdown";
+import { useStreamedGeneration } from "@/components/useStreamedGeneration";
 import discardStyles from "@/components/profiles/DeleteProfileButton.module.css";
 import styles from "./forecast.module.css";
 
@@ -66,9 +67,16 @@ export default function ForecastCard({
   heading?: string;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
-  const [busy, setBusy] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const {
+    busy: generating,
+    streamText,
+    generate: streamGenerate,
+    reset,
+  } = useStreamedGeneration();
+  const busy = discarding || generating;
 
   const query = `mode=${mode}&kind=${kind}`;
 
@@ -110,33 +118,32 @@ export default function ForecastCard({
   }, [load]);
 
   async function generate() {
-    setBusy(true);
     setActionError(null);
-    const res = await fetch(`/api/profiles/${profileId}/forecast`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, kind }),
-    }).catch(() => null);
-    setBusy(false);
-    if (res?.ok || res?.status === 409) {
+    const result = await streamGenerate(
+      `/api/profiles/${profileId}/forecast?stream=1`,
+      { mode, kind },
+    );
+    if (result.ok || result.status === 409 || result.errorCode === "already_generated") {
       // 409 ⇒ generated concurrently or hook toggled — reload shows reality.
-      void load();
+      await load();
+      reset();
       return;
     }
+    reset();
     setActionError(
-      res?.status === 502
+      result.status === 502 || result.errorCode === "llm_unavailable"
         ? "The language model isn't reachable right now. Your charts and stored forecasts are unaffected — try again once it's running."
         : "Could not generate the forecast.",
     );
   }
 
   async function discard() {
-    setBusy(true);
+    setDiscarding(true);
     setActionError(null);
     const res = await fetch(`/api/profiles/${profileId}/forecast?${query}`, {
       method: "DELETE",
     }).catch(() => null);
-    setBusy(false);
+    setDiscarding(false);
     // 404 ⇒ discarded concurrently — reload shows reality either way.
     if (!res || (!res.ok && res.status !== 404)) {
       setActionError("Discard failed — is the server running?");
@@ -244,9 +251,18 @@ export default function ForecastCard({
         </>
       ) : (
         <>
-          <p className={styles.muted}>
-            No AI forecast has been generated for this period yet.
-          </p>
+          {streamText !== null ? (
+            <div className={styles.body} aria-live="polite">
+              <Markdown md={streamText} />
+              <p className={styles.hint}>
+                {generating ? "Generating…" : "Finishing up…"}
+              </p>
+            </div>
+          ) : (
+            <p className={styles.muted}>
+              No AI forecast has been generated for this period yet.
+            </p>
+          )}
           {llmEnabled ? (
             <div className={styles.actionRow}>
               <button onClick={generate} disabled={busy}>

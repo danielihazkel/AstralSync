@@ -4,6 +4,8 @@ import {
   type CrossAspect,
   type Placement,
   type Planet,
+  type PointName,
+  type PointPlacement,
   type Sign,
 } from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
@@ -50,6 +52,17 @@ export interface WheelLayout {
     /** Screen angle of the true longitude (ticks, aspect endpoints). */
     angle: number;
     /** Collision-adjusted screen angle (glyph placement only). */
+    displayAngle: number;
+    glyphPoint: Point;
+    tickFrom: Point;
+    tickTo: Point;
+    retrograde: boolean;
+  }[];
+  /** Calculated points (nodes, Lilith), fanned together with the planets so
+   *  glyphs never collide. Empty when the caller passes no points. */
+  points: {
+    point: PointName;
+    angle: number;
     displayAngle: number;
     glyphPoint: Point;
     tickFrom: Point;
@@ -173,6 +186,7 @@ export const GLYPH_MIN_SEPARATION = 9;
 export function layoutWheel(
   chart: WheelChart,
   size: number = DEFAULT_WHEEL_SIZE,
+  chartPoints: PointPlacement[] = [],
 ): WheelLayout {
   const center: Point = { x: size / 2, y: size / 2 };
   const outer = size / 2 - 24; // margin for ASC/MC labels outside the ring
@@ -238,18 +252,31 @@ export function layoutWheel(
       }
     : null;
 
-  const rawAngles = chart.placements.map((p) =>
+  // Planets and points fan out together so their glyphs dodge each other.
+  const bodies: { longitude: number; retrograde: boolean }[] = [
+    ...chart.placements,
+    ...chartPoints,
+  ];
+  const allRawAngles = bodies.map((p) =>
     longitudeToScreenAngle(p.longitude, rotation),
   );
-  const displayAngles = spreadClusters(rawAngles, GLYPH_MIN_SEPARATION);
+  const allDisplayAngles = spreadClusters(allRawAngles, GLYPH_MIN_SEPARATION);
+  const bodyLayout = (i: number) => ({
+    angle: allRawAngles[i],
+    displayAngle: allDisplayAngles[i],
+    glyphPoint: polarToXY(center, radii.planetRing, allDisplayAngles[i]),
+    tickFrom: polarToXY(center, radii.signInner, allRawAngles[i]),
+    tickTo: polarToXY(center, radii.signInner - 7, allRawAngles[i]),
+    retrograde: bodies[i].retrograde,
+  });
+  const rawAngles = allRawAngles.slice(0, chart.placements.length);
   const planets = chart.placements.map((p, i) => ({
     planet: p.planet,
-    angle: rawAngles[i],
-    displayAngle: displayAngles[i],
-    glyphPoint: polarToXY(center, radii.planetRing, displayAngles[i]),
-    tickFrom: polarToXY(center, radii.signInner, rawAngles[i]),
-    tickTo: polarToXY(center, radii.signInner - 7, rawAngles[i]),
-    retrograde: p.retrograde,
+    ...bodyLayout(i),
+  }));
+  const points = chartPoints.map((p, i) => ({
+    point: p.point,
+    ...bodyLayout(chart.placements.length + i),
   }));
 
   const angleByPlanet = new Map(
@@ -264,7 +291,7 @@ export function layoutWheel(
     to: polarToXY(center, radii.hub, angleByPlanet.get(a.b) ?? 0),
   }));
 
-  return { size, center, radii, signs, houses, angles, planets, aspects };
+  return { size, center, radii, signs, houses, angles, planets, points, aspects };
 }
 
 /** Width of the annular band reserved for transiting bodies. */

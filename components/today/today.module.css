@@ -1,0 +1,79 @@
+.strip {
+  margin: 1.25rem 0 2rem;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.9rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.cardTitle {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.big {
+  margin: 0 0 0.3rem;
+  font-size: 1.15rem;
+}
+
+.glyph {
+  margin-right: 0.4rem;
+  color: var(--accent);
+}
+
+.muted {
+  margin: 0.15rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.linkButton {
+  margin-top: 0.5rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-bright);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.picker {
+  margin-top: 0.5rem;
+}
+
+.transits {
+  margin-top: 1rem;
+}
+
+.transitList {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.who {
+  font-weight: 600;
+}
+
+.orb {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}

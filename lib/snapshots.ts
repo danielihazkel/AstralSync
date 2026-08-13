@@ -2,6 +2,7 @@ import {
   buildChart,
   type ChartSnapshot,
   type HouseSystem,
+  type Placement,
 } from "@astralsync/astro-core";
 import { buildMazalChart, type MazalChart } from "@astralsync/hebrew-core";
 import {
@@ -700,6 +701,10 @@ export async function listProfiles() {
       isSolarChart: latest?.isSolarChart ?? false,
       latestVersion: latest?.version ?? 0,
       createdAt: p.createdAt,
+      // Lean natal placements for the home page's Today dashboard.
+      placements:
+        (latest?.placementsJson as unknown as { placements?: Placement[] } | null)
+          ?.placements ?? null,
     };
   });
 }

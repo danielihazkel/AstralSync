@@ -1,4 +1,4 @@
-import { SIGNS } from "@astralsync/astro-core";
+import { SIGNS, overlayHouses, pointsAt } from "@astralsync/astro-core";
 import type { NameNumberResult } from "@astralsync/numero-core";
 import {
   formatCivil,
@@ -105,6 +105,25 @@ export function renderChartData(chart: WheelChart): string {
       const house = p.house !== null ? `, ${ordinal(p.house)} house` : "";
       lines.push(
         `- ${cap(p.planet)}: ${cap(p.sign)} ${degreeLabel(p.degreeInSign)}${house}${retro}`,
+      );
+    }
+  }
+
+  // Lunar nodes (true node), recomputed from the stored instant — points are
+  // never persisted. Only derived positions are rendered, never the instant.
+  const nodes = overlayHouses(
+    pointsAt(new Date(chart.input.utc)),
+    chart.isSolarChart ? null : (chart.houses?.cusps ?? null),
+  ).filter((p) => p.point !== "lilith");
+  lines.push("Points (lunar nodes, true node):");
+  for (const p of nodes) {
+    const label = p.point === "north_node" ? "North Node" : "South Node";
+    if (chart.isSolarChart) {
+      lines.push(`- ${label}: ${cap(p.sign)}`);
+    } else {
+      const house = p.house !== null ? `, ${ordinal(p.house)} house` : "";
+      lines.push(
+        `- ${label}: ${cap(p.sign)} ${degreeLabel(p.degreeInSign)}${house}`,
       );
     }
   }

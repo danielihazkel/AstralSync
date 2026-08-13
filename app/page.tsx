@@ -3,6 +3,7 @@ import { listProfiles } from "@/lib/snapshots";
 import ImportProfileButton from "@/components/profiles/ImportProfileButton";
 import ProfileList from "@/components/profiles/ProfileList";
 import PairPicker from "@/components/synastry/PairPicker";
+import TodayDashboard from "@/components/today/TodayDashboard";
 import styles from "./page.module.css";
 
 // Profile data lives in the local DB and changes between requests.
@@ -19,6 +20,16 @@ export default async function Home() {
         offline.
       </p>
 
+      <TodayDashboard
+        profiles={profiles
+          .filter((p) => p.placements !== null)
+          .map((p) => ({
+            id: p.id,
+            displayName: p.displayName,
+            placements: p.placements!,
+          }))}
+      />
+
       {profiles.length === 0 ? (
         <div className={styles.empty}>
           <p>No profiles yet.</p>
@@ -31,7 +42,7 @@ export default async function Home() {
         </div>
       ) : (
         <ProfileList
-          profiles={profiles.map((p) => ({
+          profiles={profiles.map(({ placements: _placements, ...p }) => ({
             ...p,
             createdAt: p.createdAt.toISOString(),
           }))}

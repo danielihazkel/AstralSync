@@ -8,6 +8,7 @@ import {
   llmClientFromEnv,
   LlmUnavailableError,
 } from "@/lib/llm";
+import { streamGenerationResponse } from "@/lib/streamGeneration";
 import {
   toNumeroDerivation,
   toStoredHebrewGematria,
@@ -67,16 +68,59 @@ export async function POST(
     view.hebrew.contentVersion,
   );
 
+  const prompt = buildHebrewReadingPrompt(
+    resolved,
+    mazal,
+    gematria,
+    toNumeroDerivation(view.numero),
+  );
+
+  // Shared by both paths: persistence semantics are identical.
+  const persist = async (bodyMd: string) => {
+    try {
+      const reading = await prisma.reading.create({
+        data: {
+          astroSnapshotId: view.astro.snapshotId,
+          // The prompt now draws on the numero snapshot too — honest provenance.
+          numeroSnapshotId: view.numero.snapshotId,
+          bodyMd,
+          generator: "hebrew_llm",
+          modelName: client.modelName,
+          contentVersion: resolved.contentVersion,
+        },
+      });
+      return {
+        done: {
+          bodyMd: reading.bodyMd,
+          modelName: reading.modelName,
+          contentVersion: reading.contentVersion,
+          createdAt: reading.createdAt,
+        },
+      };
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002"
+      ) {
+        // A concurrent request generated the reading first; keep that one.
+        return { errorCode: "already_generated" };
+      }
+      throw e;
+    }
+  };
+
+  if (req.nextUrl.searchParams.get("stream") === "1" && client.generateStream) {
+    return streamGenerationResponse({
+      stream: client.generateStream(prompt, req.signal),
+      signal: req.signal,
+      label: "hebrew-reading",
+      persist,
+    });
+  }
+
   let bodyMd: string;
   try {
-    bodyMd = await client.generate(
-      buildHebrewReadingPrompt(
-        resolved,
-        mazal,
-        gematria,
-        toNumeroDerivation(view.numero),
-      ),
-    );
+    bodyMd = await client.generate(prompt);
   } catch (e) {
     if (e instanceof LlmUnavailableError) {
       console.error("[api] hebrew-reading:", e);
@@ -88,34 +132,9 @@ export async function POST(
     throw e;
   }
 
-  try {
-    const reading = await prisma.reading.create({
-      data: {
-        astroSnapshotId: view.astro.snapshotId,
-        // The prompt now draws on the numero snapshot too — honest provenance.
-        numeroSnapshotId: view.numero.snapshotId,
-        bodyMd,
-        generator: "hebrew_llm",
-        modelName: client.modelName,
-        contentVersion: resolved.contentVersion,
-      },
-    });
-    return NextResponse.json({
-      bodyMd: reading.bodyMd,
-      modelName: reading.modelName,
-      contentVersion: reading.contentVersion,
-      createdAt: reading.createdAt,
-    });
-  } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2002"
-    ) {
-      // A concurrent request generated the reading first; keep that one.
-      return NextResponse.json({ error: "already_generated" }, { status: 409 });
-    }
-    throw e;
-  }
+  const outcome = await persist(bodyMd);
+  if ("done" in outcome) return NextResponse.json(outcome.done);
+  return NextResponse.json({ error: outcome.errorCode }, { status: 409 });
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { AspectType, Planet, Sign } from "@astralsync/astro-core";
+import type { AspectType, Planet, PointName, Sign } from "@astralsync/astro-core";
 
 /**
  * Astrological glyphs, rendered as SVG <text> using the Unicode astrological
@@ -21,6 +21,12 @@ export const PLANET_GLYPH_CHARS: Record<Planet, string> = {
   uranus: "♅",
   neptune: "♆",
   pluto: "♇",
+};
+
+export const POINT_GLYPH_CHARS: Record<PointName, string> = {
+  north_node: "☊",
+  south_node: "☋",
+  lilith: "⚸",
 };
 
 export const SIGN_GLYPH_CHARS: Record<Sign, string> = {

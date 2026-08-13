@@ -2,6 +2,7 @@ import type {
   AspectType,
   HouseSystem,
   Planet,
+  PointName,
   Sign,
 } from "@astralsync/astro-core";
 import type { ClassicalPlanet, HebrewMonthKey } from "@astralsync/hebrew-core";
@@ -35,6 +36,13 @@ export const PLANET_NAMES: Record<Planet, string> = {
   uranus: "Uranus",
   neptune: "Neptune",
   pluto: "Pluto",
+};
+
+/** Calculated chart points (nodes, Lilith) — ephemeral, never stored. */
+export const POINT_NAMES: Record<PointName, string> = {
+  north_node: "North Node",
+  south_node: "South Node",
+  lilith: "Lilith",
 };
 
 /** The seven classical planets of the Mazal chart (English chrome). */

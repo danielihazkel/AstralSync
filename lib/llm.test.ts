@@ -9,6 +9,7 @@ import type {
   WheelChart,
 } from "./view-types";
 import {
+  anthropicClient,
   buildHebrewForecastPrompt,
   buildHebrewReadingPrompt,
   buildReadingPrompt,
@@ -53,6 +54,14 @@ describe("llmClientFromEnv", () => {
         READING_LLM_API_KEY: "k",
       })?.modelName,
     ).toBe("m");
+  });
+
+  it("requires a key for anthropic mode, base url defaults", () => {
+    const partial = { READING_LLM: "anthropic", READING_LLM_MODEL: "claude-opus-5" };
+    expect(llmClientFromEnv(partial)).toBeNull();
+    expect(
+      llmClientFromEnv({ ...partial, READING_LLM_API_KEY: "k" })?.modelName,
+    ).toBe("claude-opus-5");
   });
 
   it("rejects unknown modes", () => {
@@ -207,6 +216,14 @@ describe("buildReadingPrompt", () => {
     expect(prompt).toContain("Ascendant (rising): Scorpio 12°30′");
     expect(prompt).toContain("7th house cusp: Taurus 12°30′");
     expect(prompt).toContain("Sun square Pluto — orb 5°12′");
+  });
+
+  it("includes the lunar nodes as derived positions without leaking the instant", () => {
+    const prompt = buildReadingPrompt(resolved, chart, numero);
+    expect(prompt).toContain("Points (lunar nodes, true node):");
+    expect(prompt).toMatch(/- North Node: [A-Z][a-z]+ \d+°\d{2}′/);
+    expect(prompt).toMatch(/- South Node: [A-Z][a-z]+ \d+°\d{2}′/);
+    expect(prompt).not.toContain("2000-08-09");
   });
 
   it("includes the complete numerology data with derivations", () => {
@@ -550,6 +567,24 @@ describe("buildHebrewForecastPrompt", () => {
   });
 });
 
+/** A Response whose body streams the given chunks. */
+function streamResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+      controller.close();
+    },
+  });
+  return new Response(stream, { status: 200 });
+}
+
+async function collect(iter: AsyncIterable<string>): Promise<string[]> {
+  const out: string[] = [];
+  for await (const delta of iter) out.push(delta);
+  return out;
+}
+
 describe("clients", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -577,6 +612,100 @@ describe("clients", () => {
     );
     const out = await openAiCompatClient("https://x", "m", "k").generate("p");
     expect(out).toBe("chat text");
+  });
+
+  it("renames max_tokens to max_completion_tokens when the model rejects it", async () => {
+    // OpenAI's newer models (o-series, gpt-5.x) 400 on the legacy param.
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      if ("max_tokens" in body) {
+        return new Response(
+          JSON.stringify({
+            error: {
+              message:
+                "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.",
+              type: "invalid_request_error",
+              param: "max_tokens",
+              code: "unsupported_parameter",
+            },
+          }),
+          { status: 400 },
+        );
+      }
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: "adapted" } }] }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await openAiCompatClient("https://x", "m", "k").generate("p");
+    expect(out).toBe("adapted");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(retryBody.max_completion_tokens).toBe(1200);
+    expect(retryBody).not.toHaveProperty("max_tokens");
+  });
+
+  it("drops temperature when the model rejects it, adapting both params", async () => {
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      if ("max_tokens" in body) {
+        return new Response(
+          JSON.stringify({
+            error: {
+              message:
+                "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.",
+              param: "max_tokens",
+              code: "unsupported_parameter",
+            },
+          }),
+          { status: 400 },
+        );
+      }
+      if ("temperature" in body) {
+        return new Response(
+          JSON.stringify({
+            error: {
+              message:
+                "Unsupported value: 'temperature' does not support 0.7 with this model.",
+              param: "temperature",
+              code: "unsupported_value",
+            },
+          }),
+          { status: 400 },
+        );
+      }
+      return new Response(
+        JSON.stringify({ choices: [{ message: { content: "fully adapted" } }] }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await openAiCompatClient("https://x", "m", "k").generate("p");
+    expect(out).toBe("fully adapted");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const finalBody = JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
+    expect(finalBody).not.toHaveProperty("temperature");
+    expect(finalBody.max_completion_tokens).toBe(1200);
+  });
+
+  it("still fails on unsupported-parameter errors it cannot adapt", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "Unsupported parameter: 'messages' is not supported.",
+              param: "messages",
+              code: "unsupported_parameter",
+            },
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    await expect(
+      openAiCompatClient("https://x", "m", "k").generate("p"),
+    ).rejects.toBeInstanceOf(LlmUnavailableError);
   });
 
   it("wraps network failures and error statuses in LlmUnavailableError", async () => {
@@ -635,6 +764,196 @@ describe("clients", () => {
     );
     await expect(
       ollamaClient("http://localhost:11434", "m").generate("p"),
+    ).rejects.toBeInstanceOf(LlmUnavailableError);
+  });
+
+  it("anthropicClient posts to /v1/messages with the required headers and no temperature", async () => {
+    const fetchMock = vi.fn(async (..._args: unknown[]) =>
+      new Response(
+        JSON.stringify({
+          content: [{ type: "text", text: "claude text" }],
+          stop_reason: "end_turn",
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await anthropicClient(
+      "https://api.anthropic.com/",
+      "claude-opus-5",
+      "k",
+    ).generate("p");
+    expect(out).toBe("claude text");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.anthropic.com/v1/messages",
+      expect.objectContaining({ method: "POST" }),
+    );
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-api-key"]).toBe("k");
+    expect(headers["anthropic-version"]).toBe("2023-06-01");
+    const body = JSON.parse(String(init.body));
+    expect(body.model).toBe("claude-opus-5");
+    expect(body.max_tokens).toBe(1200);
+    expect(body.messages).toEqual([{ role: "user", content: "p" }]);
+    // Current Claude models reject temperature — it must be absent.
+    expect(body).not.toHaveProperty("temperature");
+  });
+
+  it("anthropicClient joins multiple text blocks and skips non-text blocks", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            content: [
+              { type: "thinking", thinking: "" },
+              { type: "text", text: "part one " },
+              { type: "text", text: "part two" },
+            ],
+            stop_reason: "end_turn",
+          }),
+        ),
+      ),
+    );
+    const out = await anthropicClient("https://x", "m", "k").generate("p");
+    expect(out).toBe("part one part two");
+  });
+
+  it("streams ollama NDJSON deltas until done", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        streamResponse([
+          '{"response":"Hel","done":false}\n',
+          '{"response":"lo","done":false}\n{"done":true}\n',
+        ]),
+      ),
+    );
+    const deltas = await collect(
+      ollamaClient("http://localhost:11434", "m").generateStream!("p"),
+    );
+    expect(deltas).toEqual(["Hel", "lo"]);
+  });
+
+  it("streams openai SSE deltas and stops at [DONE]", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        streamResponse([
+          'data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n',
+          'data: {"choices":[{"delta":{"content":"lo"}}]}\n\ndata: [DONE]\n\n',
+        ]),
+      ),
+    );
+    const deltas = await collect(
+      openAiCompatClient("https://x", "m", "k").generateStream!("p"),
+    );
+    expect(deltas).toEqual(["Hel", "lo"]);
+  });
+
+  it("adapts unsupported params before the stream starts", async () => {
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      if ("max_tokens" in body) {
+        return new Response(
+          JSON.stringify({
+            error: {
+              message:
+                "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.",
+            },
+          }),
+          { status: 400 },
+        );
+      }
+      return streamResponse([
+        'data: {"choices":[{"delta":{"content":"adapted"}}]}\n\ndata: [DONE]\n\n',
+      ]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const deltas = await collect(
+      openAiCompatClient("https://x", "m", "k").generateStream!("p"),
+    );
+    expect(deltas).toEqual(["adapted"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(retryBody.max_completion_tokens).toBe(1200);
+    expect(retryBody.stream).toBe(true);
+  });
+
+  it("streams anthropic text_delta events until message_stop", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        streamResponse([
+          'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hel"}}\n\n',
+          'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"lo"}}\n\n',
+          'event: message_stop\ndata: {"type":"message_stop"}\n\n',
+        ]),
+      ),
+    );
+    const deltas = await collect(
+      anthropicClient("https://x", "m", "k").generateStream!("p"),
+    );
+    expect(deltas).toEqual(["Hel", "lo"]);
+  });
+
+  it("throws on an anthropic mid-stream refusal or error event", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        streamResponse([
+          'data: {"type":"message_delta","delta":{"stop_reason":"refusal"}}\n\n',
+        ]),
+      ),
+    );
+    await expect(
+      collect(anthropicClient("https://x", "m", "k").generateStream!("p")),
+    ).rejects.toThrow(/refusal/);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        streamResponse([
+          'data: {"type":"error","error":{"message":"overloaded"}}\n\n',
+        ]),
+      ),
+    );
+    await expect(
+      collect(anthropicClient("https://x", "m", "k").generateStream!("p")),
+    ).rejects.toThrow(/overloaded/);
+  });
+
+  it("fails fast when the streaming request is rejected before the first byte", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("bad key", { status: 401 })),
+    );
+    await expect(
+      collect(anthropicClient("https://x", "m", "k").generateStream!("p")),
+    ).rejects.toBeInstanceOf(LlmUnavailableError);
+  });
+
+  it("anthropicClient treats a refusal or empty content as unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ content: [], stop_reason: "refusal" }),
+        ),
+      ),
+    );
+    await expect(
+      anthropicClient("https://x", "m", "k").generate("p"),
+    ).rejects.toThrow(/refusal/);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ content: [], stop_reason: "end_turn" })),
+      ),
+    );
+    await expect(
+      anthropicClient("https://x", "m", "k").generate("p"),
     ).rejects.toBeInstanceOf(LlmUnavailableError);
   });
 });

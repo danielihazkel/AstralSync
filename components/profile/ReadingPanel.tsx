@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReadingSlot, ResolvedReading } from "@/lib/content";
 import type { AstroView } from "@/lib/view-types";
 import Markdown from "@/components/Markdown";
+import { useStreamedGeneration } from "@/components/useStreamedGeneration";
+import ChatPanel from "./ChatPanel";
 import DiscardReadingButton from "./DiscardReadingButton";
 import { ELEMENTS, MODALITIES } from "@/lib/dominance";
 import styles from "./profile.module.css";
@@ -56,25 +58,29 @@ export default function ReadingPanel({
   llmEnabled: boolean;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { busy, streamText, generate: streamGenerate, reset } = useStreamedGeneration();
+
+  // Once the stored reading arrives (post-refresh), drop the live preview so
+  // a later discard doesn't resurrect stale text.
+  useEffect(() => {
+    if (llmReading) reset();
+  }, [llmReading, reset]);
 
   async function generate() {
-    setBusy(true);
     setError(null);
-    const res = await fetch(`/api/profiles/${profileId}/reading`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version }),
-    }).catch(() => null);
-    setBusy(false);
-    if (res?.ok || res?.status === 409) {
+    const result = await streamGenerate(
+      `/api/profiles/${profileId}/reading?stream=1`,
+      { version },
+    );
+    if (result.ok || result.status === 409 || result.errorCode === "already_generated") {
       // 409 ⇒ generated concurrently or hook toggled — refresh shows reality.
       router.refresh();
       return;
     }
+    reset();
     setError(
-      res?.status === 502
+      result.status === 502 || result.errorCode === "llm_unavailable"
         ? "The language model isn't reachable right now. Your chart and readings are unaffected — try again once it's running."
         : "Could not generate the reading.",
     );
@@ -172,20 +178,37 @@ export default function ReadingPanel({
               endpoint={`/api/profiles/${profileId}/reading?version=${version}`}
             />
           </div>
+          {llmEnabled && <ChatPanel profileId={profileId} />}
         </section>
       ) : (
-        llmEnabled && (
-          <div className={styles.actionRow}>
-            <button onClick={generate} disabled={busy}>
-              {busy ? "Generating…" : "Generate AI reading"}
-            </button>
-            <span className={styles.hint}>
-              {" "}
-              Runs once for this chart version and is stored permanently.
-            </span>
-            {error && <p className={styles.selectorError}>{error}</p>}
-          </div>
-        )
+        <>
+          {streamText !== null && (
+            <section
+              className={styles.readingSection}
+              aria-label="AI synthesis (generating)"
+            >
+              <h3 className={styles.sectionTitle}>AI synthesis</h3>
+              <p className={styles.readingSource}>
+                {busy ? "Generating…" : "Finishing up…"}
+              </p>
+              <div className={styles.readingBody} aria-live="polite">
+                <Markdown md={streamText} />
+              </div>
+            </section>
+          )}
+          {llmEnabled && (
+            <div className={styles.actionRow}>
+              <button onClick={generate} disabled={busy}>
+                {busy ? "Generating…" : "Generate AI reading"}
+              </button>
+              <span className={styles.hint}>
+                {" "}
+                Runs once for this chart version and is stored permanently.
+              </span>
+              {error && <p className={styles.selectorError}>{error}</p>}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

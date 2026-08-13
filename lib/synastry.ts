@@ -1,6 +1,7 @@
 import {
   DEFAULT_ORBS,
   PLANETS,
+  compositeChart,
   detectCrossAspects,
   overlayHouses,
   type Aspect,
@@ -40,6 +41,19 @@ export interface SynastryData {
   /** `a` = person A's planet, `b` = person B's planet (person A is the
    *  inner wheel); sorted by orb ascending (tightest first). */
   aspects: CrossAspect[];
+  /** Midpoint composite — the relationship's own chart. */
+  composite: CompositeView;
+}
+
+export interface CompositeView {
+  /** Synthetic stored-chart shape so the standard wheel renders it. No
+   *  houses (midpoint-Ascendant conventions are contested; either side may
+   *  be solar) and placeholder input — a composite has no birth moment. */
+  chart: WheelChart;
+  /** True when either side's Moon sign is uncertain — midpoints inherit it. */
+  moonUncertain: boolean;
+  /** True when either natal chart is solar (noon-estimate positions). */
+  eitherSolar: boolean;
 }
 
 export interface SynastryInputSide {
@@ -73,6 +87,43 @@ function toSide(input: SynastryInputSide, other: WheelChart): SynastrySide {
   };
 }
 
+/** Pure: two natal charts → the relationship's midpoint composite, wrapped
+ *  in a stored-chart shape the standard wheel component can render. */
+export function computeComposite(
+  a: WheelChart,
+  b: WheelChart,
+): CompositeView {
+  const { placements, aspects } = compositeChart(a.placements, b.placements);
+  const sun = placements.find((p) => p.planet === "sun")!;
+  const moon = placements.find((p) => p.planet === "moon")!;
+  const moonUncertain = [a, b].some((c) =>
+    c.uncertainties.some((u) => u.field === "moon_sign"),
+  );
+  return {
+    chart: {
+      schemaVersion: 1,
+      // Epoch placeholders: a midpoint composite has no moment or place.
+      input: {
+        utc: new Date(0).toISOString(),
+        latitude: 0,
+        longitude: 0,
+        houseSystem: a.input.houseSystem,
+        timeCertainty: "exact",
+      },
+      isSolarChart: false,
+      houses: null,
+      placements,
+      aspects,
+      bigThree: { sun: sun.sign, moon: moon.sign, ascendant: null },
+      uncertainties: [],
+      engine: a.engine,
+      tzWarnings: [],
+    },
+    moonUncertain,
+    eitherSolar: a.isSolarChart || b.isSolarChart,
+  };
+}
+
 /** Pure: two natal charts → synastry view. Natal orbs (8° luminaries / 6°),
  *  not the tighter transit orbs — synastry reads like a natal comparison. */
 export function computeSynastry(
@@ -88,6 +139,7 @@ export function computeSynastry(
     a: toSide(a, b.chart),
     b: toSide(b, a.chart),
     aspects,
+    composite: computeComposite(a.chart, b.chart),
   };
 }
 

@@ -29,11 +29,11 @@ export function positionsAt(
 
 /** Locate placements in another chart's houses ("her Sun in his 7th",
  *  "transiting Saturn in the natal 4th"). Null cusps (solar chart) leaves the
- *  placements' houses unchanged. */
-export function overlayHouses(
-  placements: Placement[],
-  cusps: number[] | null,
-): Placement[] {
+ *  placements' houses unchanged. Generic so calculated points (nodes, Lilith)
+ *  overlay the same way as planets. */
+export function overlayHouses<
+  T extends { longitude: number; house: number | null },
+>(placements: T[], cusps: number[] | null): T[] {
   if (!cusps) return placements;
   return placements.map((p) => ({ ...p, house: houseOf(p.longitude, cusps) }));
 }

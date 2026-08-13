@@ -6,6 +6,7 @@ export const TABS = [
   "Numerology",
   "Mazal",
   "Transits",
+  "Cycles",
   "Forecast",
   "Details",
 ] as const;
