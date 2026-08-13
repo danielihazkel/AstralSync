@@ -5,7 +5,7 @@ import {
   natalAspectKey,
   transitAspectKey,
 } from "@/lib/content";
-import { getTransitView } from "@/lib/transits";
+import { getTransitView, transitOptionsFromQuery } from "@/lib/transits";
 import { transitQuerySchema } from "@/lib/validation";
 
 function parseId(raw: string): number | null {
@@ -44,7 +44,7 @@ export async function GET(
     );
   }
   const at = parsed.data.at ? new Date(parsed.data.at) : undefined;
-  const view = await getTransitView(id, at);
+  const view = await getTransitView(id, at, transitOptionsFromQuery(parsed.data));
   if (!view) {
     return NextResponse.json(
       { error: "not_found" },

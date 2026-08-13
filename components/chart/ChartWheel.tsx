@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
+  Aspect,
   NodeVariant,
   Planet,
   PointPlacement,
@@ -14,7 +15,12 @@ import {
   SIGN_NAMES,
   formatDegreeInSign,
 } from "@/components/format";
-import { layoutWheel } from "./geometry";
+import {
+  layoutWheel,
+  longitudeToScreenAngle,
+  polarToXY,
+  wheelRotation,
+} from "./geometry";
 import {
   ASPECT_COLOR,
   Glyph,
@@ -36,6 +42,7 @@ export interface ChartPoints {
 
 const SHOW_POINTS_KEY = "chart.showPoints";
 const NODE_VARIANT_KEY = "chart.nodeVariant";
+const SHOW_MINOR_ASPECTS_KEY = "chart.showMinorAspects";
 
 function pointAriaLabel(p: PointPlacement): string {
   const parts = [
@@ -73,19 +80,26 @@ function planetAriaLabel(chart: WheelChart, planet: Planet): string {
 export default function ChartWheel({
   chart,
   points = null,
+  minorAspects = null,
   downloadName = "chart",
 }: {
   chart: WheelChart;
   points?: ChartPoints | null;
+  /** Read-time minor-aspect overlay (never stored); computed server-side
+   *  with fixed tight orbs. Null hides the toggle entirely. */
+  minorAspects?: Aspect[] | null;
   downloadName?: string;
 }) {
   // Preferences load after mount (localStorage is unavailable during SSR);
   // the pre-hydration frame renders the defaults.
   const [showPoints, setShowPoints] = useState(true);
   const [nodeVariant, setNodeVariant] = useState<NodeVariant>("true");
+  const [showMinors, setShowMinors] = useState(false);
   useEffect(() => {
     if (localStorage.getItem(SHOW_POINTS_KEY) === "false") setShowPoints(false);
     if (localStorage.getItem(NODE_VARIANT_KEY) === "mean") setNodeVariant("mean");
+    if (localStorage.getItem(SHOW_MINOR_ASPECTS_KEY) === "true")
+      setShowMinors(true);
   }, []);
   const activePoints = useMemo(
     () => (points && showPoints ? points[nodeVariant] : []),
@@ -96,6 +110,26 @@ export default function ChartWheel({
     () => layoutWheel(chart, undefined, activePoints),
     [chart, activePoints],
   );
+  // Minor chords are decorative (non-interactive, outside the selection
+  // model) — endpoints computed with the same rotation as the major chords.
+  const minorChords = useMemo(() => {
+    if (!minorAspects || !showMinors) return [];
+    const rotation = wheelRotation(chart);
+    const lonByPlanet = new Map(
+      chart.placements.map((p) => [p.planet, p.longitude]),
+    );
+    const chordEnd = (planet: Planet) =>
+      polarToXY(
+        layout.center,
+        layout.radii.hub,
+        longitudeToScreenAngle(lonByPlanet.get(planet) ?? 0, rotation),
+      );
+    return minorAspects.map((a) => ({
+      ...a,
+      from: chordEnd(a.a),
+      to: chordEnd(a.b),
+    }));
+  }, [minorAspects, showMinors, chart, layout]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [pinned, setPinned] = useState<Selection>(null);
   const [hovered, setHovered] = useState<Selection>(null);
@@ -260,6 +294,26 @@ export default function ChartWheel({
               </text>
             </g>
           )}
+
+          {/* Minor-aspect overlay: dashed, muted, non-interactive — drawn
+              beneath the major chords so it never competes for the eye. */}
+          {minorChords.map((a) => (
+            <line
+              key={`minor-${a.a}-${a.b}-${a.type}`}
+              x1={a.from.x}
+              y1={a.from.y}
+              x2={a.to.x}
+              y2={a.to.y}
+              stroke={ASPECT_COLOR[a.type]}
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              opacity={selection ? 0.12 : 0.55}
+            >
+              <title>
+                {`${PLANET_NAMES[a.a]} ${ASPECT_NAMES[a.type].toLowerCase()} ${PLANET_NAMES[a.b]}, orb ${a.orb.toFixed(1)}°`}
+              </title>
+            </line>
+          ))}
 
           {/* Aspect chords (drawn under planet glyphs) */}
           {layout.aspects.map((a, i) => (
@@ -428,8 +482,9 @@ export default function ChartWheel({
           ))}
         </svg>
 
-        {points && (
+        {(points || (minorAspects && minorAspects.length > 0)) && (
           <div className={styles.pointControls}>
+            {points && (
             <label>
               <input
                 type="checkbox"
@@ -445,7 +500,8 @@ export default function ChartWheel({
               />{" "}
               Points (nodes, Lilith, Fortune)
             </label>
-            {showPoints && (
+            )}
+            {points && showPoints && (
               <label>
                 Node:{" "}
                 <select
@@ -459,6 +515,22 @@ export default function ChartWheel({
                   <option value="true">True</option>
                   <option value="mean">Mean</option>
                 </select>
+              </label>
+            )}
+            {minorAspects && minorAspects.length > 0 && (
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showMinors}
+                  onChange={(e) => {
+                    setShowMinors(e.target.checked);
+                    localStorage.setItem(
+                      SHOW_MINOR_ASPECTS_KEY,
+                      String(e.target.checked),
+                    );
+                  }}
+                />{" "}
+                Minor aspects ({minorAspects.length})
               </label>
             )}
           </div>

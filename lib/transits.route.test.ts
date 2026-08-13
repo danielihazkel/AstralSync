@@ -3,8 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TransitData } from "./transits";
 
 // The route pulls in @/lib/transits, whose Prisma wrapper would otherwise
-// need a live DB; mock the module so these tests stay offline like the rest.
-vi.mock("@/lib/transits", () => ({ getTransitView: vi.fn() }));
+// need a live DB; mock only that wrapper (transitOptionsFromQuery is pure)
+// so these tests stay offline like the rest.
+vi.mock("@/lib/transits", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/transits")>()),
+  getTransitView: vi.fn(),
+}));
 
 import { GET } from "../app/api/transits/[id]/route";
 import { getTransitView } from "@/lib/transits";
@@ -40,7 +44,10 @@ describe("GET /api/transits/[id]", () => {
     // The route decorates the view with per-aspect prose (empty here — the
     // canned view has no cross aspects).
     expect(await res.json()).toEqual({ ...canned, prose: {} });
-    expect(mockView).toHaveBeenCalledWith(1, undefined);
+    expect(mockView).toHaveBeenCalledWith(1, undefined, {
+      orbs: undefined,
+      includeMinors: false,
+    });
   });
 
   it("attaches transit prose for aspects the library covers", async () => {
@@ -67,10 +74,28 @@ describe("GET /api/transits/[id]", () => {
       params("1"),
     );
     expect(res.status).toBe(200);
-    expect(mockView).toHaveBeenCalledWith(
-      1,
-      new Date("2026-08-11T12:00:00Z"),
+    expect(mockView).toHaveBeenCalledWith(1, new Date("2026-08-11T12:00:00Z"), {
+      orbs: undefined,
+      includeMinors: false,
+    });
+  });
+
+  it("threads orb query params into the view options", async () => {
+    const res = await GET(
+      request("/api/transits/1?luminaryOrb=5&defaultOrb=3&minorOrb=1&minors=1"),
+      params("1"),
     );
+    expect(res.status).toBe(200);
+    expect(mockView).toHaveBeenCalledWith(1, undefined, {
+      orbs: { luminary: 5, default: 3, minor: 1 },
+      includeMinors: true,
+    });
+  });
+
+  it("rejects an out-of-range orb with 400 invalid_query", async () => {
+    const res = await GET(request("/api/transits/1?defaultOrb=99"), params("1"));
+    expect(res.status).toBe(400);
+    expect(mockView).not.toHaveBeenCalled();
   });
 
   it("rejects a malformed `at` with 400 invalid_query", async () => {

@@ -1,9 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  loadOrbSettings,
+  orbQuery,
+  saveOrbSettings,
+  type OrbSettings,
+} from "@/lib/orbSettings";
 import type { TransitData } from "@/lib/transits";
 import type { WheelChart } from "@/lib/view-types";
 import ForecastCard from "@/components/forecast/ForecastCard";
+import OrbSettingsControl from "@/components/settings/OrbSettingsControl";
 import {
   TransitAspectList,
   TransitPositionsTable,
@@ -41,8 +48,16 @@ export default function TransitsPanel({
   llmEnabled: boolean;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  // Null until localStorage is read post-mount — the first fetch waits so a
+  // custom setting doesn't trigger a default-orbs fetch first.
+  const [orbs, setOrbs] = useState<OrbSettings | null>(null);
+
+  useEffect(() => {
+    setOrbs(loadOrbSettings());
+  }, []);
 
   const load = useCallback(async () => {
+    if (orbs === null) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setState({ kind: "offline" });
       return;
@@ -50,7 +65,7 @@ export default function TransitsPanel({
     setState({ kind: "loading" });
     let res: Response;
     try {
-      res = await fetch(`/api/transits/${profileId}`);
+      res = await fetch(`/api/transits/${profileId}${orbQuery(orbs)}`);
     } catch {
       // sw.js never intercepts /api/*, so a network failure rejects cleanly.
       setState({ kind: "offline" });
@@ -61,11 +76,16 @@ export default function TransitsPanel({
       return;
     }
     setState({ kind: "data", data: await res.json() });
-  }, [profileId]);
+  }, [profileId, orbs]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  function changeOrbs(next: OrbSettings) {
+    saveOrbSettings(next);
+    setOrbs(next); // load re-runs via the dependency
+  }
 
   // Auto-retry once connectivity returns.
   useEffect(() => {
@@ -143,12 +163,13 @@ export default function TransitsPanel({
 
       <section aria-label="Transit aspects">
         <h3 className={styles.sectionTitle}>Aspects to the natal chart</h3>
+        {orbs && <OrbSettingsControl value={orbs} onChange={changeOrbs} />}
         <TransitAspectList
           aspects={data.crossAspects}
           prose={data.prose}
           moonUncertain={data.natal.moonUncertain}
           moonReason={moonReason}
-          emptyText="No transiting planet is within orb of a natal placement right now (transits use tight orbs: 3° for the luminaries, 2° otherwise)."
+          emptyText={`No transiting planet is within orb of a natal placement right now (current orbs: ${orbs?.luminary ?? 3}° for the luminaries, ${orbs?.default ?? 2}° otherwise).`}
         />
       </section>
 

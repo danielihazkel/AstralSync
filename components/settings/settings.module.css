@@ -1,0 +1,87 @@
+.orbSettings {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+}
+
+.orbSettings summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.orbSettings[open] summary {
+  margin-bottom: 0.6rem;
+}
+
+.customTag {
+  margin-left: 0.6rem;
+  font-size: 0.75rem;
+  color: var(--accent-bright);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: center;
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+
+.field input {
+  width: 4.5rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg, transparent);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  flex-basis: 100%;
+}
+
+.reset {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  padding: 0.2rem 0.6rem;
+}
+
+.reset:disabled {
+  opacity: 0.5;
+}
+
+.reset:not(:disabled):hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
+.note {
+  margin-top: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media print {
+  .orbSettings {
+    display: none;
+  }
+}

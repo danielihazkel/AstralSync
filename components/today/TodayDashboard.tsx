@@ -52,8 +52,17 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
 
   const recompute = useCallback(
     async (loc: HomeLocation | null) => {
-      const { computeToday } = await import("@/lib/today");
-      setSky(computeToday(new Date(), loc, profiles));
+      const [{ computeToday }, { loadOrbSettings }] = await Promise.all([
+        import("@/lib/today"),
+        import("@/lib/orbSettings"),
+      ]);
+      const orbs = loadOrbSettings();
+      setSky(
+        computeToday(new Date(), loc, profiles, {
+          luminary: orbs.luminary,
+          default: orbs.default,
+        }),
+      );
     },
     [profiles],
   );

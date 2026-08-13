@@ -1,5 +1,7 @@
 import {
+  ALL_ASPECTS,
   DEFAULT_TRANSIT_ORBS,
+  MAJOR_ASPECTS,
   annualProfection,
   astronomyEngineProvider,
   buildChart,
@@ -13,6 +15,7 @@ import {
 } from "@astralsync/astro-core";
 import * as Astronomy from "astronomy-engine";
 import { prisma } from "./db";
+import type { TransitOptions } from "./transits";
 import type { StoredChart, WheelChart } from "./view-types";
 
 /**
@@ -93,6 +96,7 @@ export interface PlanetaryReturnData {
 export function computeProgressions(
   natal: WheelChart,
   at: Date,
+  options: TransitOptions = {},
 ): CyclesData["progressions"] {
   const natalUtc = new Date(natal.input.utc);
   const ageYears =
@@ -105,7 +109,8 @@ export function computeProgressions(
   const crossAspects = detectCrossAspects(
     placements,
     natal.placements,
-    DEFAULT_TRANSIT_ORBS,
+    options.orbs ?? DEFAULT_TRANSIT_ORBS,
+    options.includeMinors ? ALL_ASPECTS : MAJOR_ASPECTS,
   ).sort((x, y) => x.orb - y.orb);
   return {
     progressedUtc: progressedUtc.toISOString(),
@@ -385,6 +390,7 @@ export function computeCycles(
   natal: WheelChart,
   natalVersion: number,
   at: Date,
+  options: TransitOptions = {},
 ): CyclesData | null {
   const solarReturn = computeSolarReturn(natal, at);
   if (!solarReturn) return null;
@@ -395,7 +401,7 @@ export function computeCycles(
       isSolarChart: natal.isSolarChart,
       moonUncertain: natal.uncertainties.some((u) => u.field === "moon_sign"),
     },
-    progressions: computeProgressions(natal, at),
+    progressions: computeProgressions(natal, at, options),
     solarReturn,
     lunarReturn: computeLunarReturn(natal, at),
     planetaryReturns: (["jupiter", "saturn"] as const).map((p) =>
@@ -417,6 +423,7 @@ export function computeCycles(
 export async function getCyclesView(
   profileId: number,
   at?: Date,
+  options?: TransitOptions,
 ): Promise<CyclesData | null> {
   const snapshot = await prisma.astroSnapshot.findFirst({
     where: { profileId },
@@ -427,5 +434,5 @@ export async function getCyclesView(
     ...(snapshot.placementsJson as unknown as StoredChart),
     aspects: (snapshot.aspectsJson as unknown as Aspect[]) ?? [],
   };
-  return computeCycles(natal, snapshot.version, at ?? new Date());
+  return computeCycles(natal, snapshot.version, at ?? new Date(), options);
 }

@@ -54,7 +54,10 @@ describe("GET /api/cycles/[id]", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(await res.json()).toEqual(canned);
-    expect(mockView).toHaveBeenCalledWith(1, undefined);
+    expect(mockView).toHaveBeenCalledWith(1, undefined, {
+      orbs: undefined,
+      includeMinors: false,
+    });
   });
 
   it("passes a valid `at` instant through", async () => {
@@ -63,7 +66,10 @@ describe("GET /api/cycles/[id]", () => {
       params("1"),
     );
     expect(res.status).toBe(200);
-    expect(mockView).toHaveBeenCalledWith(1, new Date("2026-08-13T12:00:00Z"));
+    expect(mockView).toHaveBeenCalledWith(1, new Date("2026-08-13T12:00:00Z"), {
+      orbs: undefined,
+      includeMinors: false,
+    });
   });
 
   it("rejects a malformed `at` with 400 invalid_query", async () => {

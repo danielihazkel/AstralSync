@@ -130,11 +130,20 @@ export const profileInputSchema = profileInputBase
 
 export type ProfileInput = z.infer<typeof profileInputSchema>;
 
-/** GET /api/transits/[id] query. `at` pins the computation instant — the
- *  Journal tab's "sky on date X" view (and a testing hook); defaults to now
- *  when absent. */
+/** Orb query param: degrees, clamped to the settings UI's 0–12 range. */
+const orbParam = z.coerce.number().min(0).max(12);
+
+/** GET /api/transits/[id] (and /api/cycles/[id]) query. `at` pins the
+ *  computation instant — the Journal tab's "sky on date X" view (and a
+ *  testing hook); defaults to now when absent. The orb params override
+ *  DEFAULT_TRANSIT_ORBS for this read only (per-browser settings — nothing
+ *  stored server-side); `minors=1` adds minor aspects. */
 export const transitQuerySchema = z.object({
   at: z.iso.datetime({ offset: true }).optional(),
+  luminaryOrb: orbParam.optional(),
+  defaultOrb: orbParam.optional(),
+  minorOrb: orbParam.optional(),
+  minors: z.enum(["1", "0"]).optional(),
 });
 
 export type TransitQuery = z.infer<typeof transitQuerySchema>;

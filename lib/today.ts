@@ -5,6 +5,7 @@ import {
   upcomingEclipses,
   type CrossAspect,
   type EclipseEvent,
+  type OrbConfig,
   type Placement,
   type Planet,
   type Sign,
@@ -282,6 +283,9 @@ export function computeToday(
   now: Date,
   location: HomeLocation | null,
   profiles: TodayProfile[],
+  // Per-browser orb settings; majors only regardless — minor aspects on the
+  // home strip would be noise.
+  orbs: OrbConfig = DEFAULT_TRANSIT_ORBS,
 ): TodaySky {
   const sky = positionsAt(now);
   const moonPlacement = sky.find((p) => p.planet === "moon")!;
@@ -321,7 +325,7 @@ export function computeToday(
     .map((p) => ({
       profileId: p.id,
       displayName: p.displayName,
-      aspects: detectCrossAspects(sky, p.placements, DEFAULT_TRANSIT_ORBS)
+      aspects: detectCrossAspects(sky, p.placements, orbs)
         .sort((a, b) => a.orb - b.orb)
         .slice(0, 3),
     }))

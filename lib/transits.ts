@@ -1,14 +1,18 @@
 import {
+  ALL_ASPECTS,
   DEFAULT_TRANSIT_ORBS,
+  MAJOR_ASPECTS,
   astronomyEngineProvider,
   detectCrossAspects,
   overlayHouses,
   positionsAt,
   type Aspect,
   type CrossAspect,
+  type OrbConfig,
   type Placement,
 } from "@astralsync/astro-core";
 import { prisma } from "./db";
+import type { TransitQuery } from "./validation";
 import type { StoredChart, WheelChart } from "./view-types";
 
 /**
@@ -35,18 +39,46 @@ export interface TransitData {
   engine: { name: string; version: string };
 }
 
+/** Per-read orb/minor overrides from the browser's settings; defaults keep
+ *  the historical behavior (DEFAULT_TRANSIT_ORBS, majors only). */
+export interface TransitOptions {
+  orbs?: OrbConfig;
+  includeMinors?: boolean;
+}
+
+/** Options from a validated transit/cycles query — shared by both routes.
+ *  Any single orb param falls back per-field to the transit defaults. */
+export function transitOptionsFromQuery(q: TransitQuery): TransitOptions {
+  const hasOrbs =
+    q.luminaryOrb !== undefined ||
+    q.defaultOrb !== undefined ||
+    q.minorOrb !== undefined;
+  return {
+    orbs: hasOrbs
+      ? {
+          luminary: q.luminaryOrb ?? DEFAULT_TRANSIT_ORBS.luminary,
+          default: q.defaultOrb ?? DEFAULT_TRANSIT_ORBS.default,
+          minor: q.minorOrb ?? 2,
+        }
+      : undefined,
+    includeMinors: q.minors === "1",
+  };
+}
+
 /** Pure: natal chart + instant → transit view. */
 export function computeTransits(
   natal: WheelChart,
   natalVersion: number,
   at: Date,
+  options: TransitOptions = {},
 ): TransitData {
   const raw = positionsAt(at);
   const placements = overlayHouses(raw, natal.houses?.cusps ?? null);
   const crossAspects = detectCrossAspects(
     placements,
     natal.placements,
-    DEFAULT_TRANSIT_ORBS,
+    options.orbs ?? DEFAULT_TRANSIT_ORBS,
+    options.includeMinors ? ALL_ASPECTS : MAJOR_ASPECTS,
   ).sort((x, y) => x.orb - y.orb);
   return {
     computedAt: at.toISOString(),
@@ -70,6 +102,7 @@ export function computeTransits(
 export async function getTransitView(
   profileId: number,
   at?: Date,
+  options?: TransitOptions,
 ): Promise<TransitData | null> {
   const snapshot = await prisma.astroSnapshot.findFirst({
     where: { profileId },
@@ -80,5 +113,5 @@ export async function getTransitView(
     ...(snapshot.placementsJson as unknown as StoredChart),
     aspects: (snapshot.aspectsJson as unknown as Aspect[]) ?? [],
   };
-  return computeTransits(natal, snapshot.version, at ?? new Date());
+  return computeTransits(natal, snapshot.version, at ?? new Date(), options);
 }

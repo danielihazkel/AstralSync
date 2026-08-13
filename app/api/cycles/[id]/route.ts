@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCyclesView } from "@/lib/cycles";
+import { transitOptionsFromQuery } from "@/lib/transits";
 import { transitQuerySchema } from "@/lib/validation";
 
 function parseId(raw: string): number | null {
@@ -36,7 +37,7 @@ export async function GET(
     );
   }
   const at = parsed.data.at ? new Date(parsed.data.at) : undefined;
-  const view = await getCyclesView(id, at);
+  const view = await getCyclesView(id, at, transitOptionsFromQuery(parsed.data));
   if (!view) {
     return NextResponse.json(
       { error: "not_found" },

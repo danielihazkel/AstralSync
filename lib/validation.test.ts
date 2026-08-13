@@ -183,4 +183,24 @@ describe("transitQuerySchema", () => {
       false,
     );
   });
+
+  it("coerces orb params from query strings and bounds them to 0–12", () => {
+    const parsed = transitQuerySchema.parse({
+      luminaryOrb: "5",
+      defaultOrb: "3.5",
+      minorOrb: "2",
+      minors: "1",
+    });
+    expect(parsed.luminaryOrb).toBe(5);
+    expect(parsed.defaultOrb).toBe(3.5);
+    expect(parsed.minorOrb).toBe(2);
+    expect(parsed.minors).toBe("1");
+    expect(transitQuerySchema.safeParse({ luminaryOrb: "13" }).success).toBe(
+      false,
+    );
+    expect(transitQuerySchema.safeParse({ defaultOrb: "-1" }).success).toBe(
+      false,
+    );
+    expect(transitQuerySchema.safeParse({ minors: "yes" }).success).toBe(false);
+  });
 });

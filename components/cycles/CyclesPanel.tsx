@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { CyclesData } from "@/lib/cycles";
+import {
+  loadOrbSettings,
+  orbQuery,
+  saveOrbSettings,
+  type OrbSettings,
+} from "@/lib/orbSettings";
 import type { WheelChart } from "@/lib/view-types";
+import OrbSettingsControl from "@/components/settings/OrbSettingsControl";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -43,8 +50,16 @@ export default function CyclesPanel({
   isLatest: boolean;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  // Null until localStorage is read post-mount — the first fetch waits so a
+  // custom setting doesn't trigger a default-orbs fetch first.
+  const [orbs, setOrbs] = useState<OrbSettings | null>(null);
+
+  useEffect(() => {
+    setOrbs(loadOrbSettings());
+  }, []);
 
   const load = useCallback(async () => {
+    if (orbs === null) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       setState({ kind: "offline" });
       return;
@@ -52,7 +67,7 @@ export default function CyclesPanel({
     setState({ kind: "loading" });
     let res: Response;
     try {
-      res = await fetch(`/api/cycles/${profileId}`);
+      res = await fetch(`/api/cycles/${profileId}${orbQuery(orbs)}`);
     } catch {
       // sw.js never intercepts /api/*, so a network failure rejects cleanly.
       setState({ kind: "offline" });
@@ -63,11 +78,16 @@ export default function CyclesPanel({
       return;
     }
     setState({ kind: "data", data: await res.json() });
-  }, [profileId]);
+  }, [profileId, orbs]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  function changeOrbs(next: OrbSettings) {
+    saveOrbSettings(next);
+    setOrbs(next); // load re-runs via the dependency
+  }
 
   // Auto-retry once connectivity returns.
   useEffect(() => {
@@ -201,10 +221,12 @@ export default function CyclesPanel({
         </table>
 
         <h4 className={styles.sectionTitle}>Progressed aspects to the natal chart</h4>
+        {orbs && <OrbSettingsControl value={orbs} onChange={changeOrbs} />}
         {progressions.crossAspects.length === 0 ? (
           <p className={styles.muted}>
             No progressed planet is within orb of a natal placement right now
-            (cycles use tight orbs: 3° for the luminaries, 2° otherwise).
+            (current orbs: {orbs?.luminary ?? 3}° for the luminaries,{" "}
+            {orbs?.default ?? 2}° otherwise).
           </p>
         ) : (
           <ul className={styles.aspectList}>

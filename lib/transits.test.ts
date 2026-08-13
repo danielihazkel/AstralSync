@@ -1,6 +1,6 @@
 import { buildChart } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { computeTransits } from "./transits";
+import { computeTransits, transitOptionsFromQuery } from "./transits";
 import type { WheelChart } from "./view-types";
 
 const AT = new Date(Date.UTC(2026, 7, 11, 12, 0, 0));
@@ -80,5 +80,52 @@ describe("computeTransits", () => {
       const limit = c.a === "sun" || c.a === "moon" || c.b === "sun" || c.b === "moon" ? 3 : 2;
       expect(c.orb).toBeLessThanOrEqual(limit);
     }
+  });
+
+  it("custom orbs widen or shrink the aspect list", () => {
+    const natal = natalChart();
+    const tight = computeTransits(natal, 1, AT, {
+      orbs: { luminary: 1, default: 0.5 },
+    });
+    const wide = computeTransits(natal, 1, AT, {
+      orbs: { luminary: 8, default: 6 },
+    });
+    const base = computeTransits(natal, 1, AT);
+    expect(tight.crossAspects.length).toBeLessThan(base.crossAspects.length);
+    expect(wide.crossAspects.length).toBeGreaterThan(base.crossAspects.length);
+  });
+
+  it("includeMinors adds minor-aspect rows within the tight minor orb", () => {
+    const natal = natalChart();
+    const majorsOnly = computeTransits(natal, 1, AT);
+    const withMinors = computeTransits(natal, 1, AT, { includeMinors: true });
+    const majorTypes = ["conjunction", "sextile", "square", "trine", "opposition"];
+    expect(
+      majorsOnly.crossAspects.every((c) => majorTypes.includes(c.type)),
+    ).toBe(true);
+    const minors = withMinors.crossAspects.filter(
+      (c) => !majorTypes.includes(c.type),
+    );
+    expect(minors.length).toBeGreaterThan(0);
+    for (const m of minors) expect(m.orb).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("transitOptionsFromQuery", () => {
+  it("returns no orb override when no orb param is present", () => {
+    expect(transitOptionsFromQuery({})).toEqual({
+      orbs: undefined,
+      includeMinors: false,
+    });
+  });
+
+  it("fills missing orb fields from the transit defaults", () => {
+    expect(transitOptionsFromQuery({ luminaryOrb: 5 }).orbs).toEqual({
+      luminary: 5,
+      default: 2,
+      minor: 2,
+    });
+    expect(transitOptionsFromQuery({ minors: "1" }).includeMinors).toBe(true);
+    expect(transitOptionsFromQuery({ minors: "0" }).includeMinors).toBe(false);
   });
 });

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  DEFAULT_ORBS,
+  MINOR_ASPECTS,
+  detectAspects,
   detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
@@ -194,6 +197,9 @@ export default async function ProfilePage({
         chart={chart}
         points={points}
         patterns={detectPatterns(chart.placements)}
+        // Read-time overlay with fixed tight orbs (2°) — never stored, and
+        // deliberately not orb-configurable so SSR output stays stable.
+        minorAspects={detectAspects(chart.placements, DEFAULT_ORBS, MINOR_ASPECTS)}
         versions={versions}
         isLatest={isLatest}
         reading={reading}
