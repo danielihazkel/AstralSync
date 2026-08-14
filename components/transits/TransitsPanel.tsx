@@ -18,6 +18,7 @@ import {
 } from "./TransitTables";
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
+import TransitCalendarView from "./TransitCalendarView";
 import styles from "./transits.module.css";
 
 const TransitWheel = dynamic(() => import("./TransitWheel"), {
@@ -53,6 +54,7 @@ export default function TransitsPanel({
   llmEnabled: boolean;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  const [view, setView] = useState<"now" | "calendar">("now");
   // Null until localStorage is read post-mount — the first fetch waits so a
   // custom setting doesn't trigger a default-orbs fetch first.
   const [orbs, setOrbs] = useState<OrbSettings | null>(null);
@@ -104,26 +106,70 @@ export default function TransitsPanel({
     return () => window.removeEventListener("online", onOnline);
   }, [load]);
 
+  // "Now | Calendar" switch, always visible above whichever view renders.
+  const viewSwitch = (
+    <div
+      className={styles.viewSwitch}
+      role="tablist"
+      aria-label="Transits view"
+    >
+      <button
+        role="tab"
+        aria-selected={view === "now"}
+        onClick={() => setView("now")}
+      >
+        Now
+      </button>
+      <button
+        role="tab"
+        aria-selected={view === "calendar"}
+        onClick={() => setView("calendar")}
+      >
+        Calendar
+      </button>
+    </div>
+  );
+
+  if (view === "calendar") {
+    return (
+      <div className={styles.panel}>
+        {viewSwitch}
+        <TransitCalendarView profileId={profileId} />
+      </div>
+    );
+  }
+
   if (state.kind === "loading") {
-    return <p className={styles.muted}>Computing today’s transits…</p>;
+    return (
+      <div className={styles.panel}>
+        {viewSwitch}
+        <p className={styles.muted}>Computing today’s transits…</p>
+      </div>
+    );
   }
   if (state.kind === "offline") {
     return (
-      <div className={styles.notice} role="status">
-        <p>
-          Transits need a live connection — they are computed fresh for the
-          current moment and never stored. Your saved charts and readings
-          still work offline.
-        </p>
-        <button onClick={() => void load()}>Retry</button>
+      <div className={styles.panel}>
+        {viewSwitch}
+        <div className={styles.notice} role="status">
+          <p>
+            Transits need a live connection — they are computed fresh for the
+            current moment and never stored. Your saved charts and readings
+            still work offline.
+          </p>
+          <button onClick={() => void load()}>Retry</button>
+        </div>
       </div>
     );
   }
   if (state.kind === "error") {
     return (
-      <div className={styles.notice} role="status">
-        <p>Could not compute transits right now.</p>
-        <button onClick={() => void load()}>Retry</button>
+      <div className={styles.panel}>
+        {viewSwitch}
+        <div className={styles.notice} role="status">
+          <p>Could not compute transits right now.</p>
+          <button onClick={() => void load()}>Retry</button>
+        </div>
       </div>
     );
   }
@@ -136,6 +182,7 @@ export default function TransitsPanel({
 
   return (
     <div className={styles.panel}>
+      {viewSwitch}
       <div className={styles.asOfRow}>
         <span className={styles.muted}>
           As of {new Date(data.computedAt).toLocaleString()}

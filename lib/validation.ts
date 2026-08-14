@@ -194,6 +194,29 @@ export const journalListQuerySchema = z
 
 export type JournalListQuery = z.infer<typeof journalListQuerySchema>;
 
+/** GET /api/transits/[id]/calendar query: an inclusive civil-date range,
+ *  capped at 93 days (one quarter) — the scan cost is linear in the span —
+ *  and kept inside ~1700–2200 where the ephemeris' Pluto model holds. */
+export const transitCalendarQuerySchema = z
+  .object({
+    from: civilDateString,
+    to: civilDateString,
+    minors: z.enum(["1", "0"]).optional(),
+  })
+  .refine((v) => v.from <= v.to, { message: "from must not be after to" })
+  .refine(
+    (v) =>
+      Date.parse(`${v.to}T00:00:00Z`) - Date.parse(`${v.from}T00:00:00Z`) <=
+      93 * 86_400_000,
+    { message: "range must not exceed 93 days" },
+  )
+  .refine(
+    (v) => v.from >= "1700-01-01" && v.to <= "2200-12-31",
+    { message: "range must fall within 1700–2200" },
+  );
+
+export type TransitCalendarQuery = z.infer<typeof transitCalendarQuerySchema>;
+
 /** /api/profiles/[id]/forecast query/body: which forecast cell. `date` is a
  *  testing hook ("compute the period containing this civil date"), defaulting
  *  to server-local today; not exposed in the UI. */

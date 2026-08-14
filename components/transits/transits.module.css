@@ -4,6 +4,16 @@
   max-width: 44rem;
 }
 
+.viewSwitch {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.viewSwitch button[aria-selected="true"] {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+}
+
 .asOfRow {
   display: flex;
   align-items: center;
