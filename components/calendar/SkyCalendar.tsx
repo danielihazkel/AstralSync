@@ -5,7 +5,10 @@ import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
 import { SIGN_NAMES } from "@/components/format";
 import DayPicker from "./DayPicker";
 import MoonMonthGrid from "./MoonMonthGrid";
+import { useTabList } from "@/components/useTabList";
 import styles from "./calendar.module.css";
+
+const VIEWS = ["moon", "picker"] as const;
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -73,26 +76,21 @@ export default function SkyCalendar() {
   const selectedCell =
     month?.days.find((d) => d.date === selected) ?? null;
 
+  const { getTabProps, getPanelProps } = useTabList({
+    count: VIEWS.length,
+    selected: VIEWS.indexOf(view),
+    onSelect: (i) => setView(VIEWS[i]),
+    idBase: "calendar-view",
+  });
+  const panelProps = getPanelProps(VIEWS.indexOf(view));
   const viewSwitch = (
     <div
       className={styles.viewSwitch}
       role="tablist"
       aria-label="Calendar view"
     >
-      <button
-        role="tab"
-        aria-selected={view === "moon"}
-        onClick={() => setView("moon")}
-      >
-        Moon
-      </button>
-      <button
-        role="tab"
-        aria-selected={view === "picker"}
-        onClick={() => setView("picker")}
-      >
-        Day picker
-      </button>
+      <button {...getTabProps(0)}>Moon</button>
+      <button {...getTabProps(1)}>Day picker</button>
     </div>
   );
 
@@ -100,7 +98,9 @@ export default function SkyCalendar() {
     return (
       <div className={styles.panel}>
         {viewSwitch}
-        <DayPicker />
+        <div {...panelProps} className={styles.tabPanel}>
+          <DayPicker />
+        </div>
       </div>
     );
   }
@@ -108,6 +108,7 @@ export default function SkyCalendar() {
   return (
     <div className={styles.panel}>
       {viewSwitch}
+      <div {...panelProps} className={styles.tabPanel}>
       <div className={styles.controls}>
         <span className={styles.monthLabel}>{monthLabel}</span>
         <span>
@@ -146,6 +147,7 @@ export default function SkyCalendar() {
           </p>
         </>
       )}
+      </div>
     </div>
   );
 }

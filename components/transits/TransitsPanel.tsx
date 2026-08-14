@@ -19,7 +19,10 @@ import {
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import TransitCalendarView from "./TransitCalendarView";
+import { useTabList } from "@/components/useTabList";
 import styles from "./transits.module.css";
+
+const VIEWS = ["now", "calendar"] as const;
 
 const TransitWheel = dynamic(() => import("./TransitWheel"), {
   loading: () => <WheelSkeleton />,
@@ -107,26 +110,21 @@ export default function TransitsPanel({
   }, [load]);
 
   // "Now | Calendar" switch, always visible above whichever view renders.
+  const { getTabProps, getPanelProps } = useTabList({
+    count: VIEWS.length,
+    selected: VIEWS.indexOf(view),
+    onSelect: (i) => setView(VIEWS[i]),
+    idBase: "transits-view",
+  });
+  const panelProps = getPanelProps(VIEWS.indexOf(view));
   const viewSwitch = (
     <div
       className={styles.viewSwitch}
       role="tablist"
       aria-label="Transits view"
     >
-      <button
-        role="tab"
-        aria-selected={view === "now"}
-        onClick={() => setView("now")}
-      >
-        Now
-      </button>
-      <button
-        role="tab"
-        aria-selected={view === "calendar"}
-        onClick={() => setView("calendar")}
-      >
-        Calendar
-      </button>
+      <button {...getTabProps(0)}>Now</button>
+      <button {...getTabProps(1)}>Calendar</button>
     </div>
   );
 
@@ -134,7 +132,9 @@ export default function TransitsPanel({
     return (
       <div className={styles.panel}>
         {viewSwitch}
-        <TransitCalendarView profileId={profileId} />
+        <div {...panelProps} className={styles.tabPanel}>
+          <TransitCalendarView profileId={profileId} />
+        </div>
       </div>
     );
   }
@@ -143,7 +143,9 @@ export default function TransitsPanel({
     return (
       <div className={styles.panel}>
         {viewSwitch}
-        <p className={styles.muted}>Computing today’s transits…</p>
+        <div {...panelProps} className={styles.tabPanel}>
+          <p className={styles.muted}>Computing today’s transits…</p>
+        </div>
       </div>
     );
   }
@@ -151,13 +153,15 @@ export default function TransitsPanel({
     return (
       <div className={styles.panel}>
         {viewSwitch}
-        <div className={styles.notice} role="status">
-          <p>
-            Transits need a live connection — they are computed fresh for the
-            current moment and never stored. Your saved charts and readings
-            still work offline.
-          </p>
-          <button onClick={() => void load()}>Retry</button>
+        <div {...panelProps} className={styles.tabPanel}>
+          <div className={styles.notice} role="status">
+            <p>
+              Transits need a live connection — they are computed fresh for the
+              current moment and never stored. Your saved charts and readings
+              still work offline.
+            </p>
+            <button onClick={() => void load()}>Retry</button>
+          </div>
         </div>
       </div>
     );
@@ -166,9 +170,11 @@ export default function TransitsPanel({
     return (
       <div className={styles.panel}>
         {viewSwitch}
-        <div className={styles.notice} role="status">
-          <p>Could not compute transits right now.</p>
-          <button onClick={() => void load()}>Retry</button>
+        <div {...panelProps} className={styles.tabPanel}>
+          <div className={styles.notice} role="status">
+            <p>Could not compute transits right now.</p>
+            <button onClick={() => void load()}>Retry</button>
+          </div>
         </div>
       </div>
     );
@@ -183,6 +189,7 @@ export default function TransitsPanel({
   return (
     <div className={styles.panel}>
       {viewSwitch}
+      <div {...panelProps} className={styles.tabPanel}>
       <div className={styles.asOfRow}>
         <span className={styles.muted}>
           As of {new Date(data.computedAt).toLocaleString()}
@@ -233,6 +240,7 @@ export default function TransitsPanel({
         llmEnabled={llmEnabled}
         heading="AI reading of today’s transits"
       />
+      </div>
     </div>
   );
 }

@@ -4,6 +4,13 @@
   margin-top: 1rem;
 }
 
+/* The tabpanel wrapper inherits the panel's rhythm so the tab refactor
+   doesn't collapse the grid gaps between sections. */
+.tabPanel {
+  display: grid;
+  gap: 1rem;
+}
+
 .controls {
   display: flex;
   align-items: center;

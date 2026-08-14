@@ -32,6 +32,7 @@ import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
 import { TABS, paramFromTab, tabFromParam, type Tab } from "./tabParam";
+import { useTabList } from "@/components/useTabList";
 import styles from "./profile.module.css";
 
 export default function ProfileTabs({
@@ -78,16 +79,22 @@ export default function ProfileTabs({
     window.history.replaceState(null, "", `?${params.toString()}`);
   }
 
+  const { getTabProps, getPanelProps } = useTabList({
+    count: TABS.length,
+    selected: TABS.indexOf(tab),
+    onSelect: (i) => setTab(TABS[i]),
+    idBase: "profile-tabs",
+  });
+  const panelProps = getPanelProps(TABS.indexOf(tab));
+
   return (
     <div>
       <div role="tablist" aria-label="Profile views" className={styles.tabs}>
-        {TABS.map((t) => (
+        {TABS.map((t, i) => (
           <button
             key={t}
-            role="tab"
-            aria-selected={tab === t}
+            {...getTabProps(i)}
             className={tab === t ? styles.tabActive : styles.tab}
-            onClick={() => setTab(t)}
           >
             {t}
           </button>
@@ -95,7 +102,7 @@ export default function ProfileTabs({
       </div>
 
       {tab === "Chart" && (
-        <div role="tabpanel" aria-label="Chart">
+        <div {...panelProps}>
           <ChartWheel
             chart={chart}
             points={points}
@@ -106,7 +113,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Reading" && (
-        <div role="tabpanel" aria-label="Reading">
+        <div {...panelProps}>
           <ReadingPanel
             reading={reading}
             llmReading={astro.llmReading}
@@ -118,7 +125,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Numerology" && (
-        <div role="tabpanel" aria-label="Numerology">
+        <div {...panelProps}>
           <NumerologyPanel
             numero={numero}
             prose={numeroProse}
@@ -127,7 +134,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Mazal" && (
-        <div role="tabpanel" aria-label="Mazal">
+        <div {...panelProps}>
           <MazalPanel
             hebrew={hebrew}
             reading={hebrewReading}
@@ -138,7 +145,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Transits" && (
-        <div role="tabpanel" aria-label="Transits">
+        <div {...panelProps}>
           <TransitsPanel
             profileId={profile.id}
             chart={chart}
@@ -148,7 +155,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Cycles" && (
-        <div role="tabpanel" aria-label="Cycles">
+        <div {...panelProps}>
           <CyclesPanel
             profileId={profile.id}
             chart={chart}
@@ -157,7 +164,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Forecast" && (
-        <div role="tabpanel" aria-label="Forecast">
+        <div {...panelProps}>
           <ForecastPanel
             profileId={profile.id}
             llmEnabled={llmEnabled}
@@ -166,7 +173,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Journal" && (
-        <div role="tabpanel" aria-label="Journal">
+        <div {...panelProps}>
           <JournalPanel
             profileId={profile.id}
             chart={chart}
@@ -175,7 +182,7 @@ export default function ProfileTabs({
         </div>
       )}
       {tab === "Details" && (
-        <div role="tabpanel" aria-label="Details">
+        <div {...panelProps}>
           <DetailsPanel
             profile={profile}
             astro={astro}
