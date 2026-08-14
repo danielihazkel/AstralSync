@@ -12,24 +12,8 @@ import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs"
 import CitySearch from "@/components/onboarding/CitySearch";
 import type { CityOption } from "@/components/onboarding/types";
 import type { Sign } from "@astralsync/astro-core";
+import { loadHomeLocation, saveHomeLocation } from "@/lib/homeLocation";
 import styles from "./today.module.css";
-
-const LOCATION_KEY = "today.homeLocation";
-
-function loadLocation(): HomeLocation | null {
-  try {
-    const raw = localStorage.getItem(LOCATION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as HomeLocation;
-    return typeof parsed.lat === "number" &&
-      typeof parsed.lng === "number" &&
-      typeof parsed.tzIana === "string"
-      ? parsed
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * The home page's "Today" strip: current Moon, Hebrew date, planetary hour,
@@ -46,7 +30,7 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setLocation(loadLocation());
+    setLocation(loadHomeLocation());
     setLoaded(true);
   }, []);
 
@@ -82,7 +66,7 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
       lng: city.lng,
       tzIana: city.tzIana,
     };
-    localStorage.setItem(LOCATION_KEY, JSON.stringify(loc));
+    saveHomeLocation(loc);
     setLocation(loc);
     setPicking(false);
   }

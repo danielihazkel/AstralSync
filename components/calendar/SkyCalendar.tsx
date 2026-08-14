@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
 import { SIGN_NAMES } from "@/components/format";
+import DayPicker from "./DayPicker";
 import MoonMonthGrid from "./MoonMonthGrid";
 import styles from "./calendar.module.css";
 
@@ -30,6 +31,7 @@ function dayTitle(date: string): string {
  */
 export default function SkyCalendar() {
   const now = new Date();
+  const [view, setView] = useState<"moon" | "picker">("moon");
   const [year, setYear] = useState(now.getFullYear());
   const [month1, setMonth1] = useState(now.getMonth() + 1);
   const [month, setMonth] = useState<MoonMonth | null>(null);
@@ -71,8 +73,41 @@ export default function SkyCalendar() {
   const selectedCell =
     month?.days.find((d) => d.date === selected) ?? null;
 
+  const viewSwitch = (
+    <div
+      className={styles.viewSwitch}
+      role="tablist"
+      aria-label="Calendar view"
+    >
+      <button
+        role="tab"
+        aria-selected={view === "moon"}
+        onClick={() => setView("moon")}
+      >
+        Moon
+      </button>
+      <button
+        role="tab"
+        aria-selected={view === "picker"}
+        onClick={() => setView("picker")}
+      >
+        Day picker
+      </button>
+    </div>
+  );
+
+  if (view === "picker") {
+    return (
+      <div className={styles.panel}>
+        {viewSwitch}
+        <DayPicker />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.panel}>
+      {viewSwitch}
       <div className={styles.controls}>
         <span className={styles.monthLabel}>{monthLabel}</span>
         <span>
