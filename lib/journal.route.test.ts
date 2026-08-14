@@ -8,6 +8,7 @@ vi.mock("@/lib/journal", () => ({
   createJournalEntry: vi.fn(),
   updateJournalEntry: vi.fn(),
   deleteJournalEntry: vi.fn(),
+  skyForEntry: vi.fn(),
 }));
 
 import { GET, POST } from "../app/api/profiles/[id]/journal/route";
@@ -19,18 +20,30 @@ import {
   createJournalEntry,
   deleteJournalEntry,
   listJournalEntries,
+  skyForEntry,
   updateJournalEntry,
+  type EntrySky,
 } from "@/lib/journal";
 
 const mockList = vi.mocked(listJournalEntries);
 const mockCreate = vi.mocked(createJournalEntry);
 const mockUpdate = vi.mocked(updateJournalEntry);
 const mockDelete = vi.mocked(deleteJournalEntry);
+const mockSky = vi.mocked(skyForEntry);
+
+const sky: EntrySky = {
+  computedAt: "2026-08-01T09:00:00.000Z",
+  natalVersion: 1,
+  engine: { name: "astronomy-engine", version: "2.1.19" },
+  placements: [],
+  crossAspects: [],
+};
 
 const entry = {
   id: 7,
   entryDate: "2026-08-01",
   bodyMd: "Saturn station day — everything felt slow.",
+  sky,
   createdAt: new Date("2026-08-01T20:00:00.000Z"),
   updatedAt: new Date("2026-08-01T20:00:00.000Z"),
 };
@@ -52,6 +65,7 @@ function entryParams(id: string, entryId: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockSky.mockResolvedValue(sky);
 });
 
 describe("GET /api/profiles/[id]/journal", () => {
@@ -110,7 +124,7 @@ describe("GET /api/profiles/[id]/journal", () => {
 describe("POST /api/profiles/[id]/journal", () => {
   const body = { entryDate: "2026-08-01", bodyMd: "A note." };
 
-  it("creates an entry", async () => {
+  it("creates an entry with the captured sky", async () => {
     mockCreate.mockResolvedValue(entry);
     const res = await POST(
       request("/api/profiles/1/journal", {
@@ -121,7 +135,52 @@ describe("POST /api/profiles/[id]/journal", () => {
     );
     expect(res.status).toBe(201);
     expect((await res.json()).entry.id).toBe(7);
-    expect(mockCreate).toHaveBeenCalledWith({ profileId: 1, ...body });
+    expect(mockSky).toHaveBeenCalledWith(1, "2026-08-01", undefined);
+    expect(mockCreate).toHaveBeenCalledWith({ profileId: 1, ...body, sky });
+  });
+
+  it("threads the client's `at` instant into the sky capture", async () => {
+    mockCreate.mockResolvedValue(entry);
+    const at = "2026-08-01T12:00:00+03:00";
+    const res = await POST(
+      request("/api/profiles/1/journal", {
+        method: "POST",
+        body: JSON.stringify({ ...body, at }),
+      }),
+      params("1"),
+    );
+    expect(res.status).toBe(201);
+    expect(mockSky).toHaveBeenCalledWith(1, "2026-08-01", at);
+  });
+
+  it("rejects an `at` on a different date than entryDate", async () => {
+    const res = await POST(
+      request("/api/profiles/1/journal", {
+        method: "POST",
+        body: JSON.stringify({ ...body, at: "2026-08-02T12:00:00+03:00" }),
+      }),
+      params("1"),
+    );
+    expect(res.status).toBe(400);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("still creates the entry when no sky is available", async () => {
+    mockSky.mockResolvedValue(null);
+    mockCreate.mockResolvedValue({ ...entry, sky: null });
+    const res = await POST(
+      request("/api/profiles/1/journal", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+      params("1"),
+    );
+    expect(res.status).toBe(201);
+    expect(mockCreate).toHaveBeenCalledWith({
+      profileId: 1,
+      ...body,
+      sky: null,
+    });
   });
 
   it("404s when the profile does not exist", async () => {
@@ -204,7 +263,7 @@ describe("PUT /api/profiles/[id]/journal/[entryId]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("updates the note", async () => {
+  it("updates the note body without recomputing the stored sky", async () => {
     mockUpdate.mockResolvedValue({ ...entry, bodyMd: "Edited." });
     const res = await PUT(
       request("/api/profiles/1/journal/7", {
@@ -215,7 +274,26 @@ describe("PUT /api/profiles/[id]/journal/[entryId]", () => {
     );
     expect(res.status).toBe(200);
     expect((await res.json()).entry.bodyMd).toBe("Edited.");
+    expect(mockSky).not.toHaveBeenCalled();
     expect(mockUpdate).toHaveBeenCalledWith(1, 7, { bodyMd: "Edited." });
+  });
+
+  it("recomputes the sky when the entry moves to another date", async () => {
+    mockUpdate.mockResolvedValue({ ...entry, entryDate: "2026-08-05" });
+    const res = await PUT(
+      request("/api/profiles/1/journal/7", {
+        method: "PUT",
+        body: JSON.stringify({ entryDate: "2026-08-05" }),
+      }),
+      entryParams("1", "7"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockSky).toHaveBeenCalledWith(1, "2026-08-05", undefined);
+    expect(mockUpdate).toHaveBeenCalledWith(1, 7, {
+      entryDate: "2026-08-05",
+      bodyMd: undefined,
+      sky,
+    });
   });
 });
 

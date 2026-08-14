@@ -1,10 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JournalEntryView } from "@/lib/journal";
 import type { TransitData } from "@/lib/transits";
 import type { WheelChart } from "@/lib/view-types";
-import { formatBirthDate } from "@/components/format";
+import type { AspectType, Planet } from "@astralsync/astro-core";
+import {
+  ASPECT_NAMES,
+  PLANET_NAMES,
+  formatBirthDate,
+} from "@/components/format";
+import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import Markdown from "@/components/Markdown";
 import {
   TransitAspectList,
@@ -61,6 +67,9 @@ export default function JournalPanel({
   // The add form's draft; editing state lives per-row in EntryRow.
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  // Client-side filters over the loaded entries' stored skies.
+  const [filterPlanet, setFilterPlanet] = useState<Planet | "">("");
+  const [filterAspect, setFilterAspect] = useState<AspectType | "">("");
 
   const loadSky = useCallback(
     async (day: string) => {
@@ -139,7 +148,9 @@ export default function JournalPanel({
       const res = await fetch(`/api/profiles/${profileId}/journal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryDate: date, bodyMd }),
+        // `at` pins the stored sky to the same local-noon instant the
+        // "Sky on date" section shows.
+        body: JSON.stringify({ entryDate: date, bodyMd, at: localNoonIso(date) }),
       });
       if (res.ok) {
         setDraft("");
@@ -267,20 +278,123 @@ export default function JournalPanel({
               looked like on the ground.
             </p>
           ) : (
-            <ul className={styles.entryList}>
-              {entries.entries.map((e) => (
-                <EntryRow
-                  key={e.id}
-                  profileId={profileId}
-                  entry={e}
-                  onChanged={loadEntries}
-                  onViewDate={setDate}
-                />
-              ))}
-            </ul>
+            <FilteredEntries
+              profileId={profileId}
+              entries={entries.entries}
+              filterPlanet={filterPlanet}
+              filterAspect={filterAspect}
+              onFilterPlanet={setFilterPlanet}
+              onFilterAspect={setFilterAspect}
+              onChanged={loadEntries}
+              onViewDate={setDate}
+            />
           ))}
       </section>
     </div>
+  );
+}
+
+const FILTER_PLANETS: Planet[] = [
+  "sun",
+  "moon",
+  "mercury",
+  "venus",
+  "mars",
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto",
+];
+
+const FILTER_ASPECTS: AspectType[] = [
+  "conjunction",
+  "sextile",
+  "square",
+  "trine",
+  "opposition",
+];
+
+function FilteredEntries({
+  profileId,
+  entries,
+  filterPlanet,
+  filterAspect,
+  onFilterPlanet,
+  onFilterAspect,
+  onChanged,
+  onViewDate,
+}: {
+  profileId: number;
+  entries: EntryJson[];
+  filterPlanet: Planet | "";
+  filterAspect: AspectType | "";
+  onFilterPlanet: (p: Planet | "") => void;
+  onFilterAspect: (a: AspectType | "") => void;
+  onChanged: () => Promise<void>;
+  onViewDate: (date: string) => void;
+}) {
+  const active = filterPlanet !== "" || filterAspect !== "";
+  const shown = useMemo(() => {
+    if (!active) return entries;
+    return entries.filter((e) =>
+      e.sky?.crossAspects.some(
+        (c) =>
+          (filterPlanet === "" || c.a === filterPlanet) &&
+          (filterAspect === "" || c.type === filterAspect),
+      ),
+    );
+  }, [entries, active, filterPlanet, filterAspect]);
+
+  return (
+    <>
+      <div className={styles.dateRow}>
+        <label htmlFor="journal-filter-planet" className={styles.muted}>
+          Sky filter
+        </label>
+        <select
+          id="journal-filter-planet"
+          value={filterPlanet}
+          onChange={(e) => onFilterPlanet(e.target.value as Planet | "")}
+        >
+          <option value="">Any transiting planet</option>
+          {FILTER_PLANETS.map((p) => (
+            <option key={p} value={p}>
+              {PLANET_NAMES[p]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Aspect filter"
+          value={filterAspect}
+          onChange={(e) => onFilterAspect(e.target.value as AspectType | "")}
+        >
+          <option value="">Any aspect</option>
+          {FILTER_ASPECTS.map((a) => (
+            <option key={a} value={a}>
+              {ASPECT_NAMES[a]}
+            </option>
+          ))}
+        </select>
+      </div>
+      {active && (
+        <p className={styles.muted}>
+          {shown.length} of {entries.length} notes match (notes without a
+          stored sky never match).
+        </p>
+      )}
+      <ul className={styles.entryList}>
+        {shown.map((e) => (
+          <EntryRow
+            key={e.id}
+            profileId={profileId}
+            entry={e}
+            onChanged={onChanged}
+            onViewDate={onViewDate}
+          />
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -403,6 +517,33 @@ function EntryRow({
         <div className={styles.entryBody}>
           <Markdown md={entry.bodyMd} />
         </div>
+      )}
+      {entry.sky && (
+        <details className={styles.skyDetails}>
+          <summary>Sky at this entry</summary>
+          <p className={styles.muted}>
+            Saved against chart v{entry.sky.natalVersion} (
+            {entry.sky.engine.name} {entry.sky.engine.version}). The date
+            button above shows the live recompute.
+          </p>
+          {entry.sky.crossAspects.length === 0 ? (
+            <p className={styles.muted}>
+              No transiting planet was within orb of a natal placement.
+            </p>
+          ) : (
+            <ul className={styles.skyChips}>
+              {entry.sky.crossAspects.map((c) => (
+                <li key={`${c.a}-${c.b}-${c.type}`} className={styles.skyChip}>
+                  <span aria-hidden="true">{PLANET_GLYPH_CHARS[c.a]}</span>{" "}
+                  {PLANET_NAMES[c.a]} {ASPECT_NAMES[c.type].toLowerCase()}{" "}
+                  natal <span aria-hidden="true">{PLANET_GLYPH_CHARS[c.b]}</span>{" "}
+                  {PLANET_NAMES[c.b]}{" "}
+                  <span className={styles.muted}>({c.orb.toFixed(1)}°)</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
       )}
       {edited && !editing && <p className={styles.muted}>Edited</p>}
     </li>

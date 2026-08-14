@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createJournalEntry, listJournalEntries } from "@/lib/journal";
+import {
+  createJournalEntry,
+  listJournalEntries,
+  skyForEntry,
+} from "@/lib/journal";
 import { journalCreateSchema, journalListQuerySchema } from "@/lib/validation";
 
 function parseId(raw: unknown): number | null {
@@ -11,8 +15,9 @@ const NO_STORE = { "Cache-Control": "no-store" };
 
 /**
  * Journal entries: user notes pinned to a civil date (Phase 3g). Plain
- * mutable CRUD — nothing here touches the write-once snapshot rules, and the
- * date's sky is recomputed via /api/transits/[id]?at=, never stored.
+ * mutable CRUD — nothing here touches the write-once snapshot rules. On
+ * create, the entry additionally snapshots the transits for its date
+ * (EntrySky via skyForEntry) so "what was in the sky" stays with the note.
  */
 
 /** GET ?from?=&to?= → the profile's entries, newest entry date first. */
@@ -67,7 +72,9 @@ export async function POST(
       { status: 400, headers: NO_STORE },
     );
   }
-  const entry = await createJournalEntry({ profileId: id, ...parsed.data });
+  const { entryDate, bodyMd, at } = parsed.data;
+  const sky = await skyForEntry(id, entryDate, at);
+  const entry = await createJournalEntry({ profileId: id, entryDate, bodyMd, sky });
   if (entry === null) {
     return NextResponse.json(
       { error: "not_found" },

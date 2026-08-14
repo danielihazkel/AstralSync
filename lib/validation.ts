@@ -162,23 +162,40 @@ const civilDateString = z
     );
   }, "not a real calendar date");
 
+/** The instant the entry's sky snapshot is computed for — the client sends
+ *  its local noon of entryDate so the stored sky matches what the Journal
+ *  tab shows. The wall-clock date inside the string must equal entryDate
+ *  (the offset makes the local date the literal first ten characters). */
+const journalAt = z.iso.datetime({ offset: true });
+
+function atMatchesEntryDate(v: { at?: string; entryDate?: string }): boolean {
+  if (!v.at || !v.entryDate) return true;
+  return v.at.slice(0, 10) === v.entryDate;
+}
+
 /** POST /api/profiles/[id]/journal body. */
-export const journalCreateSchema = z.object({
-  entryDate: civilDateString,
-  bodyMd: z.string().trim().min(1).max(10_000),
-});
+export const journalCreateSchema = z
+  .object({
+    entryDate: civilDateString,
+    bodyMd: z.string().trim().min(1).max(10_000),
+    at: journalAt.optional(),
+  })
+  .refine(atMatchesEntryDate, { message: "at must fall on entryDate" });
 
 export type JournalCreateInput = z.infer<typeof journalCreateSchema>;
 
-/** PUT /api/profiles/[id]/journal/[entryId] body — at least one field. */
+/** PUT /api/profiles/[id]/journal/[entryId] body — at least one field.
+ *  `at` is only meaningful alongside an entryDate change. */
 export const journalUpdateSchema = z
   .object({
     entryDate: civilDateString.optional(),
     bodyMd: z.string().trim().min(1).max(10_000).optional(),
+    at: journalAt.optional(),
   })
   .refine((v) => v.entryDate !== undefined || v.bodyMd !== undefined, {
     message: "nothing to update",
-  });
+  })
+  .refine(atMatchesEntryDate, { message: "at must fall on entryDate" });
 
 export type JournalUpdateInput = z.infer<typeof journalUpdateSchema>;
 

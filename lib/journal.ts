@@ -1,18 +1,65 @@
+import { Prisma } from "@prisma/client";
+import type { CrossAspect, Placement } from "@astralsync/astro-core";
 import { prisma } from "./db";
+import { getTransitView, type TransitData } from "./transits";
 
 /**
  * Prisma glue for journal entries — user notes pinned to a civil date
  * (Phase 3g). Entries are the user's own words: freely editable and
- * deletable, so unlike snapshots nothing here is write-once. The sky for an
- * entry's date is never stored; the Journal tab recomputes it through
- * /api/transits/[id]?at= like any other ephemeral transit read.
+ * deletable, so unlike snapshots nothing here is write-once. Each entry
+ * additionally snapshots the transits active when it was saved (skyJson) so
+ * "what was in the sky when I wrote this" survives engine upgrades; the
+ * browsable sky view still recomputes via /api/transits/[id]?at=.
  */
+
+/** The sky stored with an entry: a trimmed transit view (majors at the
+ *  engine's default transit orbs — exactly what the Journal tab displays). */
+export interface EntrySky {
+  /** ISO instant the transits were computed for (local noon of entryDate). */
+  computedAt: string;
+  /** Natal snapshot version the aspects were cast against. */
+  natalVersion: number;
+  engine: { name: string; version: string };
+  placements: Placement[];
+  crossAspects: CrossAspect[];
+}
+
+/** Pure: full transit view → the slice worth storing per entry. */
+export function entrySkyFromTransits(t: TransitData): EntrySky {
+  return {
+    computedAt: t.computedAt,
+    natalVersion: t.natal.version,
+    engine: t.engine,
+    placements: t.placements,
+    crossAspects: t.crossAspects,
+  };
+}
+
+/** The entry's sky: the same transit view the Journal tab shows, computed
+ *  at the client's local noon (`at`) or UTC noon as a fallback. Null when
+ *  the profile has no snapshot or the ephemeris rejects the instant — the
+ *  note is always saved regardless. */
+export async function skyForEntry(
+  profileId: number,
+  entryDate: string,
+  at: string | undefined,
+): Promise<EntrySky | null> {
+  const instant = at ? new Date(at) : new Date(`${entryDate}T12:00:00Z`);
+  try {
+    const view = await getTransitView(profileId, instant);
+    return view ? entrySkyFromTransits(view) : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface JournalEntryView {
   id: number;
   /** "YYYY-MM-DD" civil date the note is about. */
   entryDate: string;
   bodyMd: string;
+  /** Null for pre-feature entries or when no natal snapshot existed. */
+  sky: EntrySky | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +79,7 @@ function serialize(row: {
   id: number;
   entryDate: Date;
   bodyMd: string;
+  skyJson: Prisma.JsonValue;
   createdAt: Date;
   updatedAt: Date;
 }): JournalEntryView {
@@ -39,6 +87,7 @@ function serialize(row: {
     id: row.id,
     entryDate: dateString(row.entryDate),
     bodyMd: row.bodyMd,
+    sky: (row.skyJson as unknown as EntrySky | null) ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -73,6 +122,8 @@ export async function createJournalEntry(args: {
   profileId: number;
   entryDate: string;
   bodyMd: string;
+  /** The sky captured at save time; null when no snapshot existed. */
+  sky?: EntrySky | null;
 }): Promise<JournalEntryView | null> {
   const profile = await prisma.profile.findUnique({
     where: { id: args.profileId },
@@ -84,6 +135,9 @@ export async function createJournalEntry(args: {
       profileId: args.profileId,
       entryDate: dateValue(args.entryDate),
       bodyMd: args.bodyMd,
+      skyJson: args.sky
+        ? (args.sky as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
     },
   });
   return serialize(row);
@@ -94,7 +148,13 @@ export async function createJournalEntry(args: {
 export async function updateJournalEntry(
   profileId: number,
   entryId: number,
-  patch: { entryDate?: string; bodyMd?: string },
+  patch: {
+    entryDate?: string;
+    bodyMd?: string;
+    /** Only passed when entryDate changed — a body edit never touches the
+     *  stored sky (the entry's date, and therefore its sky, is unchanged). */
+    sky?: EntrySky | null;
+  },
 ): Promise<JournalEntryView | null> {
   const existing = await prisma.journalEntry.findFirst({
     where: { id: entryId, profileId },
@@ -106,6 +166,13 @@ export async function updateJournalEntry(
     data: {
       ...(patch.entryDate ? { entryDate: dateValue(patch.entryDate) } : {}),
       ...(patch.bodyMd !== undefined ? { bodyMd: patch.bodyMd } : {}),
+      ...(patch.sky !== undefined
+        ? {
+            skyJson: patch.sky
+              ? (patch.sky as unknown as Prisma.InputJsonValue)
+              : Prisma.DbNull,
+          }
+        : {}),
     },
   });
   return serialize(row);

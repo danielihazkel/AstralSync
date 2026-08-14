@@ -19,7 +19,36 @@
   border-radius: var(--radius);
   padding: 0.3rem 0.5rem;
   font: inherit;
-  color-scheme: dark;
+  /* Follows html's color-scheme, which the theme toggle now controls. */
+  color-scheme: inherit;
+}
+
+.skyDetails {
+  font-size: 0.85rem;
+}
+
+.skyDetails summary {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.skyDetails[open] summary {
+  margin-bottom: 0.35rem;
+}
+
+.skyChips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0;
+}
+
+.skyChip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.15rem 0.5rem;
 }
 
 .sectionTitle {
