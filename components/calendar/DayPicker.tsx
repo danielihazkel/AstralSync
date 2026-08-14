@@ -7,6 +7,9 @@ import { loadHomeLocation, saveHomeLocation } from "@/lib/homeLocation";
 import { CLASSICAL_PLANET_LABELS, SIGN_NAMES } from "@/components/format";
 import CitySearch from "@/components/onboarding/CitySearch";
 import type { CityOption } from "@/components/onboarding/types";
+import { buildIcs } from "@/lib/ics";
+import { downloadIcs } from "@/components/downloadIcs";
+import { electionalDayIcsEvents } from "./calendarIcsEvents";
 import styles from "./calendar.module.css";
 
 const INTENT_OPTIONS: Array<{ value: Intent; label: string }> = [
@@ -144,7 +147,21 @@ export default function DayPicker() {
           <p>
             Moon in {SIGN_NAMES[result.moonSign]} ·{" "}
             {CLASSICAL_PLANET_LABELS[result.dayRuler]} rules the day
-            {result.mercuryRetrograde && " · Mercury retrograde"}
+            {result.mercuryRetrograde && " · Mercury retrograde"}{" "}
+            <button
+              onClick={() => {
+                const label =
+                  INTENT_OPTIONS.find((o) => o.value === intent)?.label ?? null;
+                downloadIcs(
+                  buildIcs(electionalDayIcsEvents(result, label), {
+                    calName: `AstralSync electional — ${result.date}`,
+                  }),
+                  `astralsync-electional-${result.date}`,
+                );
+              }}
+            >
+              Export .ics
+            </button>
           </p>
           <ul className={styles.windowList}>
             {result.windows.map((w) => (

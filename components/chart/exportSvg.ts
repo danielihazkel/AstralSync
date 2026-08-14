@@ -80,7 +80,7 @@ export function serializeSvg(svg: SVGSVGElement): string {
   return new XMLSerializer().serializeToString(clone);
 }
 
-function triggerDownload(url: string, filename: string) {
+export function triggerDownload(url: string, filename: string) {
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;

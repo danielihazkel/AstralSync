@@ -14,6 +14,9 @@ import {
   formatDegreeInSign,
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
+import { buildIcs } from "@/lib/ics";
+import { downloadIcs } from "@/components/downloadIcs";
+import { transitMonthIcsEvents } from "./transitIcsEvents";
 import styles from "./transits.module.css";
 
 type State =
@@ -187,7 +190,21 @@ export default function TransitCalendarView({
           </button>{" "}
           <button onClick={() => shiftMonth(1)} aria-label="Next month">
             ›
-          </button>
+          </button>{" "}
+          {state.kind === "data" && state.data.events.length > 0 && (
+            <button
+              onClick={() =>
+                downloadIcs(
+                  buildIcs(transitMonthIcsEvents(state.data), {
+                    calName: `AstralSync transits — ${monthLabel}`,
+                  }),
+                  `astralsync-transits-${year}-${pad(month0 + 1)}`,
+                )
+              }
+            >
+              Export .ics
+            </button>
+          )}
         </span>
       </div>
 

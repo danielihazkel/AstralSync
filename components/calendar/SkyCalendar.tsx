@@ -6,6 +6,9 @@ import { SIGN_NAMES } from "@/components/format";
 import DayPicker from "./DayPicker";
 import MoonMonthGrid from "./MoonMonthGrid";
 import { useTabList } from "@/components/useTabList";
+import { buildIcs } from "@/lib/ics";
+import { downloadIcs } from "@/components/downloadIcs";
+import { moonMonthIcsEvents } from "./calendarIcsEvents";
 import styles from "./calendar.module.css";
 
 const VIEWS = ["moon", "picker"] as const;
@@ -126,7 +129,21 @@ export default function SkyCalendar() {
           </button>{" "}
           <button onClick={() => shiftMonth(1)} aria-label="Next month">
             ›
-          </button>
+          </button>{" "}
+          {month !== null && (
+            <button
+              onClick={() =>
+                downloadIcs(
+                  buildIcs(moonMonthIcsEvents(month), {
+                    calName: `AstralSync sky — ${monthLabel}`,
+                  }),
+                  `astralsync-sky-${year}-${String(month1).padStart(2, "0")}`,
+                )
+              }
+            >
+              Export .ics
+            </button>
+          )}
         </span>
       </div>
 
