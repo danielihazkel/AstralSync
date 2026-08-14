@@ -7,6 +7,7 @@ import {
   loadThemePreference,
   resolveTheme,
   saveThemePreference,
+  THEME_CHANGE_EVENT,
   type ThemePreference,
 } from "@/lib/themeSettings";
 
@@ -37,6 +38,14 @@ export function ThemeToggle() {
   useEffect(() => {
     setPref(loadThemePreference());
     setMounted(true);
+  }, []);
+
+  // The Settings page saves the preference too; this toggle lives in the
+  // layout and never remounts, so re-read on the same-tab change signal.
+  useEffect(() => {
+    const sync = () => setPref(loadThemePreference());
+    window.addEventListener(THEME_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(THEME_CHANGE_EVENT, sync);
   }, []);
 
   // While on "system", follow live OS changes.

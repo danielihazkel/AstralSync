@@ -26,9 +26,15 @@ function labelFor(c: CityResult): string {
 export default function CitySearch({
   selected,
   onSelect,
+  searchLabel = "Search birth city",
+  manualLabel = "Can’t find your birthplace? Enter coordinates",
 }: {
   selected: CityOption | null;
   onSelect: (city: CityOption) => void;
+  /** aria-label for the search input; birth copy by default. */
+  searchLabel?: string;
+  /** Copy for the manual-coordinates fallback link; birth copy by default. */
+  manualLabel?: string;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CityResult[]>([]);
@@ -107,7 +113,7 @@ export default function CitySearch({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for a city (min. 2 letters)…"
-            aria-label="Search birth city"
+            aria-label={searchLabel}
             autoComplete="off"
             className={styles.cityInput}
           />
@@ -148,7 +154,7 @@ export default function CitySearch({
             className={styles.linkBtn}
             onClick={() => setManual(true)}
           >
-            Can&rsquo;t find your birthplace? Enter coordinates
+            {manualLabel}
           </button>
         </>
       )}

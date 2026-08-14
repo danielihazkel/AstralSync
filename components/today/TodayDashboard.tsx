@@ -9,10 +9,9 @@ import {
   SIGN_NAMES,
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs";
-import CitySearch from "@/components/onboarding/CitySearch";
-import type { CityOption } from "@/components/onboarding/types";
+import HomeLocationPicker from "@/components/settings/HomeLocationPicker";
 import type { Sign } from "@astralsync/astro-core";
-import { loadHomeLocation, saveHomeLocation } from "@/lib/homeLocation";
+import { loadHomeLocation } from "@/lib/homeLocation";
 import styles from "./today.module.css";
 
 /**
@@ -58,18 +57,6 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
     const timer = setInterval(() => void recompute(location), 60_000);
     return () => clearInterval(timer);
   }, [loaded, location, recompute]);
-
-  function pickCity(city: CityOption) {
-    const loc: HomeLocation = {
-      label: city.label,
-      lat: city.lat,
-      lng: city.lng,
-      tzIana: city.tzIana,
-    };
-    saveHomeLocation(loc);
-    setLocation(loc);
-    setPicking(false);
-  }
 
   if (!sky) {
     return (
@@ -177,13 +164,14 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
           )}
           {picking ? (
             <div className={styles.picker}>
-              <CitySearch selected={null} onSelect={pickCity} />
-              <button
-                className={styles.linkButton}
-                onClick={() => setPicking(false)}
-              >
-                Cancel
-              </button>
+              <HomeLocationPicker
+                onPick={(loc) => {
+                  setLocation(loc);
+                  setPicking(false);
+                }}
+                onCancel={() => setPicking(false)}
+                cancelClassName={styles.linkButton}
+              />
             </div>
           ) : (
             <button

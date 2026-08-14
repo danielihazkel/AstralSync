@@ -33,6 +33,7 @@ export default function RootLayout({
             <Link href="/synastry">Synastry</Link>
             <Link href="/calendar">Calendar</Link>
             <Link href="/onboarding">New profile</Link>
+            <Link href="/settings">Settings</Link>
             <ThemeToggle />
           </nav>
         </header>

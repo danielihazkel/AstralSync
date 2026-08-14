@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ElectionalDay, Intent, ScoredWindow } from "@/lib/electional";
 import type { HomeLocation } from "@/lib/today";
-import { loadHomeLocation, saveHomeLocation } from "@/lib/homeLocation";
+import { loadHomeLocation } from "@/lib/homeLocation";
 import { CLASSICAL_PLANET_LABELS, SIGN_NAMES } from "@/components/format";
-import CitySearch from "@/components/onboarding/CitySearch";
-import type { CityOption } from "@/components/onboarding/types";
+import HomeLocationPicker from "@/components/settings/HomeLocationPicker";
 import { buildIcs } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
 import { electionalDayIcsEvents } from "./calendarIcsEvents";
@@ -83,18 +82,6 @@ export default function DayPicker() {
     void recompute();
   }, [loaded, recompute]);
 
-  function pickCity(city: CityOption) {
-    const loc: HomeLocation = {
-      label: city.label,
-      lat: city.lat,
-      lng: city.lng,
-      tzIana: city.tzIana,
-    };
-    saveHomeLocation(loc);
-    setLocation(loc);
-    setPicking(false);
-  }
-
   return (
     <div className={styles.panel}>
       <div className={styles.locationRow}>
@@ -134,10 +121,13 @@ export default function DayPicker() {
       </div>
 
       {picking && (
-        <div>
-          <CitySearch selected={null} onSelect={pickCity} />
-          <button onClick={() => setPicking(false)}>Cancel</button>
-        </div>
+        <HomeLocationPicker
+          onPick={(loc) => {
+            setLocation(loc);
+            setPicking(false);
+          }}
+          onCancel={() => setPicking(false)}
+        />
       )}
 
       {result === null ? (

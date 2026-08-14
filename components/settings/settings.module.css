@@ -80,6 +80,26 @@
   line-height: 1.5;
 }
 
+/* Settings-page layout: one card per preference group. */
+.sections {
+  display: grid;
+  gap: 1rem;
+  max-width: 44rem;
+  margin-top: 1rem;
+}
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
 @media print {
   .orbSettings {
     display: none;

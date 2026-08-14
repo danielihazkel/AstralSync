@@ -16,6 +16,13 @@ export const DEFAULT_THEME: ThemePreference = "dark";
 
 export const THEME_STORAGE_KEY = "settings.theme";
 
+/**
+ * Same-tab change signal ("storage" events only fire in other tabs). The
+ * layout-mounted ThemeToggle never remounts on client navigation, so it
+ * listens for this to stay in sync when the Settings page saves a theme.
+ */
+export const THEME_CHANGE_EVENT = "astralsync:themechange";
+
 /** Pure: any stored string → valid preference (unknown falls back). */
 export function sanitizeThemePreference(raw: unknown): ThemePreference {
   return raw === "light" || raw === "dark" || raw === "system"
@@ -46,6 +53,9 @@ export function saveThemePreference(pref: ThemePreference): void {
     else localStorage.setItem(THEME_STORAGE_KEY, pref);
   } catch {
     // Storage full/blocked — the session keeps the in-memory value.
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }
 }
 

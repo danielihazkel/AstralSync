@@ -8,6 +8,7 @@ import type {
   PointPlacement,
 } from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
+import { loadChartSettings, saveChartSettings } from "@/lib/chartSettings";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -40,9 +41,6 @@ export interface ChartPoints {
   true: PointPlacement[];
 }
 
-const SHOW_POINTS_KEY = "chart.showPoints";
-const NODE_VARIANT_KEY = "chart.nodeVariant";
-const SHOW_MINOR_ASPECTS_KEY = "chart.showMinorAspects";
 
 function pointAriaLabel(p: PointPlacement): string {
   const parts = [
@@ -96,10 +94,10 @@ export default function ChartWheel({
   const [nodeVariant, setNodeVariant] = useState<NodeVariant>("true");
   const [showMinors, setShowMinors] = useState(false);
   useEffect(() => {
-    if (localStorage.getItem(SHOW_POINTS_KEY) === "false") setShowPoints(false);
-    if (localStorage.getItem(NODE_VARIANT_KEY) === "mean") setNodeVariant("mean");
-    if (localStorage.getItem(SHOW_MINOR_ASPECTS_KEY) === "true")
-      setShowMinors(true);
+    const s = loadChartSettings();
+    setShowPoints(s.showPoints);
+    setNodeVariant(s.nodeVariant);
+    setShowMinors(s.showMinorAspects);
   }, []);
   const activePoints = useMemo(
     () => (points && showPoints ? points[nodeVariant] : []),
@@ -491,7 +489,11 @@ export default function ChartWheel({
                 checked={showPoints}
                 onChange={(e) => {
                   setShowPoints(e.target.checked);
-                  localStorage.setItem(SHOW_POINTS_KEY, String(e.target.checked));
+                  saveChartSettings({
+                    showPoints: e.target.checked,
+                    nodeVariant,
+                    showMinorAspects: showMinors,
+                  });
                   if (!e.target.checked) {
                     setPinned((cur) => (cur?.kind === "point" ? null : cur));
                     setHovered((cur) => (cur?.kind === "point" ? null : cur));
@@ -509,7 +511,11 @@ export default function ChartWheel({
                   onChange={(e) => {
                     const v = e.target.value as NodeVariant;
                     setNodeVariant(v);
-                    localStorage.setItem(NODE_VARIANT_KEY, v);
+                    saveChartSettings({
+                      showPoints,
+                      nodeVariant: v,
+                      showMinorAspects: showMinors,
+                    });
                   }}
                 >
                   <option value="true">True</option>
@@ -524,10 +530,11 @@ export default function ChartWheel({
                   checked={showMinors}
                   onChange={(e) => {
                     setShowMinors(e.target.checked);
-                    localStorage.setItem(
-                      SHOW_MINOR_ASPECTS_KEY,
-                      String(e.target.checked),
-                    );
+                    saveChartSettings({
+                      showPoints,
+                      nodeVariant,
+                      showMinorAspects: e.target.checked,
+                    });
                   }}
                 />{" "}
                 Minor aspects ({minorAspects.length})
