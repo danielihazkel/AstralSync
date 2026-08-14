@@ -18,9 +18,17 @@ import {
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
-import ChartWheel from "@/components/chart/ChartWheel";
-import TransitWheel from "@/components/transits/TransitWheel";
+import dynamic from "next/dynamic";
+import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import styles from "@/components/transits/transits.module.css";
+
+const ChartWheel = dynamic(() => import("@/components/chart/ChartWheel"), {
+  loading: () => <WheelSkeleton />,
+});
+const TransitWheel = dynamic(
+  () => import("@/components/transits/TransitWheel"),
+  { loading: () => <WheelSkeleton /> },
+);
 
 type State =
   | { kind: "loading" }

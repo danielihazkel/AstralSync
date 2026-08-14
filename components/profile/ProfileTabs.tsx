@@ -11,8 +11,16 @@ import type {
   WheelChart,
 } from "@/lib/view-types";
 import type { Aspect, ChartPattern } from "@astralsync/astro-core";
-import ChartWheel, { type ChartPoints } from "@/components/chart/ChartWheel";
+import dynamic from "next/dynamic";
+import type { ChartPoints } from "@/components/chart/ChartWheel";
+import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import ChartPatterns from "@/components/chart/ChartPatterns";
+
+// The SVG wheel is the tab's heaviest component — split it out so the other
+// eight tabs don't pay for it.
+const ChartWheel = dynamic(() => import("@/components/chart/ChartWheel"), {
+  loading: () => <WheelSkeleton />,
+});
 import ForecastPanel from "@/components/forecast/ForecastPanel";
 import MazalPanel from "@/components/mazal/MazalPanel";
 import NumerologyPanel, {

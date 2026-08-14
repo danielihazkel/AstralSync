@@ -3,7 +3,7 @@ import type { CompositeView } from "@/lib/synastry";
 import { natalAspectKey } from "@/lib/content";
 import { ASPECT_NAMES, PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
-import ChartWheel from "@/components/chart/ChartWheel";
+import ChartWheel from "@/components/chart/LazyChartWheel";
 import Markdown from "@/components/Markdown";
 import type { AspectProse } from "./CrossAspectList";
 import styles from "./synastry.module.css";

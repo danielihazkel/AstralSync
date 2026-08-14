@@ -15,7 +15,7 @@ import PrintButton from "@/components/print/PrintButton";
 import { PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
-import BiWheel from "@/components/synastry/BiWheel";
+import BiWheel from "@/components/synastry/LazyBiWheel";
 import CompositePanel from "@/components/synastry/CompositePanel";
 import CrossAspectList, {
   type AspectProse,

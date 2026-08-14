@@ -16,8 +16,13 @@ import {
   TransitPositionsTable,
   type TransitProse,
 } from "./TransitTables";
-import TransitWheel from "./TransitWheel";
+import dynamic from "next/dynamic";
+import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import styles from "./transits.module.css";
+
+const TransitWheel = dynamic(() => import("./TransitWheel"), {
+  loading: () => <WheelSkeleton />,
+});
 
 /** The route's payload: the transit view plus optional per-aspect prose
  *  (authored transit entries, natal archetypes as fallback), keyed by the

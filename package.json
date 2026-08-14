@@ -16,6 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
+    "analyze": "next experimental-analyze",
+    "analyze:output": "next experimental-analyze --output",
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
