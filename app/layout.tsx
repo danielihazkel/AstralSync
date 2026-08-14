@@ -31,6 +31,7 @@ export default function RootLayout({
           <nav className="siteNav">
             <Link href="/">Profiles</Link>
             <Link href="/synastry">Synastry</Link>
+            <Link href="/calendar">Calendar</Link>
             <Link href="/onboarding">New profile</Link>
             <ThemeToggle />
           </nav>

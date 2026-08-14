@@ -1,0 +1,174 @@
+.panel {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  flex-wrap: wrap;
+}
+
+.viewSwitch {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.viewSwitch button[aria-selected="true"] {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+}
+
+.monthLabel {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.weekdays {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.cell {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.3rem 0.35rem;
+  min-height: 4.6rem;
+  font-size: 0.78rem;
+  display: grid;
+  gap: 0.15rem;
+  align-content: start;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.cell:hover {
+  border-color: var(--border-strong);
+}
+
+.cellSelected {
+  border-color: var(--accent);
+}
+
+.cellToday {
+  background: var(--accent-dim);
+}
+
+.dayNum {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.glyph {
+  color: var(--accent);
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols", "Apple Symbols", serif;
+}
+
+.quarter {
+  font-size: 0.72rem;
+  color: var(--heading);
+}
+
+.voc {
+  font-size: 0.68rem;
+  color: var(--warn);
+}
+
+.eclipse {
+  font-size: 0.68rem;
+  color: var(--danger);
+}
+
+.detail {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0.8rem 1rem;
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.detailTitle {
+  font-size: 1rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.eventList {
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.time {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.windowList {
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.window {
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  padding: 0.45rem 0.7rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.windowGood {
+  border-left-color: var(--ok);
+}
+
+.windowMixed {
+  border-left-color: var(--warn);
+}
+
+.windowAvoid {
+  border-left-color: var(--danger);
+}
+
+.factorList {
+  list-style: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.locationRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .cell {
+    min-height: 3.6rem;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.25rem;
+  }
+}
