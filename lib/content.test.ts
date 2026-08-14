@@ -175,11 +175,14 @@ describe("loadContentIndex", () => {
       "ascendant_sign/virgo",
       "aspect/sun/moon/square",
       "aspect/venus/mars/trine",
+      "chart_pattern/stellium",
       "destiny/5",
       "element_dominance/water",
       "life_path/11",
       "life_path/7",
+      "mc_sign/cancer",
       "modality_dominance/cardinal",
+      "natal_retrograde/mercury",
       "planet_in_house/mars/5",
       "planet_in_house/mercury/3",
       "planet_in_house/moon/2",
@@ -190,6 +193,10 @@ describe("loadContentIndex", () => {
       "planet_in_sign/moon/scorpio",
       "planet_in_sign/sun/leo",
       "planet_in_sign/venus/libra",
+      "point_in_sign/lilith/sagittarius",
+      "point_in_sign/north_node/aquarius",
+      "point_in_sign/part_of_fortune/virgo",
+      "point_in_sign/south_node/leo",
       "soul_urge/22",
     ]);
   });
@@ -223,6 +230,10 @@ describe("resolveReading", () => {
       "house",
       "house",
       "house",
+      // The fixture instant's true nodes and Lilith (no houses → no Fortune).
+      "point",
+      "point",
+      "point",
       "life_path",
       "synthesis",
     ]);
@@ -249,6 +260,13 @@ describe("resolveReading", () => {
       "Mercury in the 3rd house",
       "Venus in the 4th house",
       "Mars in the 5th house",
+    ]);
+    expect(
+      reading.sections.filter((s) => s.slot === "point").map((s) => s.source),
+    ).toEqual([
+      "North Node in Aquarius — 7°18′",
+      "South Node in Leo — 7°18′",
+      "Lilith in Sagittarius — 0°08′",
     ]);
     expect(bySlot("life_path")?.source).toBe("Life Path 7");
     const synthesis = bySlot("synthesis");
@@ -378,6 +396,97 @@ describe("resolveReading", () => {
     expect(reading.missingKeys.some((k) => k.startsWith("planet_in_house/"))).toBe(
       false,
     );
+    // Points still resolve (nodes and Lilith need no houses), with degree
+    // precision suppressed; the Fortune and MC are silently absent.
+    const points = reading.sections.filter((s) => s.slot === "point");
+    expect(points.map((s) => s.source)).toEqual([
+      "North Node in Aquarius",
+      "South Node in Leo",
+      "Lilith in Sagittarius",
+    ]);
+    expect(reading.sections.some((s) => s.slot === "mc")).toBe(false);
+    expect(reading.missingKeys.some((k) => k.startsWith("mc_sign/"))).toBe(false);
+    expect(
+      reading.missingKeys.some((k) => k.includes("part_of_fortune")),
+    ).toBe(false);
+  });
+
+  it("resolves the Midheaven and Part of Fortune when houses exist", () => {
+    // Equal cusps from an Ascendant at 170°; MC at 100° → Cancer. With the
+    // fixture's zero sun/moon longitudes both sect formulas collapse to the
+    // Ascendant, so the Fortune lands on 170° → Virgo either way.
+    const reading = resolveReading(
+      fixtureChart({
+        houses: {
+          system: "placidus",
+          requestedSystem: "placidus",
+          fallbackApplied: false,
+          cusps: [170, 200, 230, 260, 290, 320, 350, 20, 50, 80, 110, 140],
+          ascendant: 170,
+          mc: 100,
+        },
+      }),
+      numeroSeven,
+      CONTENT_VERSION,
+      index,
+    );
+    const slots = reading.sections.map((s) => s.slot);
+    // The MC sits with the placements, right after the Ascendant.
+    expect(slots.indexOf("mc")).toBe(slots.indexOf("ascendant") + 1);
+    const mc = reading.sections.find((s) => s.slot === "mc");
+    expect(mc?.key).toBe("mc_sign/cancer");
+    expect(mc?.source).toBe("Midheaven in Cancer — 10°00′");
+    const points = reading.sections.filter((s) => s.slot === "point");
+    expect(points).toHaveLength(4);
+    expect(points[3].key).toBe("point_in_sign/part_of_fortune/virgo");
+    expect(points[3].source).toBe("Part of Fortune in Virgo — 20°00′");
+    expect(reading.missingKeys).toEqual([]);
+  });
+
+  it("resolves a section per natal retrograde, skipping the luminaries", () => {
+    const base = fixtureChart();
+    const retro = base.placements.map((p) =>
+      p.planet === "mercury" || p.planet === "sun"
+        ? { ...p, retrograde: true }
+        : p,
+    );
+    const reading = resolveReading(
+      fixtureChart({ placements: retro }),
+      numeroSeven,
+      CONTENT_VERSION,
+      index,
+    );
+    const sections = reading.sections.filter((s) => s.slot === "retrograde");
+    expect(sections.map((s) => s.key)).toEqual(["natal_retrograde/mercury"]);
+    expect(sections[0].source).toBe("Mercury retrograde in Virgo");
+    // A retrograde Sun flag (impossible in real data) is ignored, not missed.
+    expect(reading.missingKeys.some((k) => k.startsWith("natal_retrograde/"))).toBe(
+      false,
+    );
+  });
+
+  it("resolves chart patterns with the members in the source line", () => {
+    const base = fixtureChart();
+    // Sun, Mercury and Venus share Leo → a stellium; every longitude stays 0,
+    // so no longitude-based pattern (trines, squares) can also fire.
+    const placements = base.placements.map((p) =>
+      p.planet === "mercury" || p.planet === "venus" ? { ...p, sign: "leo" as const } : p,
+    );
+    const reading = resolveReading(
+      fixtureChart({ placements }),
+      numeroSeven,
+      CONTENT_VERSION,
+      index,
+    );
+    const patterns = reading.sections.filter((s) => s.slot === "chart_pattern");
+    expect(patterns.map((s) => s.key)).toEqual(["chart_pattern/stellium"]);
+    expect(patterns[0].source).toBe("Stellium in Leo — Sun, Mercury, Venus");
+    // Patterns render after the balance sections and before the houses.
+    const slots = reading.sections.map((s) => s.slot);
+    expect(slots.indexOf("chart_pattern")).toBeGreaterThan(
+      slots.indexOf("element"),
+    );
+    expect(slots.indexOf("chart_pattern")).toBeLessThan(slots.indexOf("house"));
   });
 
   it("collects unauthored keys instead of throwing", () => {

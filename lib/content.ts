@@ -1,6 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import { PLANETS, type AspectType, type Planet } from "@astralsync/astro-core";
+import {
+  PLANETS,
+  detectPatterns,
+  partOfFortunePlacement,
+  pointsAt,
+  signOf,
+  type AspectType,
+  type Planet,
+  type PointName,
+} from "@astralsync/astro-core";
 import type { WheelChart } from "./view-types";
 import { CONTENT_VERSION } from "./versions";
 import {
@@ -27,6 +36,17 @@ export const CONTENT_CATEGORIES = [
   "planet_in_house",
   "aspect",
   "ascendant_sign",
+  // The other angle: the MC's sign, resolved from houses (absent on solar
+  // charts, exactly like the Ascendant).
+  "mc_sign",
+  // Whole-chart patterns (stellium, grand trine, …). Prose is per-type; the
+  // specific planets ride in the section's source line.
+  "chart_pattern",
+  // Natal retrograde planets, Mercury–Pluto (luminaries never retrograde).
+  "natal_retrograde",
+  // Calculated points in sign: nodes, Lilith, Part of Fortune. Point-keyed
+  // (not planet-keyed) on purpose — see astro-core/points.ts.
+  "point_in_sign",
   // Synastry pair prose, Phase 3c — authoring is the optional 3d Tier 6;
   // the aspect list degrades to prose-less rows until entries land.
   "synastry_aspect",
@@ -203,13 +223,17 @@ export type ReadingSlot =
   | "sun"
   | "moon"
   | "ascendant"
+  | "mc"
   | "mercury"
   | "venus"
   | "mars"
   | "element"
   | "modality"
+  | "chart_pattern"
   | "aspect"
+  | "retrograde"
   | "house"
+  | "point"
   | "life_path"
   | "destiny"
   | "soul_urge"
@@ -277,8 +301,9 @@ function degreeLabel(deg: number): string {
 }
 
 /**
- * Resolve a snapshot pair to its reading: Big Three entries, element and
- * modality dominance, the tightest natal aspects, Life Path, and the
+ * Resolve a snapshot pair to its reading: Big Three entries, the Midheaven,
+ * element and modality dominance, chart patterns, the tightest natal
+ * aspects, natal retrogrades, houses, calculated points, Life Path, and the
  * template synthesis. Missing entries are
  * collected in `missingKeys`, never thrown — the taxonomy is larger than
  * the authored library and degrades gracefully.
@@ -324,6 +349,17 @@ export function resolveReading(
     );
   }
 
+  // The other angle. Houses are null on a solar chart, so the key is never
+  // attempted there — same silent skip as the Ascendant and house sections.
+  if (chart.houses !== null) {
+    const mcSign = signOf(chart.houses.mc);
+    take(
+      `mc_sign/${mcSign}`,
+      "mc",
+      `Midheaven in ${cap(mcSign)} — ${degreeLabel(chart.houses.mc % 30)}`,
+    );
+  }
+
   // Personal planets get their own sign sections; Jupiter–Pluto sign entries
   // are authored for other surfaces but not rendered in the reading.
   for (const planet of ["mercury", "venus", "mars"] as const) {
@@ -343,6 +379,20 @@ export function resolveReading(
     `${modality.counts[modality.dominant]} of ${chart.placements.length} planets in ${modality.dominant} signs`,
   );
 
+  // Whole-chart patterns, recomputed from the stored placements the same way
+  // the Chart tab does. Prose is per-type; the pattern's actual members ride
+  // in the source line, so one entry serves every instance.
+  for (const pattern of detectPatterns(chart.placements)) {
+    const members = pattern.planets.map(cap).join(", ");
+    const source =
+      pattern.type === "stellium"
+        ? `Stellium in ${cap(pattern.signs[0])} — ${members}`
+        : pattern.apex
+          ? `${members} — apex ${cap(pattern.apex)}`
+          : members;
+    take(`chart_pattern/${pattern.type}`, "chart_pattern", source);
+  }
+
   // The chart's five tightest aspects; unauthored pairs (e.g. outer-planet
   // combinations) degrade into missingKeys like everything else.
   const tightest = [...chart.aspects].sort((x, y) => x.orb - y.orb).slice(0, 5);
@@ -354,6 +404,18 @@ export function resolveReading(
       // Solar-chart positions are noon estimates — suppress orb precision.
       chart.isSolarChart ? base : `${base} — orb ${degreeLabel(asp.orb)}`,
     );
+  }
+
+  // Natal retrogrades — the luminaries never retrograde, and stations are so
+  // slow that solar-chart noon estimates almost never flip the flag.
+  for (const p of chart.placements) {
+    if (p.retrograde && p.planet !== "sun" && p.planet !== "moon") {
+      take(
+        `natal_retrograde/${p.planet}`,
+        "retrograde",
+        `${cap(p.planet)} retrograde in ${cap(p.sign)}`,
+      );
+    }
   }
 
   // House placements for the personal planets, behind the per-placement
@@ -369,6 +431,42 @@ export function resolveReading(
         `${cap(planet)} in the ${ordinal(p.house)} house`,
       );
     }
+  }
+
+  // Calculated points, recomputed from the stored instant like the Chart
+  // tab's overlay. The wheel's mean/true node toggle is a per-browser pref
+  // unavailable server-side — the reading uses true nodes, matching the LLM
+  // prompt data. The Part of Fortune needs an Ascendant, so solar charts
+  // list nodes and Lilith only.
+  const POINT_LABELS: Record<PointName, string> = {
+    north_node: "North Node",
+    south_node: "South Node",
+    lilith: "Lilith",
+    part_of_fortune: "Part of Fortune",
+  };
+  const points = pointsAt(new Date(chart.input.utc), "true");
+  if (chart.houses !== null) {
+    const sun = chart.placements.find((p) => p.planet === "sun");
+    const moon = chart.placements.find((p) => p.planet === "moon");
+    if (sun && moon) {
+      points.push(
+        partOfFortunePlacement(
+          chart.houses.ascendant,
+          sun.longitude,
+          moon.longitude,
+          chart.houses.cusps,
+        ),
+      );
+    }
+  }
+  for (const pt of points) {
+    const base = `${POINT_LABELS[pt.point]} in ${cap(pt.sign)}`;
+    take(
+      `point_in_sign/${pt.point}/${pt.sign}`,
+      "point",
+      // Solar charts suppress degree precision, like the planet sections.
+      chart.isSolarChart ? base : `${base} — ${degreeLabel(pt.degreeInSign)}`,
+    );
   }
 
   const lifePathEntry = numero

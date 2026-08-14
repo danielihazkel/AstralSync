@@ -86,11 +86,13 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 519 entries", () => {
+  it("contains exactly the 592 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 49 natal aspects + 125 transit
-    // aspects (Tiers 1+2) + 12 destiny + 12 soul urge + 50 synastry aspects.
-    expect(entries).toHaveLength(519);
+    // aspects (Tiers 1+2) + 12 destiny + 12 soul urge + 50 synastry aspects
+    // + 12 MC signs + 5 chart patterns + 8 natal retrogrades + 48 points in
+    // sign.
+    expect(entries).toHaveLength(592);
   });
 
   it("covers every planet in every sign", () => {
@@ -119,6 +121,54 @@ describe("content library lint", () => {
     for (const sign of SIGNS) {
       expect(entry(`ascendant_sign/${sign}`), sign).not.toBeNull();
     }
+  });
+
+  it("covers every Midheaven sign", () => {
+    for (const sign of SIGNS) {
+      expect(entry(`mc_sign/${sign}`), sign).not.toBeNull();
+    }
+    expect(entries.filter((e) => e.category === "mc_sign")).toHaveLength(12);
+  });
+
+  it("covers every chart pattern type", () => {
+    const PATTERN_TYPES = [
+      "stellium",
+      "grand_trine",
+      "t_square",
+      "grand_cross",
+      "yod",
+    ];
+    for (const type of PATTERN_TYPES) {
+      expect(entry(`chart_pattern/${type}`), type).not.toBeNull();
+    }
+    expect(entries.filter((e) => e.category === "chart_pattern")).toHaveLength(
+      PATTERN_TYPES.length,
+    );
+  });
+
+  it("covers every natal retrograde except the luminaries", () => {
+    const RETRO_PLANETS = PLANETS.filter((p) => p !== "sun" && p !== "moon");
+    for (const planet of RETRO_PLANETS) {
+      expect(entry(`natal_retrograde/${planet}`), planet).not.toBeNull();
+    }
+    expect(
+      entries.filter((e) => e.category === "natal_retrograde"),
+    ).toHaveLength(8);
+  });
+
+  it("covers every point in every sign", () => {
+    const POINTS = ["north_node", "south_node", "lilith", "part_of_fortune"];
+    for (const point of POINTS) {
+      for (const sign of SIGNS) {
+        expect(
+          entry(`point_in_sign/${point}/${sign}`),
+          `${point}/${sign}`,
+        ).not.toBeNull();
+      }
+    }
+    expect(entries.filter((e) => e.category === "point_in_sign")).toHaveLength(
+      POINTS.length * SIGNS.length,
+    );
   });
 
   it("covers every Life Path including masters", () => {

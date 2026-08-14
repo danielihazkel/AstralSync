@@ -31,6 +31,10 @@ become key segments.
 | `planet_in_house`    | `planet_in_house/<planet>/<1-12>`| `planet_in_house/mars-7.md` |
 | `aspect`             | `aspect/<a>/<b>/<type>`          | `aspect/sun-moon-square.md` |
 | `ascendant_sign`     | `ascendant_sign/<sign>`          | `ascendant_sign/leo.md` |
+| `mc_sign`            | `mc_sign/<sign>`                 | `mc_sign/leo.md` |
+| `chart_pattern`      | `chart_pattern/<type>`           | `chart_pattern/t_square.md` |
+| `natal_retrograde`   | `natal_retrograde/<planet>`      | `natal_retrograde/mercury.md` |
+| `point_in_sign`      | `point_in_sign/<point>/<sign>`   | `point_in_sign/north_node-aries.md` → `point_in_sign/north_node/aries` |
 | `element_dominance`  | `element_dominance/<element>`    | `element_dominance/fire.md` |
 | `modality_dominance` | `modality_dominance/<modality>`  | `modality_dominance/cardinal.md` |
 | `life_path`          | `life_path/<n>`                  | `life_path/11.md` |
@@ -47,7 +51,7 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (519 entries):** `planet_in_sign` ×120
+**English scope (592 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
 framing), `planet_in_house` ×120, `aspect` ×49 (nine pairs across all five
 types, plus conjunction-only Sun–Mercury and Sun–Venus and
@@ -55,7 +59,13 @@ conjunction+sextile Mercury–Venus — the remaining combinations are
 astronomically unreachable at natal orbs), `transit_aspect` ×125 (Tiers 1+2:
 transiting Jupiter–Pluto over natal Sun/Moon/Mercury/Venus/Mars across all
 five types; directional keys, transiter first — never sorted),
-`ascendant_sign` ×12, `life_path` / `destiny` / `soul_urge` ×12 each
+`ascendant_sign` ×12, `mc_sign` ×12, `chart_pattern` ×5 (stellium, grand
+trine, t-square, grand cross, yod — prose is per-type and planet-generic;
+the pattern's members ride in the section's source line),
+`natal_retrograde` ×8 (Mercury–Pluto; the luminaries never retrograde),
+`point_in_sign` ×48 (north node, south node, Lilith, Part of Fortune × 12
+signs; point segments use the `PointName` identifiers from
+`astro-core/points.ts`), `life_path` / `destiny` / `soul_urge` ×12 each
 (1–9, 11, 22, 33), `element_dominance` ×4, `modality_dominance` ×3, and
 `synastry_aspect` ×50 (the full sorted-pair matrix over Sun/Moon/Venus/Mars,
 same-planet pairs included, across all five types). The reading renders

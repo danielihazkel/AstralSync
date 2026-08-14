@@ -24,13 +24,17 @@ const SLOT_GROUP: Record<ReadingSlot, string | null> = {
   sun: "Placements",
   moon: "Placements",
   ascendant: "Placements",
+  mc: "Placements",
   mercury: "Placements",
   venus: "Placements",
   mars: "Placements",
   element: "Chart balance",
   modality: "Chart balance",
+  chart_pattern: "Chart patterns",
   aspect: "Key aspects",
+  retrograde: "Retrogrades",
   house: "Houses",
+  point: "Points",
   life_path: "Numerology",
   destiny: "Numerology",
   soul_urge: "Numerology",
@@ -144,8 +148,10 @@ export default function ReadingPanel({
       {reading.sections.map((section, i) => {
         const group = SLOT_GROUP[section.slot];
         const prevGroup = i > 0 ? SLOT_GROUP[reading.sections[i - 1].slot] : null;
+        // Index-qualified key: the same entry can legitimately repeat (two
+        // stelliums both resolve chart_pattern/stellium).
         return (
-          <div key={section.key ?? section.slot} className={styles.reading}>
+          <div key={`${section.key ?? section.slot}-${i}`} className={styles.reading}>
             {group !== null && group !== prevGroup && (
               <h2 className={styles.readingGroup}>{group}</h2>
             )}
