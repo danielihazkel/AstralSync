@@ -1,5 +1,10 @@
 import { GeoLocation } from "@hebcal/core";
-import type { ClassicalPlanet, MazalInput, PlanetaryHourResult } from "./types";
+import type {
+  CivilDate,
+  ClassicalPlanet,
+  MazalInput,
+  PlanetaryHourResult,
+} from "./types";
 import { gregorianToRd, weekdayOf, zmanimForRd } from "./calendar";
 
 /** Descending Chaldean order: slowest to fastest sphere. */
@@ -83,4 +88,72 @@ export function planetaryHour(input: MazalInput): PlanetaryHourResult | null {
     endUtc: new Date(start.getTime() + (idx + 1) * hourLen).toISOString(),
     uncertain: timeCertainty === "approx",
   };
+}
+
+export interface PlanetaryHourSpan {
+  planet: ClassicalPlanet;
+  /** 1–12 within its half of the day. */
+  hourIndex: number;
+  isDay: boolean;
+  startUtc: string;
+  endUtc: string;
+}
+
+export interface PlanetaryDayHours {
+  /** Ruler of the planetary day that begins at this civil date's sunrise. */
+  dayRuler: ClassicalPlanet;
+  /** All 24 hours in time order: sunrise → sunset → next sunrise. */
+  hours: PlanetaryHourSpan[];
+}
+
+export interface PlanetaryDayInput {
+  civilDate: CivilDate;
+  latitude: number;
+  longitude: number;
+  tzId: string;
+}
+
+/**
+ * The full planetary day starting at `civilDate`'s sunrise: twelve unequal
+ * daylight hours and twelve night hours, same continuous Chaldean cycle as
+ * `planetaryHour` (which places a single instant). The electional picker
+ * needs the whole day at once.
+ *
+ * Returns null when the location/date has no sunrise or sunset (polar).
+ */
+export function planetaryDayHours(
+  input: PlanetaryDayInput,
+): PlanetaryDayHours | null {
+  const { civilDate, latitude, longitude, tzId } = input;
+  const rd = gregorianToRd(civilDate.year, civilDate.month, civilDate.day);
+  const gloc = new GeoLocation(null, latitude, longitude, 0, tzId);
+  const z = zmanimForRd(gloc, rd);
+  const sunrise = z.sunrise();
+  const sunset = z.sunset();
+  const nextSunrise = zmanimForRd(gloc, rd + 1).sunrise();
+  if (invalid(sunrise) || invalid(sunset) || invalid(nextSunrise)) return null;
+
+  const dayIdx = weekdayOf(rd);
+  const first = (SUN_INDEX + dayIdx * 24) % 7;
+
+  const hours: PlanetaryHourSpan[] = [];
+  const halves: Array<{ start: Date; end: Date; isDay: boolean }> = [
+    { start: sunrise, end: sunset, isDay: true },
+    { start: sunset, end: nextSunrise, isDay: false },
+  ];
+  for (const half of halves) {
+    const hourLen = (half.end.getTime() - half.start.getTime()) / 12;
+    for (let i = 0; i < 12; i++) {
+      const h = half.isDay ? i : 12 + i;
+      hours.push({
+        planet: CHALDEAN_ORDER[(first + h) % 7],
+        hourIndex: i + 1,
+        isDay: half.isDay,
+        startUtc: new Date(half.start.getTime() + i * hourLen).toISOString(),
+        endUtc: new Date(half.start.getTime() + (i + 1) * hourLen).toISOString(),
+      });
+    }
+  }
+
+  return { dayRuler: CHALDEAN_ORDER[first], hours };
 }

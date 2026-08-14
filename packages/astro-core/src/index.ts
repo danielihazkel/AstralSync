@@ -42,5 +42,17 @@ export type { ChartPattern, PatternType } from "./patterns";
 export type { EclipseEvent, EclipseKind, EclipseType } from "./eclipses";
 export { pointsAt, meanNode, trueNode, meanLilith } from "./points";
 export type { PointName, PointPlacement, NodeVariant } from "./points";
+export {
+  findLongitudeCrossings,
+  findIngresses,
+  findAspectHits,
+  findStations,
+} from "./scan";
+export type {
+  ScanHit,
+  IngressEvent,
+  AspectHit,
+  StationEvent,
+} from "./scan";
 export type { EphemerisProvider } from "./ephemeris/interface";
 export { astronomyEngineProvider } from "./ephemeris/astronomyEngine";
