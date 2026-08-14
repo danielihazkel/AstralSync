@@ -12,6 +12,8 @@ import { buildChart, positionsAt, separation } from "../src";
  * retrieved 2026-08-13 with `-b<d.m.y> -ut<h:m:s> -p0123456789 -fPLS
  * -house<lon>,<lat>,P`. Longitudes are stored verbatim as printed
  * (D°M'S.ssss); retrograde lists come from the negative daily-speed column.
+ * The 12 Placidus cusp strings (retrieved 2026-08-14, same CGI/version) are
+ * the `house 1`..`house 12` lines of the same `-house` output, first column.
  * Einstein's chart is additionally cross-checked against Astro-Databank
  * (Rodden AA): Sun 23°30' Pisces, Moon 14°32' Sagittarius, Asc 11°38' Cancer.
  *
@@ -20,6 +22,10 @@ import { buildChart, positionsAt, separation } from "../src";
  * ≤ ~30″. The tolerances below (1′ planets, 30″ Moon, 2′ angles, 3′ for the
  * pre-1900 chart where ΔT modeling differences dominate) leave 2–4×
  * headroom over those measurements.
+ *
+ * Intermediate Placidus cusps, measured the same way: ≤ ~8″ at mid
+ * latitudes, ≤ ~35″ at Reykjavík (64°N, cusp 2/8) — 2′ leaves ≥ 3× headroom
+ * even there.
  */
 
 function lonOf(chart: ReturnType<typeof buildChart>, planet: string): number {
@@ -58,9 +64,12 @@ interface GoldenFixture {
   retrograde: GoldenPlanet[];
   /** Placidus angles from swetest -house; absent for the solar chart. */
   angles?: { ascendant: string; mc: string };
+  /** All 12 Placidus cusps from swetest -house (houses 1..12), verbatim. */
+  cusps?: string[];
   /** Per-fixture tolerance overrides in degrees. */
   planetTol?: number;
   moonTol?: number;
+  cuspTol?: number;
 }
 
 // 1′ for planets, 3′ for the fast-moving Moon, 6′ for angles (which compound
@@ -68,6 +77,7 @@ interface GoldenFixture {
 const PLANET_TOL = 1 / 60;
 const MOON_TOL = 30 / 3600;
 const ANGLE_TOL = 2 / 60;
+const CUSP_TOL = 2 / 60;
 
 const GOLDEN_FIXTURES: GoldenFixture[] = [
   {
@@ -111,6 +121,20 @@ const GOLDEN_FIXTURES: GoldenFixture[] = [
     },
     retrograde: ["jupiter", "saturn", "uranus"],
     angles: { ascendant: "138°17'56.4573", mc: "32°44'47.3175" },
+    cusps: [
+      "138°17'56.4573",
+      "156°32'55.5108",
+      "180°29'56.5936",
+      "212°44'47.3175",
+      "252°21'36.7932",
+      "289°21'37.9215",
+      "318°17'56.4573",
+      "336°32'55.5108",
+      "0°29'56.5936",
+      "32°44'47.3175",
+      "72°21'36.7932",
+      "109°21'37.9215",
+    ],
   },
   {
     label: "1945-05-08 20:00 UT, Berlin",
@@ -191,6 +215,20 @@ const GOLDEN_FIXTURES: GoldenFixture[] = [
     },
     retrograde: ["saturn", "uranus", "neptune", "pluto"],
     angles: { ascendant: "259°13'23.2434", mc: "149°36'51.7949" },
+    cusps: [
+      "259°13'23.2434",
+      "281°41'51.9683",
+      "303°55'32.8006",
+      "329°36'51.7949",
+      "2° 4'40.6472",
+      "41° 8'32.5157",
+      "79°13'23.2434",
+      "101°41'51.9683",
+      "123°55'32.8006",
+      "149°36'51.7949",
+      "182° 4'40.6472",
+      "221° 8'32.5157",
+    ],
   },
   {
     label: "1995-09-23 03:00 UT, Quito (equator)",
@@ -211,6 +249,20 @@ const GOLDEN_FIXTURES: GoldenFixture[] = [
     },
     retrograde: ["mercury", "saturn", "uranus", "neptune"],
     angles: { ascendant: "60° 8'18.8461", mc: "325°46'24.5931" },
+    cusps: [
+      "60° 8'18.8461",
+      "88° 8'39.4219",
+      "116° 0'40.6785",
+      "145°46'24.5931",
+      "177°51'13.2754",
+      "210° 5'55.6312",
+      "240° 8'18.8461",
+      "268° 8'39.4219",
+      "296° 0'40.6785",
+      "325°46'24.5931",
+      "357°51'13.2754",
+      "30° 5'55.6312",
+    ],
   },
   {
     label: "2000-01-01 12:00 UT, Greenwich (J2000)",
@@ -271,6 +323,20 @@ const GOLDEN_FIXTURES: GoldenFixture[] = [
     },
     retrograde: ["uranus", "neptune"],
     angles: { ascendant: "239°28'42.2927", mc: "197°27' 3.7226" },
+    cusps: [
+      "239°28'42.2927",
+      "273°38'50.5966",
+      "338°35'24.5706",
+      "17°27'3.7226",
+      "37°59'15.8593",
+      "50°38'25.4599",
+      "59°28'42.2927",
+      "93°38'50.5966",
+      "158°35'24.5706",
+      "197°27'3.7226",
+      "217°59'15.8593",
+      "230°38'25.4599",
+    ],
   },
   {
     label: "2024-04-08 18:18 UT, Buenos Aires (solar-eclipse day)",
@@ -346,6 +412,21 @@ describe("Swiss Ephemeris golden fixtures", () => {
           ).toBe(fixture.retrograde.includes(planet));
         }
       });
+
+      if (fixture.cusps) {
+        const cusps = fixture.cusps;
+        it("matches all 12 Placidus house cusps", () => {
+          expect(cusps).toHaveLength(12);
+          for (let i = 0; i < 12; i++) {
+            expect
+              .soft(
+                separation(chart.houses!.cusps[i], dms(cusps[i])),
+                `cusp ${i + 1}`,
+              )
+              .toBeLessThan(fixture.cuspTol ?? CUSP_TOL);
+          }
+        });
+      }
 
       if (fixture.angles) {
         const angles = fixture.angles;
