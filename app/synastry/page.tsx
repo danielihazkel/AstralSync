@@ -17,6 +17,7 @@ import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
 import BiWheel from "@/components/synastry/LazyBiWheel";
 import CompositePanel from "@/components/synastry/CompositePanel";
+import AngleContactList from "@/components/synastry/AngleContactList";
 import CrossAspectList, {
   type AspectProse,
 } from "@/components/synastry/CrossAspectList";
@@ -128,7 +129,7 @@ export default async function SynastryPage({
   if (!query.success) notFound();
   const view = await getSynastryView(query.data.a, query.data.b);
   if (!view) notFound();
-  const { a, b, aspects, composite } = view;
+  const { a, b, aspects, angleContacts, composite } = view;
 
   // The pair's stored AI reading (order-insensitive slot) + staleness.
   const storedReading = await getSynastryReading(query.data.a, query.data.b);
@@ -208,6 +209,26 @@ export default async function SynastryPage({
           prose={prose}
         />
       </section>
+
+      {(angleContacts.aOnB.length > 0 || angleContacts.bOnA.length > 0) && (
+        <section aria-label="Angle contacts">
+          <h2 className={styles.sectionTitle}>Angle contacts</h2>
+          <p className={styles.muted}>
+            Major aspects to the other person&rsquo;s Ascendant and Midheaven
+            (6° orb) — a Descendant contact shows as the Ascendant opposition.
+          </p>
+          <AngleContactList
+            ownerName={a.displayName}
+            hostName={b.displayName}
+            contacts={angleContacts.aOnB}
+          />
+          <AngleContactList
+            ownerName={b.displayName}
+            hostName={a.displayName}
+            contacts={angleContacts.bOnA}
+          />
+        </section>
+      )}
 
       <section aria-label="House overlays" className={styles.overlayTables}>
         {!b.isSolarChart && <OverlayTable owner={a} host={b} />}

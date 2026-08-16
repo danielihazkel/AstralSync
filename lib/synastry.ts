@@ -2,8 +2,10 @@ import {
   DEFAULT_ORBS,
   PLANETS,
   compositeChart,
+  detectAngleAspects,
   detectCrossAspects,
   overlayHouses,
+  type AngleAspect,
   type Aspect,
   type AspectType,
   type CrossAspect,
@@ -36,12 +38,22 @@ export interface SynastrySide {
   overlayPlacements: Placement[];
 }
 
+/** Planet-to-angle contacts, both directions. Read-time like the aspects;
+ *  a solar side has no angles, so its list is empty. */
+export interface SynastryAngleContacts {
+  /** A's planets on B's ASC/MC, sorted by orb. */
+  aOnB: AngleAspect[];
+  /** B's planets on A's ASC/MC, sorted by orb. */
+  bOnA: AngleAspect[];
+}
+
 export interface SynastryData {
   a: SynastrySide;
   b: SynastrySide;
   /** `a` = person A's planet, `b` = person B's planet (person A is the
    *  inner wheel); sorted by orb ascending (tightest first). */
   aspects: CrossAspect[];
+  angleContacts: SynastryAngleContacts;
   /** Midpoint composite — the relationship's own chart. */
   composite: CompositeView;
 }
@@ -136,10 +148,20 @@ export function computeSynastry(
     b.chart.placements,
     DEFAULT_ORBS,
   ).sort((x, y) => x.orb - y.orb);
+  const byOrb = (list: AngleAspect[]) => list.sort((x, y) => x.orb - y.orb);
+  const angleContacts: SynastryAngleContacts = {
+    aOnB: b.chart.houses
+      ? byOrb(detectAngleAspects(a.chart.placements, b.chart.houses, DEFAULT_ORBS))
+      : [],
+    bOnA: a.chart.houses
+      ? byOrb(detectAngleAspects(b.chart.placements, a.chart.houses, DEFAULT_ORBS))
+      : [],
+  };
   return {
     a: toSide(a, b.chart),
     b: toSide(b, a.chart),
     aspects,
+    angleContacts,
     composite: computeComposite(a.chart, b.chart),
   };
 }

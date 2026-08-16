@@ -157,6 +157,37 @@ describe("computeSynastry", () => {
     }
   });
 
+  it("reports planet-to-angle contacts both directions, sorted by orb", () => {
+    const view = computeSynastry(SIDE_A, SIDE_B);
+    // Both charts are housed; ten planets against two angles at a 6° orb
+    // reliably yields contacts in each direction.
+    expect(view.angleContacts.aOnB.length).toBeGreaterThan(0);
+    expect(view.angleContacts.bOnA.length).toBeGreaterThan(0);
+    for (const list of [view.angleContacts.aOnB, view.angleContacts.bOnA]) {
+      for (let i = 1; i < list.length; i++) {
+        expect(list[i].orb).toBeGreaterThanOrEqual(list[i - 1].orb);
+      }
+    }
+    // Direction invariant: aOnB pairs A's planet longitudes with B's angles.
+    const bAngles = {
+      ascendant: CHART_B.houses!.ascendant,
+      mc: CHART_B.houses!.mc,
+    };
+    for (const c of view.angleContacts.aOnB) {
+      const lon = CHART_A.placements.find((p) => p.planet === c.planet)!.longitude;
+      let sep = Math.abs(((lon - bAngles[c.target]) % 360 + 360) % 360);
+      if (sep > 180) sep = 360 - sep;
+      expect(Math.abs(sep - c.angle)).toBeCloseTo(c.orb, 6);
+    }
+  });
+
+  it("yields no angle contacts against a solar side", () => {
+    const solarB = side(2, "Ben", chartOf(new Date(Date.UTC(1995, 5, 15)), "unknown"));
+    const view = computeSynastry(SIDE_A, solarB);
+    expect(view.angleContacts.aOnB).toEqual([]);
+    expect(view.angleContacts.bOnA.length).toBeGreaterThan(0);
+  });
+
   it("surfaces moon_sign uncertainty per side", () => {
     const uncertain: WheelChart = {
       ...CHART_A,
