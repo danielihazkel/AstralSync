@@ -50,6 +50,15 @@ enum ForecastKind {
   month
 }
 
+// Canonical union lives in lib/journalMeta.ts (client-safe); keep in sync.
+enum JournalMood {
+  very_low
+  low
+  neutral
+  high
+  very_high
+}
+
 // Imported once from GeoNames cities15000 (scripts/import-geonames.mts).
 model GeoCity {
   geonameId   Int       @id @map("geoname_id")
@@ -237,6 +246,11 @@ model JournalEntry {
   /// Civil local date the note is about (not when it was written).
   entryDate DateTime @map("entry_date") @db.Date
   bodyMd    String   @map("body_md") @db.Text
+  /// Optional 5-point mood for the day the note is about.
+  mood      JournalMood?
+  /// Normalized free-form tags as a JSON string array (MySQL has no scalar
+  /// lists); null = no tags, mirroring skyJson's null stance.
+  tagsJson  Json?    @map("tags_json")
   /// EntrySky JSON captured at create (recomputed only when entryDate is
   /// edited); null for pre-feature entries or when no snapshot existed.
   skyJson   Json?    @map("sky_json")

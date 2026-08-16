@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  JOURNAL_MOODS,
+  MAX_TAGS,
+  MAX_TAG_LENGTH,
+  normalizeTags,
+} from "./journalMeta";
 import type { ProfileBirthData } from "./snapshots";
 import { isValidTimeZone } from "./tzValidate";
 
@@ -173,28 +179,55 @@ function atMatchesEntryDate(v: { at?: string; entryDate?: string }): boolean {
   return v.at.slice(0, 10) === v.entryDate;
 }
 
+const journalMood = z.enum(JOURNAL_MOODS);
+
+/** Normalized tag list. Limits are checked after normalization and reject
+ *  (400) rather than truncate — the user should see why input was refused,
+ *  not silently lose tags. */
+const journalTags = z
+  .array(z.string().max(MAX_TAG_LENGTH * 2))
+  .max(50)
+  .transform(normalizeTags)
+  .refine((t) => t.length <= MAX_TAGS, {
+    message: `at most ${MAX_TAGS} tags`,
+  })
+  .refine((t) => t.every((s) => s.length <= MAX_TAG_LENGTH), {
+    message: `tags must be at most ${MAX_TAG_LENGTH} characters`,
+  });
+
 /** POST /api/profiles/[id]/journal body. */
 export const journalCreateSchema = z
   .object({
     entryDate: civilDateString,
     bodyMd: z.string().trim().min(1).max(10_000),
     at: journalAt.optional(),
+    mood: journalMood.optional(),
+    tags: journalTags.optional(),
   })
   .refine(atMatchesEntryDate, { message: "at must fall on entryDate" });
 
 export type JournalCreateInput = z.infer<typeof journalCreateSchema>;
 
 /** PUT /api/profiles/[id]/journal/[entryId] body — at least one field.
- *  `at` is only meaningful alongside an entryDate change. */
+ *  `at` is only meaningful alongside an entryDate change. `mood: null`
+ *  clears the mood; `tags: []` clears the tags (one clearing idiom per
+ *  field type). */
 export const journalUpdateSchema = z
   .object({
     entryDate: civilDateString.optional(),
     bodyMd: z.string().trim().min(1).max(10_000).optional(),
     at: journalAt.optional(),
+    mood: journalMood.nullable().optional(),
+    tags: journalTags.optional(),
   })
-  .refine((v) => v.entryDate !== undefined || v.bodyMd !== undefined, {
-    message: "nothing to update",
-  })
+  .refine(
+    (v) =>
+      v.entryDate !== undefined ||
+      v.bodyMd !== undefined ||
+      v.mood !== undefined ||
+      v.tags !== undefined,
+    { message: "nothing to update" },
+  )
   .refine(atMatchesEntryDate, { message: "at must fall on entryDate" });
 
 export type JournalUpdateInput = z.infer<typeof journalUpdateSchema>;

@@ -43,6 +43,8 @@ const entry = {
   id: 7,
   entryDate: "2026-08-01",
   bodyMd: "Saturn station day — everything felt slow.",
+  mood: null,
+  tags: [],
   sky,
   createdAt: new Date("2026-08-01T20:00:00.000Z"),
   updatedAt: new Date("2026-08-01T20:00:00.000Z"),
@@ -225,6 +227,41 @@ describe("POST /api/profiles/[id]/journal", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("passes mood and normalized tags through to the store", async () => {
+    mockCreate.mockResolvedValue({
+      ...entry,
+      mood: "high" as const,
+      tags: ["work"],
+    });
+    const res = await POST(
+      request("/api/profiles/1/journal", {
+        method: "POST",
+        body: JSON.stringify({ ...body, mood: "high", tags: [" Work "] }),
+      }),
+      params("1"),
+    );
+    expect(res.status).toBe(201);
+    expect(mockCreate).toHaveBeenCalledWith({
+      profileId: 1,
+      ...body,
+      mood: "high",
+      tags: ["work"],
+      sky,
+    });
+  });
+
+  it("rejects an unknown mood", async () => {
+    const res = await POST(
+      request("/api/profiles/1/journal", {
+        method: "POST",
+        body: JSON.stringify({ ...body, mood: "ecstatic" }),
+      }),
+      params("1"),
+    );
+    expect(res.status).toBe(400);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe("PUT /api/profiles/[id]/journal/[entryId]", () => {
@@ -276,6 +313,41 @@ describe("PUT /api/profiles/[id]/journal/[entryId]", () => {
     expect((await res.json()).entry.bodyMd).toBe("Edited.");
     expect(mockSky).not.toHaveBeenCalled();
     expect(mockUpdate).toHaveBeenCalledWith(1, 7, { bodyMd: "Edited." });
+  });
+
+  it("updates mood alone without touching body, tags or sky", async () => {
+    mockUpdate.mockResolvedValue({ ...entry, mood: "high" as const });
+    const res = await PUT(
+      request("/api/profiles/1/journal/7", {
+        method: "PUT",
+        body: JSON.stringify({ mood: "high" }),
+      }),
+      entryParams("1", "7"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockSky).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith(1, 7, {
+      bodyMd: undefined,
+      mood: "high",
+      tags: undefined,
+    });
+  });
+
+  it("clears mood with null and tags with []", async () => {
+    mockUpdate.mockResolvedValue(entry);
+    const res = await PUT(
+      request("/api/profiles/1/journal/7", {
+        method: "PUT",
+        body: JSON.stringify({ mood: null, tags: [] }),
+      }),
+      entryParams("1", "7"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockUpdate).toHaveBeenCalledWith(1, 7, {
+      bodyMd: undefined,
+      mood: null,
+      tags: [],
+    });
   });
 
   it("recomputes the sky when the entry moves to another date", async () => {

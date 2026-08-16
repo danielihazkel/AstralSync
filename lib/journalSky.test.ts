@@ -86,3 +86,46 @@ describe("journal schemas' `at` field", () => {
     ).toBe(false);
   });
 });
+
+describe("journal schemas' mood and tags", () => {
+  const base = { entryDate: "2026-08-01", bodyMd: "note" };
+
+  it("accepts a valid mood and rejects an unknown one", () => {
+    expect(
+      journalCreateSchema.safeParse({ ...base, mood: "very_high" }).success,
+    ).toBe(true);
+    expect(
+      journalCreateSchema.safeParse({ ...base, mood: "ecstatic" }).success,
+    ).toBe(false);
+  });
+
+  it("normalizes tags through the schema", () => {
+    const r = journalCreateSchema.safeParse({
+      ...base,
+      tags: [" Work ", "DREAMS", "work"],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.tags).toEqual(["work", "dreams"]);
+  });
+
+  it("rejects more than 10 distinct tags", () => {
+    const tags = Array.from({ length: 11 }, (_, i) => `tag${i}`);
+    expect(journalCreateSchema.safeParse({ ...base, tags }).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects an over-long tag rather than truncating", () => {
+    expect(
+      journalCreateSchema.safeParse({ ...base, tags: ["x".repeat(25)] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("counts a mood-only or tags-only update as an update", () => {
+    expect(journalUpdateSchema.safeParse({ mood: "low" }).success).toBe(true);
+    expect(journalUpdateSchema.safeParse({ mood: null }).success).toBe(true);
+    expect(journalUpdateSchema.safeParse({ tags: [] }).success).toBe(true);
+    expect(journalUpdateSchema.safeParse({}).success).toBe(false);
+  });
+});

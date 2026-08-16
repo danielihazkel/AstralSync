@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { CrossAspect, Placement } from "@astralsync/astro-core";
 import { prisma } from "./db";
+import type { JournalMood } from "./journalMeta";
 import { getTransitView, type TransitData } from "./transits";
 
 /**
@@ -58,6 +59,10 @@ export interface JournalEntryView {
   /** "YYYY-MM-DD" civil date the note is about. */
   entryDate: string;
   bodyMd: string;
+  /** Optional 5-point mood; null when the user didn't set one. */
+  mood: JournalMood | null;
+  /** Normalized tags; empty when none. */
+  tags: string[];
   /** Null for pre-feature entries or when no natal snapshot existed. */
   sky: EntrySky | null;
   createdAt: Date;
@@ -79,6 +84,8 @@ function serialize(row: {
   id: number;
   entryDate: Date;
   bodyMd: string;
+  mood: string | null;
+  tagsJson: Prisma.JsonValue;
   skyJson: Prisma.JsonValue;
   createdAt: Date;
   updatedAt: Date;
@@ -87,6 +94,8 @@ function serialize(row: {
     id: row.id,
     entryDate: dateString(row.entryDate),
     bodyMd: row.bodyMd,
+    mood: (row.mood as JournalMood | null) ?? null,
+    tags: (row.tagsJson as unknown as string[] | null) ?? [],
     sky: (row.skyJson as unknown as EntrySky | null) ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -122,6 +131,8 @@ export async function createJournalEntry(args: {
   profileId: number;
   entryDate: string;
   bodyMd: string;
+  mood?: JournalMood | null;
+  tags?: string[];
   /** The sky captured at save time; null when no snapshot existed. */
   sky?: EntrySky | null;
 }): Promise<JournalEntryView | null> {
@@ -135,6 +146,11 @@ export async function createJournalEntry(args: {
       profileId: args.profileId,
       entryDate: dateValue(args.entryDate),
       bodyMd: args.bodyMd,
+      mood: args.mood ?? null,
+      tagsJson:
+        args.tags && args.tags.length > 0
+          ? (args.tags as unknown as Prisma.InputJsonValue)
+          : Prisma.DbNull,
       skyJson: args.sky
         ? (args.sky as unknown as Prisma.InputJsonValue)
         : Prisma.DbNull,
@@ -151,6 +167,10 @@ export async function updateJournalEntry(
   patch: {
     entryDate?: string;
     bodyMd?: string;
+    /** Null clears the mood; undefined leaves it untouched. */
+    mood?: JournalMood | null;
+    /** Full replacement; [] clears. Undefined leaves tags untouched. */
+    tags?: string[];
     /** Only passed when entryDate changed — a body edit never touches the
      *  stored sky (the entry's date, and therefore its sky, is unchanged). */
     sky?: EntrySky | null;
@@ -166,6 +186,15 @@ export async function updateJournalEntry(
     data: {
       ...(patch.entryDate ? { entryDate: dateValue(patch.entryDate) } : {}),
       ...(patch.bodyMd !== undefined ? { bodyMd: patch.bodyMd } : {}),
+      ...(patch.mood !== undefined ? { mood: patch.mood } : {}),
+      ...(patch.tags !== undefined
+        ? {
+            tagsJson:
+              patch.tags.length > 0
+                ? (patch.tags as unknown as Prisma.InputJsonValue)
+                : Prisma.DbNull,
+          }
+        : {}),
       ...(patch.sky !== undefined
         ? {
             skyJson: patch.sky

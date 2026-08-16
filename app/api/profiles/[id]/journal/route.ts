@@ -51,7 +51,7 @@ export async function GET(
   return NextResponse.json({ entries }, { headers: NO_STORE });
 }
 
-/** POST { entryDate, bodyMd } → the created entry. */
+/** POST { entryDate, bodyMd, mood?, tags? } → the created entry. */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -72,9 +72,16 @@ export async function POST(
       { status: 400, headers: NO_STORE },
     );
   }
-  const { entryDate, bodyMd, at } = parsed.data;
+  const { entryDate, bodyMd, at, mood, tags } = parsed.data;
   const sky = await skyForEntry(id, entryDate, at);
-  const entry = await createJournalEntry({ profileId: id, entryDate, bodyMd, sky });
+  const entry = await createJournalEntry({
+    profileId: id,
+    entryDate,
+    bodyMd,
+    mood,
+    tags,
+    sky,
+  });
   if (entry === null) {
     return NextResponse.json(
       { error: "not_found" },

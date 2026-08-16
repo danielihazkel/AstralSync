@@ -26,7 +26,7 @@ async function parseIds(
   return id !== null && entryId !== null ? { id, entryId } : null;
 }
 
-/** PUT { entryDate?, bodyMd? } → the updated entry. */
+/** PUT { entryDate?, bodyMd?, mood?, tags? } → the updated entry. */
 export async function PUT(req: NextRequest, { params }: Params) {
   const ids = await parseIds(params);
   if (ids === null) {
@@ -44,13 +44,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
       { status: 400, headers: NO_STORE },
     );
   }
-  const { entryDate, bodyMd, at } = parsed.data;
-  // A body-only edit never touches the stored sky (the entry's date didn't
-  // change); moving the entry to another date recomputes it.
+  const { entryDate, bodyMd, at, mood, tags } = parsed.data;
+  // A date-less edit never touches the stored sky (the entry's date didn't
+  // change); moving the entry to another date recomputes it. Mood and tags
+  // are orthogonal to that rule.
+  const base = { bodyMd, mood, tags };
   const patch =
     entryDate !== undefined
-      ? { entryDate, bodyMd, sky: await skyForEntry(ids.id, entryDate, at) }
-      : { bodyMd };
+      ? { ...base, entryDate, sky: await skyForEntry(ids.id, entryDate, at) }
+      : base;
   const entry = await updateJournalEntry(ids.id, ids.entryId, patch);
   if (entry === null) {
     return NextResponse.json(
