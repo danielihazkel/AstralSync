@@ -9,6 +9,8 @@ export {
 } from "./aspects";
 export type { AspectDef } from "./aspects";
 export { detectCrossAspects } from "./crossAspects";
+export { detectAngleAspects, ANGLE_BODIES } from "./angleAspects";
+export type { AngleAspect, AngleBody } from "./angleAspects";
 export { positionsAt, overlayHouses } from "./positions";
 export {
   ascendant,
