@@ -83,8 +83,11 @@ export function findLongitudeCrossings(
 const SIGN_BOUNDARIES = Array.from({ length: 12 }, (_, i) => i * 30);
 
 /** Sampling steps that keep per-step motion far under the 90° wrap guard:
- *  the Moon moves ≤ ~15°/day, Mercury ≤ ~2.2°/day, Jupiter+ ≤ ~0.24°/day. */
-const INGRESS_STEP_MS: Record<Planet, number> = {
+ *  the Moon moves ≤ ~15°/day, Mercury ≤ ~2.2°/day, Jupiter+ ≤ ~0.24°/day.
+ *  Safe for any longitude/aspect scan against a slow or fixed target, not
+ *  just ingresses — exported so new scan callers don't grow their own
+ *  step tables. */
+export const PLANET_SCAN_STEP_MS: Record<Planet, number> = {
   sun: MS_PER_DAY,
   moon: MS_PER_DAY / 4,
   mercury: MS_PER_DAY,
@@ -119,7 +122,7 @@ export function findIngresses(
     SIGN_BOUNDARIES,
     from,
     to,
-    INGRESS_STEP_MS[planet],
+    PLANET_SCAN_STEP_MS[planet],
   );
   return hits.map((h) => {
     const boundary = Math.round(norm360(h.target) / 30) % 12;
@@ -231,7 +234,7 @@ export function findMundaneAspects(
         angles,
         from,
         to,
-        INGRESS_STEP_MS[a] / 2,
+        PLANET_SCAN_STEP_MS[a] / 2,
       );
       for (const h of hits) out.push({ a, b, angle: h.angle, utc: h.utc });
     }

@@ -5,6 +5,7 @@ import {
   MAX_TAG_LENGTH,
   normalizeTags,
 } from "./journalMeta";
+import type { AspectType, Planet } from "@astralsync/astro-core";
 import type { ProfileBirthData } from "./snapshots";
 import { isValidTimeZone } from "./tzValidate";
 
@@ -266,6 +267,44 @@ export const transitCalendarQuerySchema = z
   );
 
 export type TransitCalendarQuery = z.infer<typeof transitCalendarQuerySchema>;
+
+/** Literal copies of the astro-core vocabularies (this module is imported
+ *  client-side, so no value imports of the ephemeris-bearing package); the
+ *  `satisfies` clauses keep them honest against the real types. */
+const SEARCH_PLANETS = [
+  "sun",
+  "moon",
+  "mercury",
+  "venus",
+  "mars",
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto",
+] as const satisfies readonly Planet[];
+
+const SEARCH_ASPECTS = [
+  "conjunction",
+  "sextile",
+  "square",
+  "trine",
+  "opposition",
+] as const satisfies readonly AspectType[];
+
+/** GET /api/transits/[id]/search query: one (transiting planet, major
+ *  aspect, natal target) triple and how many exact hits to return. `from`
+ *  pins the search start (defaults to now); the scan itself is clamped to
+ *  the ephemeris' 1700–2200 validity window. */
+export const transitSearchQuerySchema = z.object({
+  planet: z.enum(SEARCH_PLANETS),
+  target: z.enum([...SEARCH_PLANETS, "ascendant", "mc"] as const),
+  aspect: z.enum(SEARCH_ASPECTS),
+  count: z.coerce.number().int().min(1).max(10).default(5),
+  from: z.iso.datetime({ offset: true }).optional(),
+});
+
+export type TransitSearchQuery = z.infer<typeof transitSearchQuerySchema>;
 
 /** /api/profiles/[id]/forecast query/body: which forecast cell. `date` is a
  *  testing hook ("compute the period containing this civil date"), defaulting

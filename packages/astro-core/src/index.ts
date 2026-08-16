@@ -51,6 +51,7 @@ export {
   findAspectHits,
   findMundaneAspects,
   findStations,
+  PLANET_SCAN_STEP_MS,
 } from "./scan";
 export type {
   ScanHit,

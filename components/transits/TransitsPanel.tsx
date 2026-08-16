@@ -19,10 +19,11 @@ import {
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import TransitCalendarView from "./TransitCalendarView";
+import TransitSearchView from "./TransitSearchView";
 import { useTabList } from "@/components/useTabList";
 import styles from "./transits.module.css";
 
-const VIEWS = ["now", "calendar"] as const;
+const VIEWS = ["now", "calendar", "search"] as const;
 
 const TransitWheel = dynamic(() => import("./TransitWheel"), {
   loading: () => <WheelSkeleton />,
@@ -57,7 +58,7 @@ export default function TransitsPanel({
   llmEnabled: boolean;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
-  const [view, setView] = useState<"now" | "calendar">("now");
+  const [view, setView] = useState<(typeof VIEWS)[number]>("now");
   // Null until localStorage is read post-mount — the first fetch waits so a
   // custom setting doesn't trigger a default-orbs fetch first.
   const [orbs, setOrbs] = useState<OrbSettings | null>(null);
@@ -125,6 +126,7 @@ export default function TransitsPanel({
     >
       <button {...getTabProps(0)}>Now</button>
       <button {...getTabProps(1)}>Calendar</button>
+      <button {...getTabProps(2)}>Search</button>
     </div>
   );
 
@@ -134,6 +136,17 @@ export default function TransitsPanel({
         {viewSwitch}
         <div {...panelProps} className={styles.tabPanel}>
           <TransitCalendarView profileId={profileId} />
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "search") {
+    return (
+      <div className={styles.panel}>
+        {viewSwitch}
+        <div {...panelProps} className={styles.tabPanel}>
+          <TransitSearchView profileId={profileId} chart={chart} />
         </div>
       </div>
     );

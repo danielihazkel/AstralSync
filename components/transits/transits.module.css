@@ -34,6 +34,15 @@
   margin-bottom: 0.5rem;
 }
 
+/* The Search view's query row: three selects + submit, wrapping on narrow
+   screens (the DayPicker locationRow pattern). */
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  flex-wrap: wrap;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
