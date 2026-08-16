@@ -8,27 +8,34 @@ import type { NodeVariant } from "@astralsync/astro-core";
  * Parse logic is pure so node-env tests cover it without a DOM.
  */
 
+export type ChartView = "wheel" | "table";
+
 export interface ChartDisplaySettings {
   showPoints: boolean;
   nodeVariant: NodeVariant;
   showMinorAspects: boolean;
+  /** Preferred chart rendering: the SVG wheel or the accessible tables. */
+  chartView: ChartView;
 }
 
 export const DEFAULT_CHART_SETTINGS: ChartDisplaySettings = {
   showPoints: true,
   nodeVariant: "true",
   showMinorAspects: false,
+  chartView: "wheel",
 };
 
 export const SHOW_POINTS_KEY = "chart.showPoints";
 export const NODE_VARIANT_KEY = "chart.nodeVariant";
 export const SHOW_MINOR_ASPECTS_KEY = "chart.showMinorAspects";
+export const CHART_VIEW_KEY = "chart.view";
 
 /** Pure: raw stored strings → valid settings (unknown values → defaults). */
 export function sanitizeChartSettings(raw: {
   showPoints?: string | null;
   nodeVariant?: string | null;
   showMinorAspects?: string | null;
+  chartView?: string | null;
 }): ChartDisplaySettings {
   return {
     // Historically stored as String(checked), so "true" may exist too —
@@ -36,6 +43,7 @@ export function sanitizeChartSettings(raw: {
     showPoints: raw.showPoints !== "false",
     nodeVariant: raw.nodeVariant === "mean" ? "mean" : "true",
     showMinorAspects: raw.showMinorAspects === "true",
+    chartView: raw.chartView === "table" ? "table" : "wheel",
   };
 }
 
@@ -45,6 +53,7 @@ export function loadChartSettings(): ChartDisplaySettings {
       showPoints: localStorage.getItem(SHOW_POINTS_KEY),
       nodeVariant: localStorage.getItem(NODE_VARIANT_KEY),
       showMinorAspects: localStorage.getItem(SHOW_MINOR_ASPECTS_KEY),
+      chartView: localStorage.getItem(CHART_VIEW_KEY),
     });
   } catch {
     return DEFAULT_CHART_SETTINGS;
@@ -60,6 +69,8 @@ export function saveChartSettings(s: ChartDisplaySettings): void {
     if (s.showMinorAspects)
       localStorage.setItem(SHOW_MINOR_ASPECTS_KEY, "true");
     else localStorage.removeItem(SHOW_MINOR_ASPECTS_KEY);
+    if (s.chartView === "table") localStorage.setItem(CHART_VIEW_KEY, "table");
+    else localStorage.removeItem(CHART_VIEW_KEY);
   } catch {
     // Storage full/blocked — the session keeps the in-memory value.
   }

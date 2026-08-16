@@ -22,8 +22,27 @@ describe("sanitizeChartSettings", () => {
         showPoints: "false",
         nodeVariant: "mean",
         showMinorAspects: "true",
+        chartView: "table",
       }),
-    ).toEqual({ showPoints: false, nodeVariant: "mean", showMinorAspects: true });
+    ).toEqual({
+      showPoints: false,
+      nodeVariant: "mean",
+      showMinorAspects: true,
+      chartView: "table",
+    });
+  });
+
+  it("reads only 'table' as a non-default chart view", () => {
+    expect(sanitizeChartSettings({ chartView: "table" }).chartView).toBe(
+      "table",
+    );
+    expect(sanitizeChartSettings({ chartView: "wheel" }).chartView).toBe(
+      "wheel",
+    );
+    expect(sanitizeChartSettings({ chartView: "banana" }).chartView).toBe(
+      "wheel",
+    );
+    expect(sanitizeChartSettings({}).chartView).toBe("wheel");
   });
 
   it("accepts the legacy String(checked) writes", () => {

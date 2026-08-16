@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type {
   Aspect,
   NodeVariant,
@@ -8,7 +8,12 @@ import type {
   PointPlacement,
 } from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
-import { loadChartSettings, saveChartSettings } from "@/lib/chartSettings";
+import {
+  loadChartSettings,
+  saveChartSettings,
+  type ChartView,
+} from "@/lib/chartSettings";
+import { useTabList } from "@/components/useTabList";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -29,6 +34,7 @@ import {
   POINT_GLYPH_CHARS,
   SIGN_GLYPH_CHARS,
 } from "./glyphs";
+import { AspectTable, PlacementsTable } from "./ChartTables";
 import DownloadChartButton from "./DownloadChartButton";
 import PlacementDetail, { type Selection } from "./PlacementDetail";
 import SolarChartNotice from "./SolarChartNotice";
@@ -80,6 +86,7 @@ export default function ChartWheel({
   points = null,
   minorAspects = null,
   downloadName = "chart",
+  viewOverride,
 }: {
   chart: WheelChart;
   points?: ChartPoints | null;
@@ -87,18 +94,42 @@ export default function ChartWheel({
    *  with fixed tight orbs. Null hides the toggle entirely. */
   minorAspects?: Aspect[] | null;
   downloadName?: string;
+  /** Pin the view and hide the switch — the print report forces "wheel"
+   *  because it renders its own tables. */
+  viewOverride?: "wheel";
 }) {
   // Preferences load after mount (localStorage is unavailable during SSR);
   // the pre-hydration frame renders the defaults.
   const [showPoints, setShowPoints] = useState(true);
   const [nodeVariant, setNodeVariant] = useState<NodeVariant>("true");
   const [showMinors, setShowMinors] = useState(false);
+  const [chartView, setChartView] = useState<ChartView>("wheel");
   useEffect(() => {
     const s = loadChartSettings();
     setShowPoints(s.showPoints);
     setNodeVariant(s.nodeVariant);
     setShowMinors(s.showMinorAspects);
+    setChartView(s.chartView);
   }, []);
+  const view: ChartView = viewOverride ?? chartView;
+  // Several wheels can share a page (CyclesPanel renders up to four), so the
+  // tablist ids must be per-instance.
+  const viewIdBase = useId();
+  const viewTabs = useTabList({
+    count: 2,
+    selected: view === "wheel" ? 0 : 1,
+    onSelect: (i) => {
+      const next: ChartView = i === 1 ? "table" : "wheel";
+      setChartView(next);
+      saveChartSettings({
+        showPoints,
+        nodeVariant,
+        showMinorAspects: showMinors,
+        chartView: next,
+      });
+    },
+    idBase: viewIdBase,
+  });
   const activePoints = useMemo(
     () => (points && showPoints ? points[nodeVariant] : []),
     [points, showPoints, nodeVariant],
@@ -128,6 +159,12 @@ export default function ChartWheel({
       to: chordEnd(a.b),
     }));
   }, [minorAspects, showMinors, chart, layout]);
+  // Table view: majors by orb, minors appended (also by orb) when toggled.
+  const tableAspects = useMemo(() => {
+    const majors = [...chart.aspects].sort((a, b) => a.orb - b.orb);
+    if (!showMinors || !minorAspects) return majors;
+    return [...majors, ...[...minorAspects].sort((a, b) => a.orb - b.orb)];
+  }, [chart.aspects, showMinors, minorAspects]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [pinned, setPinned] = useState<Selection>(null);
   const [hovered, setHovered] = useState<Selection>(null);
@@ -178,14 +215,47 @@ export default function ChartWheel({
     );
   }
 
+  // The svg keeps its descriptive aria-label, so the tabpanel's labelledby
+  // (which would just say "Wheel") is dropped; role="group" — not "img" —
+  // because the subtree holds focusable planet/aspect buttons.
+  const wheelPanel = viewTabs.getPanelProps(0);
+  const svgA11y = viewOverride
+    ? { role: "group" as const }
+    : { role: wheelPanel.role, id: wheelPanel.id, tabIndex: wheelPanel.tabIndex };
+
   return (
     <div className={styles.wheelWrap}>
       <div className={styles.wheelColumn}>
+        {!viewOverride && (
+          <div
+            className={styles.viewSwitch}
+            role="tablist"
+            aria-label="Chart display"
+          >
+            <button {...viewTabs.getTabProps(0)}>Wheel</button>
+            <button {...viewTabs.getTabProps(1)}>Table</button>
+          </div>
+        )}
+        {view === "table" ? (
+          <div {...viewTabs.getPanelProps(1)}>
+            <PlacementsTable
+              placements={chart.placements}
+              points={activePoints}
+              showHouses={chart.houses !== null}
+              moonUncertain={moonUncertain}
+              moonReason={
+                chart.uncertainties.find((u) => u.field === "moon_sign")
+                  ?.reason
+              }
+            />
+            <AspectTable aspects={tableAspects} />
+          </div>
+        ) : (
         <svg
           ref={svgRef}
           viewBox={`0 0 ${layout.size} ${layout.size}`}
           className={styles.wheel}
-          role="img"
+          {...svgA11y}
           aria-label={
             chart.isSolarChart
               ? "Solar chart wheel (no houses — birth time unknown)"
@@ -479,6 +549,7 @@ export default function ChartWheel({
             </g>
           ))}
         </svg>
+        )}
 
         {(points || (minorAspects && minorAspects.length > 0)) && (
           <div className={styles.pointControls}>
@@ -493,6 +564,7 @@ export default function ChartWheel({
                     showPoints: e.target.checked,
                     nodeVariant,
                     showMinorAspects: showMinors,
+                    chartView,
                   });
                   if (!e.target.checked) {
                     setPinned((cur) => (cur?.kind === "point" ? null : cur));
@@ -515,6 +587,7 @@ export default function ChartWheel({
                       showPoints,
                       nodeVariant: v,
                       showMinorAspects: showMinors,
+                      chartView,
                     });
                   }}
                 >
@@ -534,6 +607,7 @@ export default function ChartWheel({
                       showPoints,
                       nodeVariant,
                       showMinorAspects: e.target.checked,
+                      chartView,
                     });
                   }}
                 />{" "}
@@ -543,7 +617,9 @@ export default function ChartWheel({
           </div>
         )}
 
-        <DownloadChartButton svgRef={svgRef} baseName={downloadName} />
+        {view === "wheel" && (
+          <DownloadChartButton svgRef={svgRef} baseName={downloadName} />
+        )}
 
         {chart.houses?.fallbackApplied && (
           <p className={styles.fallbackChip}>
@@ -553,12 +629,14 @@ export default function ChartWheel({
         {chart.isSolarChart && <SolarChartNotice chart={chart} />}
       </div>
 
-      <PlacementDetail
-        chart={chart}
-        points={activePoints}
-        selection={selection}
-        pinned={pinned}
-      />
+      {view === "wheel" && (
+        <PlacementDetail
+          chart={chart}
+          points={activePoints}
+          selection={selection}
+          pinned={pinned}
+        />
+      )}
     </div>
   );
 }

@@ -115,6 +115,9 @@ export default async function PrintReportPage({
           chart={chart}
           points={points}
           downloadName={`${profile.displayName} chart`}
+          // The report has its own placements/aspect tables below — a
+          // table-preferring reader would otherwise get them twice.
+          viewOverride="wheel"
         />
         <ChartPatterns patterns={detectPatterns(chart.placements)} />
       </section>

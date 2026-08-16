@@ -221,6 +221,45 @@
   vertical-align: middle;
 }
 
+/* Wheel | Table switch (transits.module.css .viewSwitch vocabulary) */
+.viewSwitch {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.viewSwitch button[aria-selected="true"] {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+}
+
+/* Table twin of the wheel (transits.module.css .table vocabulary) */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: normal;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.75rem 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 0.35rem 0.75rem 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tableGlyph {
+  color: var(--accent);
+  font-family: "Segoe UI Symbol", "Noto Sans Symbols", "Apple Symbols", serif;
+  margin-right: 0.4rem;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

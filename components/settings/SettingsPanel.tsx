@@ -176,6 +176,20 @@ export default function SettingsPanel() {
               />{" "}
               Show minor aspects when available
             </label>
+            <label className={styles.field}>
+              Default chart view:{" "}
+              <select
+                value={chart.chartView}
+                onChange={(e) =>
+                  changeChart({
+                    chartView: e.target.value === "table" ? "table" : "wheel",
+                  })
+                }
+              >
+                <option value="wheel">Wheel</option>
+                <option value="table">Table</option>
+              </select>
+            </label>
           </div>
         )}
       </section>
