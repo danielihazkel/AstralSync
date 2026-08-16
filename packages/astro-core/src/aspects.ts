@@ -1,4 +1,4 @@
-import { separation } from "./angles";
+import { angleDiff, separation } from "./angles";
 import type { Aspect, AspectType, OrbConfig, Placement, Planet } from "./types";
 import { DEFAULT_ORBS } from "./types";
 
@@ -43,6 +43,30 @@ function limitFor(def: AspectDef, a: Planet, b: Planet, orbs: OrbConfig): number
   return def.class === "minor"
     ? (orbs.minor ?? DEFAULT_MINOR_ORB)
     : maxOrb(a, b, orbs);
+}
+
+/**
+ * Whether an aspect is applying (its orb is closing) at the instant the
+ * longitudes and speeds describe. Speeds are degrees/day; a static reference
+ * — a natal position under a transit, or a chart angle — passes speed 0.
+ * An exactly-perfected aspect (orb rate 0) reads as separating: the closing
+ * is over. Display-grade math, deliberately not a root finder.
+ */
+export function isApplying(
+  lonA: number,
+  speedA: number,
+  lonB: number,
+  speedB: number,
+  exactAngle: number,
+): boolean {
+  const delta = angleDiff(lonA, lonB); // signed (-180, 180]
+  const sep = Math.abs(delta);
+  // How the absolute separation changes as A moves relative to B; at
+  // delta = 0 the separation is momentarily increasing whichever way.
+  const sepRate = (delta >= 0 ? 1 : -1) * (speedA - speedB);
+  // The orb closes when the separation moves toward the exact angle.
+  const orbRate = (sep >= exactAngle ? 1 : -1) * sepRate;
+  return orbRate < 0;
 }
 
 /** Detect aspects between all placement pairs. Each pair yields at most one

@@ -2,6 +2,7 @@ export * from "./types";
 export { buildChart, signOf } from "./chart";
 export {
   detectAspects,
+  isApplying,
   maxOrb,
   MAJOR_ASPECTS,
   MINOR_ASPECTS,

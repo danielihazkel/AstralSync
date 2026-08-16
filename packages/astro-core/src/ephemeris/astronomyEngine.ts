@@ -37,6 +37,13 @@ export const astronomyEngineProvider: EphemerisProvider = {
     return angleDiff(after, before) < 0;
   },
 
+  longitudeSpeed(planet: Planet, utc: Date): number {
+    const dtMs = 3_600_000; // ±1 hour, same difference isRetrograde signs on
+    const before = longitudeOfDate(planet, new Date(utc.getTime() - dtMs));
+    const after = longitudeOfDate(planet, new Date(utc.getTime() + dtMs));
+    return angleDiff(after, before) * 12; // per 2 h → per day
+  },
+
   siderealTimeDeg(utc: Date): number {
     return norm360(Astronomy.SiderealTime(utc) * 15);
   },
