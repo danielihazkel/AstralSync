@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moonPhaseFromLongitudes, moonPhaseName } from "./moonPhase";
+import { isWaxing, moonPhaseFromLongitudes, moonPhaseName } from "./moonPhase";
 
 describe("moonPhaseName", () => {
   it("names the cardinal points inside their ±11.25° bands", () => {
@@ -42,5 +42,20 @@ describe("moonPhaseFromLongitudes", () => {
     expect(moonPhaseFromLongitudes(350, 80)).toBe("First Quarter");
     // Sun at 20°, Moon at 350° → elongation 330°.
     expect(moonPhaseFromLongitudes(20, 350)).toBe("Waning Crescent");
+  });
+});
+
+describe("isWaxing", () => {
+  it("is true for elongations in [0°, 180°), false beyond", () => {
+    expect(isWaxing(10, 10)).toBe(true); // exact new — light beginning
+    expect(isWaxing(10, 100)).toBe(true); // first quarter
+    expect(isWaxing(10, 189.9)).toBe(true); // just before full
+    expect(isWaxing(10, 190)).toBe(false); // exact full — light waning
+    expect(isWaxing(10, 280)).toBe(false); // third quarter
+  });
+
+  it("wraps across 0° Aries", () => {
+    expect(isWaxing(350, 80)).toBe(true); // elongation 90°
+    expect(isWaxing(20, 350)).toBe(false); // elongation 330°
   });
 });

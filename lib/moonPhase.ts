@@ -27,3 +27,9 @@ export function moonPhaseFromLongitudes(
 ): string {
   return moonPhaseName(moonLon - sunLon);
 }
+
+/** True while the Moon gains light: phase angle in [0°, 180°). The names
+ *  above encode this only in their strings; scoring wants the boolean. */
+export function isWaxing(sunLon: number, moonLon: number): boolean {
+  return (((moonLon - sunLon) % 360) + 360) % 360 < 180;
+}

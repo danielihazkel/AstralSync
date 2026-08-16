@@ -156,6 +156,125 @@ describe("scoreDay", () => {
     expect(first.ingresses.length).toBeGreaterThan(0);
   });
 
+  it("scores the Moon phase by intent, inverted for commitment", () => {
+    // 2024-04-10 was two days after the Apr 8 new moon — waxing.
+    const growth = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: "growth",
+    });
+    const waxes = growth.windows[0].factors.find(
+      (f) => f.label === "Waxing Moon favors beginnings",
+    );
+    expect(waxes?.score).toBe(1);
+
+    const commit = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: "commitment",
+    });
+    const offPhase = commit.windows[0].factors.find((f) =>
+      f.label.startsWith("Waxing Moon"),
+    );
+    expect(offPhase?.score).toBe(0);
+
+    // 2024-04-04 was before that new moon — waning: commitment gets the
+    // credit, growth gets the informational reading.
+    const waningCommit = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 4,
+      location: null,
+      intent: "commitment",
+    });
+    const consolidates = waningCommit.windows[0].factors.find(
+      (f) => f.label === "Waning Moon suits consolidation",
+    );
+    expect(consolidates?.score).toBe(1);
+    const noIntent = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: null,
+    });
+    expect(
+      noIntent.windows[0].factors.some((f) => f.label.includes("Moon fav")),
+    ).toBe(false);
+  });
+
+  it("penalizes a combust intent planet", () => {
+    // Mercury's inferior conjunction fell on 2024-04-11: on the 10th it sat
+    // a degree or two from the Sun — combust, well inside 8.5°.
+    const day = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: "communication",
+    });
+    const combust = day.windows[0].factors.find(
+      (f) => f.label === "Mercury is combust",
+    );
+    expect(combust?.score).toBe(-2);
+    // The Sun intent never reads its own solar condition.
+    const sunDay = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: "visibility",
+    });
+    expect(
+      sunDay.windows[0].factors.some((f) => f.label.includes("cazimi")),
+    ).toBe(false);
+  });
+
+  it("reads dignity for the elected Ascendant ruler and hour ruler", () => {
+    // 2024-04-10: Sun exalted in Aries, Venus exalted in Pisces — both rule
+    // hours (and rising signs) somewhere in any 24-hour day.
+    const day = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: NYC,
+      intent: null,
+    });
+    const factors = day.windows.flatMap((w) => w.factors);
+    const hourDignities = factors.filter((f) =>
+      /^Hour ruler .+ \((domicile|exaltation|detriment|fall)\)$/.test(f.label),
+    );
+    expect(hourDignities.length).toBeGreaterThan(0);
+    const ascDignities = factors.filter((f) =>
+      / rises; ruler .+ \((domicile|exaltation|detriment|fall)\)$/.test(
+        f.label,
+      ),
+    );
+    expect(ascDignities.length).toBeGreaterThan(0);
+    for (const f of [...hourDignities, ...ascDignities]) {
+      expect([-1, 1]).toContain(f.score);
+      const dignified = /(domicile|exaltation)\)$/.test(f.label);
+      expect(f.score).toBe(dignified ? 1 : -1);
+    }
+    // Chart-of-the-moment factors need a location.
+    const dayless = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: null,
+    });
+    expect(
+      dayless.windows[0].factors.some(
+        (f) => f.label.includes("Hour ruler") || f.label.includes("rises;"),
+      ),
+    ).toBe(false);
+  });
+
   it("keeps every intent mapped to a classical planet", () => {
     for (const planet of Object.values(INTENT_PLANETS)) {
       expect([

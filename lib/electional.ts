@@ -1,8 +1,14 @@
 import {
+  ascendant,
   astronomyEngineProvider,
+  essentialDignity,
   findAspectHits,
   findIngresses,
+  meanObliquity,
+  norm360,
   signOf,
+  solarCondition,
+  TRADITIONAL_RULERS,
   type Planet,
   type Sign,
 } from "@astralsync/astro-core";
@@ -13,6 +19,7 @@ import {
 } from "@astralsync/hebrew-core";
 import { memoizeByMs } from "./ephemerisMemo";
 import { LruMap } from "./lruCache";
+import { isWaxing } from "./moonPhase";
 import type { HomeLocation } from "./today";
 
 /**
@@ -20,11 +27,18 @@ import type { HomeLocation } from "./today";
  * transparent classical rules — no AI, every window lists the factors that
  * moved it. Client-side and DB-free like lib/skyCalendar.ts.
  *
- * v1 factor set (deliberately small and defensible):
+ * Factor set (small and defensible; each factor names itself in the list):
  *  - Moon void of course → the window is an "avoid", full stop.
  *  - The Moon's applying aspect: harmonious to a benefic lifts, hard to a
  *    malefic drags.
  *  - Planetary hour and day ruler matching the chosen intent.
+ *  - Moon phase vs the intent: waxing favors beginnings (+1), except the
+ *    Saturnian commitment intent, which prefers a waning consolidation.
+ *  - The intent planet's solar condition: cazimi +2, combust −2, under the
+ *    beams −1.
+ *  - With a location: the elected Ascendant's ruler — essential dignity ±1,
+ *    combustion −1 — and the hour ruler's essential dignity ±1, both read
+ *    at the window's midpoint.
  *  - Mercury retrograde: a penalty for Mercury-ruled intents, otherwise a
  *    listed caution.
  * Moon-sign scoring is deliberately display-only — the doctrine is contested.
@@ -239,6 +253,27 @@ export function scoreDay(opts: {
   const intentPlanet = intent ? INTENT_PLANETS[intent] : null;
   const mercuryRetrograde = eph.isRetrograde("mercury", noon);
 
+  // Day-level conditions, read once at local noon like the Mercury flag:
+  // the phase and a planet's solar separation drift far slower than a day.
+  const sunNoonLon = eph.eclipticLongitude("sun", noon);
+  const moonWaxing = isWaxing(sunNoonLon, eph.eclipticLongitude("moon", noon));
+  const intentSolar =
+    intentPlanet && intentPlanet !== "sun"
+      ? solarCondition(eph.eclipticLongitude(intentPlanet, noon), sunNoonLon)
+      : null;
+
+  // Window-midpoint longitudes: one memoized sampler per planet, so the
+  // Ascendant ruler, hour ruler and Sun share evaluations when they meet.
+  const lonSamplers = new Map<Planet, (t: Date) => number>();
+  const planetLonAt = (planet: Planet, t: Date): number => {
+    let fn = lonSamplers.get(planet);
+    if (!fn) {
+      fn = memoizeByMs((x) => eph.eclipticLongitude(planet, x));
+      lonSamplers.set(planet, fn);
+    }
+    return fn(t);
+  };
+
   const planetaryDay = location
     ? planetaryDayHours({
         civilDate: { year, month, day },
@@ -287,6 +322,89 @@ export function scoreDay(opts: {
     }
     if (intentPlanet && dayRuler === intentPlanet) {
       factors.push({ label: `${cap(intentPlanet)} rules the day`, score: 1 });
+    }
+
+    // Moon phase vs intent. Commitment is the one consolidating intent —
+    // it prefers the waning half; every other intent is a beginning. The
+    // off-phase reading stays informational (score 0), not a penalty.
+    if (intentPlanet) {
+      if (intent === "commitment") {
+        factors.push(
+          moonWaxing
+            ? { label: "Waxing Moon (growth over consolidation)", score: 0 }
+            : { label: "Waning Moon suits consolidation", score: 1 },
+        );
+      } else {
+        factors.push(
+          moonWaxing
+            ? { label: "Waxing Moon favors beginnings", score: 1 }
+            : {
+                label: "Waning Moon (better for release than launch)",
+                score: 0,
+              },
+        );
+      }
+    }
+
+    if (intentSolar && intentPlanet) {
+      factors.push(
+        intentSolar === "cazimi"
+          ? {
+              label: `${cap(intentPlanet)} is cazimi — in the heart of the Sun`,
+              score: 2,
+            }
+          : intentSolar === "combust"
+            ? { label: `${cap(intentPlanet)} is combust`, score: -2 }
+            : {
+                label: `${cap(intentPlanet)} is under the Sun's beams`,
+                score: -1,
+              },
+      );
+    }
+
+    // Chart-of-the-moment factors need a real timed window and a location:
+    // the elected Ascendant's ruler and the hour ruler, read at the window
+    // midpoint. Emitted only when non-neutral so quiet windows stay quiet.
+    if (location && span.ruler) {
+      const mid = new Date((span.start + span.end) / 2);
+      const ramc = norm360(eph.siderealTimeDeg(mid) + location.lng);
+      const ascSign = signOf(
+        ascendant(ramc, location.lat, meanObliquity(mid)),
+      );
+      const ascRuler = TRADITIONAL_RULERS[ascSign];
+      const ascRulerSign = signOf(planetLonAt(ascRuler, mid));
+      const ascDignity = essentialDignity(ascRuler, ascRulerSign);
+      if (ascDignity) {
+        factors.push({
+          label: `${cap(ascSign)} rises; ruler ${cap(ascRuler)} in ${cap(ascRulerSign)} (${ascDignity})`,
+          score:
+            ascDignity === "domicile" || ascDignity === "exaltation" ? 1 : -1,
+        });
+      }
+      if (
+        ascRuler !== "sun" &&
+        solarCondition(
+          planetLonAt(ascRuler, mid),
+          planetLonAt("sun", mid),
+        ) === "combust"
+      ) {
+        factors.push({
+          label: `Ascendant ruler ${cap(ascRuler)} is combust`,
+          score: -1,
+        });
+      }
+
+      const hourSign = signOf(planetLonAt(span.ruler, mid));
+      const hourDignity = essentialDignity(span.ruler, hourSign);
+      if (hourDignity) {
+        factors.push({
+          label: `Hour ruler ${cap(span.ruler)} in ${cap(hourSign)} (${hourDignity})`,
+          score:
+            hourDignity === "domicile" || hourDignity === "exaltation"
+              ? 1
+              : -1,
+        });
+      }
     }
 
     if (mercuryRetrograde) {
