@@ -1,4 +1,5 @@
 import type {
+  AngleBody,
   AspectType,
   HouseSystem,
   Planet,
@@ -36,6 +37,18 @@ export const PLANET_NAMES: Record<Planet, string> = {
   uranus: "Uranus",
   neptune: "Neptune",
   pluto: "Pluto",
+};
+
+/** The chart angles for read-time angle-aspect rows ("Venus conj Ascendant"). */
+export const ANGLE_NAMES: Record<AngleBody, string> = {
+  ascendant: "Ascendant",
+  mc: "Midheaven",
+};
+
+/** Compact angle markers for the glyph slot in tables. */
+export const ANGLE_GLYPH_LABELS: Record<AngleBody, string> = {
+  ascendant: "ASC",
+  mc: "MC",
 };
 
 /** Calculated chart points (nodes, Lilith, Fortune) — ephemeral, never stored. */

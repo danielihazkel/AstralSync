@@ -2,11 +2,13 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type {
+  AngleAspect,
   Aspect,
   NodeVariant,
   Planet,
   PointPlacement,
 } from "@astralsync/astro-core";
+import type { AspectMotion } from "@/lib/aspectMotion";
 import type { WheelChart } from "@/lib/view-types";
 import {
   loadChartSettings,
@@ -85,6 +87,8 @@ export default function ChartWheel({
   chart,
   points = null,
   minorAspects = null,
+  angleAspects = null,
+  aspectMotion,
   downloadName = "chart",
   viewOverride,
 }: {
@@ -93,6 +97,12 @@ export default function ChartWheel({
   /** Read-time minor-aspect overlay (never stored); computed server-side
    *  with fixed tight orbs. Null hides the toggle entirely. */
   minorAspects?: Aspect[] | null;
+  /** Read-time aspects to the ASC/MC (never stored) — table view only; the
+   *  wheel's chord layout stays planet-to-planet. */
+  angleAspects?: AngleAspect[] | null;
+  /** Applying/separating verdicts for the table view (birth-instant speeds,
+   *  computed server-side). */
+  aspectMotion?: AspectMotion;
   downloadName?: string;
   /** Pin the view and hide the switch — the print report forces "wheel"
    *  because it renders its own tables. */
@@ -248,7 +258,11 @@ export default function ChartWheel({
                   ?.reason
               }
             />
-            <AspectTable aspects={tableAspects} />
+            <AspectTable
+              aspects={tableAspects}
+              angleAspects={angleAspects ?? []}
+              motion={aspectMotion}
+            />
           </div>
         ) : (
         <svg

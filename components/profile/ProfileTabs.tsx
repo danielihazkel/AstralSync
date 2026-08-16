@@ -10,7 +10,8 @@ import type {
   ProfileData,
   WheelChart,
 } from "@/lib/view-types";
-import type { Aspect, ChartPattern } from "@astralsync/astro-core";
+import type { AngleAspect, Aspect, ChartPattern } from "@astralsync/astro-core";
+import type { AspectMotion } from "@/lib/aspectMotion";
 import dynamic from "next/dynamic";
 import type { ChartPoints } from "@/components/chart/ChartWheel";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
@@ -44,6 +45,8 @@ export default function ProfileTabs({
   points = null,
   patterns = [],
   minorAspects = null,
+  angleAspects = null,
+  aspectMotion,
   versions,
   isLatest,
   reading,
@@ -59,6 +62,8 @@ export default function ProfileTabs({
   points?: ChartPoints | null;
   patterns?: ChartPattern[];
   minorAspects?: Aspect[] | null;
+  angleAspects?: AngleAspect[] | null;
+  aspectMotion?: AspectMotion;
   versions: SnapshotVersionInfo[];
   isLatest: boolean;
   reading: ResolvedReading;
@@ -107,6 +112,8 @@ export default function ProfileTabs({
             chart={chart}
             points={points}
             minorAspects={minorAspects}
+            angleAspects={angleAspects}
+            aspectMotion={aspectMotion}
             downloadName={`${profile.displayName} chart`}
           />
           <ChartPatterns patterns={patterns} />

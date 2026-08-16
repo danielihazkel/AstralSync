@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  detectAngleAspects,
   detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
@@ -11,6 +12,7 @@ import { loadContentIndex, resolveReading } from "@/lib/content";
 import { getProfileName, getProfileView } from "@/lib/snapshots";
 import { toNumeroReadingInput, toWheelChart } from "@/lib/view-types";
 import {
+  ANGLE_NAMES,
   ASPECT_NAMES,
   PLANET_NAMES,
   SIGN_NAMES,
@@ -65,6 +67,10 @@ export default async function PrintReportPage({
 
   const chart = toWheelChart(view.astro);
   const birthUtc = new Date(chart.input.utc);
+  // Read-time like the profile page — never part of the stored aspect list.
+  const angleAspects = chart.houses
+    ? detectAngleAspects(chart.placements, chart.houses)
+    : [];
   const cusps = chart.houses?.cusps ?? null;
   const points = {
     mean: overlayHouses(pointsAt(birthUtc, "mean"), cusps),
@@ -157,7 +163,7 @@ export default async function PrintReportPage({
         </table>
       </section>
 
-      {chart.aspects.length > 0 && (
+      {(chart.aspects.length > 0 || angleAspects.length > 0) && (
         <section className={styles.section} aria-label="Aspects">
           <h2 className={styles.sectionTitle}>Aspects</h2>
           <ul className={styles.aspectList}>
@@ -170,6 +176,13 @@ export default async function PrintReportPage({
                   <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
                 </li>
               ))}
+            {angleAspects.map((a) => (
+              <li key={`${a.planet}-${a.target}-${a.type}`}>
+                {PLANET_NAMES[a.planet]} {ASPECT_NAMES[a.type].toLowerCase()}{" "}
+                {ANGLE_NAMES[a.target]}
+                <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
+              </li>
+            ))}
           </ul>
         </section>
       )}

@@ -4,12 +4,17 @@ import { notFound } from "next/navigation";
 import {
   DEFAULT_ORBS,
   MINOR_ASPECTS,
+  PLANETS,
+  astronomyEngineProvider,
+  detectAngleAspects,
   detectAspects,
   detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
   pointsAt,
+  type Planet,
 } from "@astralsync/astro-core";
+import { buildAspectMotion } from "@/lib/aspectMotion";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
@@ -102,6 +107,22 @@ export default async function ProfilePage({
     points.mean.push(fortune);
     points.true.push(fortune);
   }
+  // Read-time aspect extras, like the minor overlay: aspects to the ASC/MC
+  // (houses permitting) and birth-instant applying/separating verdicts for
+  // the table view. Angle rows get no verdict — natally the angles move a
+  // degree every four minutes, so a planet-speed answer would mislead.
+  const minorAspects = detectAspects(chart.placements, DEFAULT_ORBS, MINOR_ASPECTS);
+  const angleAspects = chart.houses
+    ? detectAngleAspects(chart.placements, chart.houses, DEFAULT_ORBS)
+    : [];
+  const speeds = Object.fromEntries(
+    PLANETS.map((p) => [p, astronomyEngineProvider.longitudeSpeed(p, birthUtc)]),
+  ) as Record<Planet, number>;
+  const aspectMotion = buildAspectMotion(
+    [...chart.aspects, ...minorAspects],
+    Object.fromEntries(chart.placements.map((p) => [p.planet, p.longitude])),
+    speeds,
+  );
   const latestVersion = versions[0]?.version ?? view.astro.version;
   const isLatest = view.astro.version === latestVersion;
   const { profile } = view;
@@ -199,7 +220,9 @@ export default async function ProfilePage({
         patterns={detectPatterns(chart.placements)}
         // Read-time overlay with fixed tight orbs (2°) — never stored, and
         // deliberately not orb-configurable so SSR output stays stable.
-        minorAspects={detectAspects(chart.placements, DEFAULT_ORBS, MINOR_ASPECTS)}
+        minorAspects={minorAspects}
+        angleAspects={angleAspects}
+        aspectMotion={aspectMotion}
         versions={versions}
         isLatest={isLatest}
         reading={reading}

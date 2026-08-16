@@ -1,16 +1,20 @@
 import type {
+  AngleAspect,
   AspectType,
   Placement,
   Planet,
   PointPlacement,
 } from "@astralsync/astro-core";
 import {
+  ANGLE_GLYPH_LABELS,
+  ANGLE_NAMES,
   ASPECT_NAMES,
   PLANET_NAMES,
   POINT_NAMES,
   SIGN_NAMES,
   formatDegreeInSign,
 } from "@/components/format";
+import { motionKey, type AspectMotion } from "@/lib/aspectMotion";
 import { PLANET_GLYPH_CHARS, POINT_GLYPH_CHARS } from "./glyphs";
 import UncertaintyBadge from "./UncertaintyBadge";
 import type { TwoRingRow } from "@/lib/wheelTableRows";
@@ -176,12 +180,26 @@ export interface AspectRow {
   orb: number;
 }
 
+function motionCell(motion: AspectMotion, key: string) {
+  const applying = motion[key];
+  if (applying === undefined) return <td>—</td>;
+  return <td>{applying ? "applying" : "separating"}</td>;
+}
+
 export function AspectTable({
   aspects,
+  angleAspects = [],
+  motion,
   aPrefix,
   bPrefix,
 }: {
   aspects: AspectRow[];
+  /** Read-time aspects to the chart's ASC/MC, appended after the planet
+   *  pairs (never part of the stored aspect list). */
+  angleAspects?: AngleAspect[];
+  /** Applying/separating verdicts keyed by motionKey; when present the
+   *  table grows a Motion column (rows without an entry render "—"). */
+  motion?: AspectMotion;
   /** Optional qualifiers for the two sides, e.g. "Progressed" / "natal". */
   aPrefix?: string;
   bPrefix?: string;
@@ -193,8 +211,9 @@ export function AspectTable({
           <tr>
             <th scope="col">Planet</th>
             <th scope="col">Aspect</th>
-            <th scope="col">Planet</th>
+            <th scope="col">Body</th>
             <th scope="col">Orb</th>
+            {motion && <th scope="col">Motion</th>}
           </tr>
         </thead>
         <tbody>
@@ -216,6 +235,28 @@ export function AspectTable({
                 {PLANET_NAMES[a.b]}
               </td>
               <td>{a.orb.toFixed(1)}°</td>
+              {motion && motionCell(motion, motionKey(a.a, a.b, a.type))}
+            </tr>
+          ))}
+          {angleAspects.map((a, i) => (
+            <tr key={`${a.planet}-${a.target}-${a.type}-${i}`}>
+              <td>
+                <span className={styles.tableGlyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[a.planet] + "︎"}
+                </span>
+                {aPrefix ? `${aPrefix} ` : ""}
+                {PLANET_NAMES[a.planet]}
+              </td>
+              <td>{ASPECT_NAMES[a.type]}</td>
+              <td>
+                <span className={styles.tableGlyph} aria-hidden="true">
+                  {ANGLE_GLYPH_LABELS[a.target]}
+                </span>
+                {bPrefix ? `${bPrefix} ` : ""}
+                {ANGLE_NAMES[a.target]}
+              </td>
+              <td>{a.orb.toFixed(1)}°</td>
+              {motion && motionCell(motion, motionKey(a.planet, a.target, a.type))}
             </tr>
           ))}
         </tbody>
