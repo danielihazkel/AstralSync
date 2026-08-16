@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INTENT_PLANETS, scoreDay } from "./electional";
+import { INTENT_PLANETS, lunarDayScan, scoreDay } from "./electional";
 
 const NYC = {
   label: "New York",
@@ -120,6 +120,40 @@ describe("scoreDay", () => {
       expect(f.score).toBeGreaterThanOrEqual(-2);
       expect(f.score).toBeLessThanOrEqual(2);
     }
+  });
+
+  it("is deterministic across repeated calls", () => {
+    const opts = {
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: NYC,
+      intent: "growth",
+    } as const;
+    expect(scoreDay(opts)).toEqual(scoreDay(opts));
+  });
+
+  it("rescores a new intent over the same lunar structure", () => {
+    const base = { year: 2024, month: 4, day: 10, location: NYC } as const;
+    const comm = scoreDay({ ...base, intent: "communication" });
+    const love = scoreDay({ ...base, intent: "love" });
+    // Intent changes the factors...
+    expect(comm.windows.flatMap((w) => w.factors)).not.toEqual(
+      love.windows.flatMap((w) => w.factors),
+    );
+    // ...but not the underlying day structure.
+    expect(comm.moonSign).toBe(love.moonSign);
+    expect(comm.dayRuler).toBe(love.dayRuler);
+    expect(comm.windows.map((w) => w.startUtc)).toEqual(
+      love.windows.map((w) => w.startUtc),
+    );
+  });
+
+  it("caches the per-date scan (identical object on the second call)", () => {
+    const first = lunarDayScan(2024, 4, 10);
+    expect(lunarDayScan(2024, 4, 10)).toBe(first);
+    expect(first.hits.length).toBeGreaterThan(0);
+    expect(first.ingresses.length).toBeGreaterThan(0);
   });
 
   it("keeps every intent mapped to a classical planet", () => {

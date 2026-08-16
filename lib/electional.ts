@@ -11,6 +11,7 @@ import {
   planetaryDayHours,
   type ClassicalPlanet,
 } from "@astralsync/hebrew-core";
+import { memoizeByMs } from "./ephemerisMemo";
 import type { HomeLocation } from "./today";
 
 /**
@@ -110,10 +111,79 @@ function cap(s: string): string {
   return s[0].toUpperCase() + s.slice(1);
 }
 
-interface LunarHit {
+export interface LunarHit {
   utc: number;
   planet: Planet;
   angle: number;
+}
+
+export interface LunarDayScan {
+  /** Exact lunar aspects across the padded scan window, time-ascending. */
+  hits: LunarHit[];
+  /** Moon ingress instants (epoch ms) across the same window. */
+  ingresses: number[];
+  /** Void periods: last exact aspect before each ingress → the ingress. */
+  voids: Array<{ from: number; until: number }>;
+}
+
+/** Session-lifetime scan memo keyed by local civil date — the expensive part
+ *  of scoring depends on the date alone, so intent and location changes
+ *  rescore instantly. Entries are a few hundred numbers; unbounded like the
+ *  month cache in lib/skyCalendar.ts and just as harmless. */
+const dayScanCache = new Map<string, LunarDayScan>();
+
+/**
+ * The ephemeris work for one local civil day: exact lunar aspects and
+ * ingresses from just before the day (an already-running void reaches into
+ * it) to well past it (late windows need their "next" aspect), plus the void
+ * periods they imply (same construction as lib/skyCalendar.ts).
+ */
+export function lunarDayScan(
+  year: number,
+  month1: number,
+  day: number,
+): LunarDayScan {
+  const p = (n: number) => String(n).padStart(2, "0");
+  const key = `${year}-${p(month1)}-${p(day)}`;
+  const cached = dayScanCache.get(key);
+  if (cached) return cached;
+
+  const eph = astronomyEngineProvider;
+  const dayStart = new Date(year, month1 - 1, day);
+  const dayEnd = new Date(year, month1 - 1, day + 1);
+  const scanFrom = new Date(dayStart.getTime() - 2 * DAY_MS);
+  const scanTo = new Date(dayEnd.getTime() + 2 * DAY_MS);
+  // The nine partner scans walk the same hourly grid — one Moon sample each.
+  const moonAt = memoizeByMs((t) => eph.eclipticLongitude("moon", t));
+
+  const hits: LunarHit[] = [];
+  for (const planet of VOC_PLANETS) {
+    for (const h of findAspectHits(
+      moonAt,
+      (t) => eph.eclipticLongitude(planet, t),
+      MAJOR_ANGLES,
+      scanFrom,
+      scanTo,
+      HOUR_MS,
+    )) {
+      hits.push({ utc: h.utc.getTime(), planet, angle: h.angle });
+    }
+  }
+  hits.sort((a, b) => a.utc - b.utc);
+  const ingresses = findIngresses("moon", scanFrom, scanTo).map((i) =>
+    i.utc.getTime(),
+  );
+
+  const voids: Array<{ from: number; until: number }> = [];
+  for (const ingress of ingresses) {
+    const before = hits.filter((h) => h.utc < ingress);
+    if (before.length === 0) continue;
+    voids.push({ from: before[before.length - 1].utc, until: ingress });
+  }
+
+  const scan: LunarDayScan = { hits, ingresses, voids };
+  dayScanCache.set(key, scan);
+  return scan;
 }
 
 /** The Moon's applying-aspect factor for a window starting at `startMs`:
@@ -143,9 +213,9 @@ function applyingFactor(
   return { label, score: 0 };
 }
 
-/** Pure: one local civil day (+ optional location and intent) → scored
- *  windows. ~1s of ephemeris work; memoize per (date, location, intent) if
- *  called in a loop. */
+/** One local civil day (+ optional location and intent) → scored windows.
+ *  The ephemeris work is cached per date via lunarDayScan, so only the first
+ *  call for a date pays it; rescoring for a new intent or location is ~ms. */
 export function scoreDay(opts: {
   year: number;
   /** 1-based month. */
@@ -162,39 +232,8 @@ export function scoreDay(opts: {
   const p = (n: number) => String(n).padStart(2, "0");
   const dateKey = `${year}-${p(month)}-${p(day)}`;
 
-  // One scan pass feeds every window: exact lunar aspects and ingresses
-  // from just before the day (an already-running void reaches into it) to
-  // well past it (late windows need their "next" aspect).
-  const scanFrom = new Date(dayStart.getTime() - 2 * DAY_MS);
-  const scanTo = new Date(dayEnd.getTime() + 2 * DAY_MS);
-  const moonLonAt = (t: Date) => eph.eclipticLongitude("moon", t);
-
-  const hits: LunarHit[] = [];
-  for (const planet of VOC_PLANETS) {
-    for (const h of findAspectHits(
-      moonLonAt,
-      (t) => eph.eclipticLongitude(planet, t),
-      MAJOR_ANGLES,
-      scanFrom,
-      scanTo,
-      HOUR_MS,
-    )) {
-      hits.push({ utc: h.utc.getTime(), planet, angle: h.angle });
-    }
-  }
-  hits.sort((a, b) => a.utc - b.utc);
-  const ingresses = findIngresses("moon", scanFrom, scanTo).map((i) =>
-    i.utc.getTime(),
-  );
-
-  // Void periods: from the last exact aspect before each ingress to the
-  // ingress itself (same construction as lib/skyCalendar.ts).
-  const voids: Array<{ from: number; until: number }> = [];
-  for (const ingress of ingresses) {
-    const before = hits.filter((h) => h.utc < ingress);
-    if (before.length === 0) continue;
-    voids.push({ from: before[before.length - 1].utc, until: ingress });
-  }
+  // One scan pass feeds every window; cached per date across calls.
+  const { hits, ingresses, voids } = lunarDayScan(year, month, day);
 
   const intentPlanet = intent ? INTENT_PLANETS[intent] : null;
   const mercuryRetrograde = eph.isRetrograde("mercury", noon);
@@ -279,7 +318,7 @@ export function scoreDay(opts: {
 
   return {
     date: dateKey,
-    moonSign: signOf(moonLonAt(noon)),
+    moonSign: signOf(eph.eclipticLongitude("moon", noon)),
     dayRuler,
     mercuryRetrograde,
     windows,

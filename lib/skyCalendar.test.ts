@@ -99,6 +99,12 @@ describe("computeMoonMonth", () => {
     }
   });
 
+  it("is deterministic across repeated computations", () => {
+    // Guards the shared-sampler and epoch-ms refactors: a fresh computation
+    // must reproduce the module-scope one exactly.
+    expect(computeMoonMonth(2024, 4)).toEqual(april2024);
+  });
+
   it("returns the identical cached object on repeated cached calls", () => {
     const first = computeMoonMonthCached(2024, 4);
     expect(computeMoonMonthCached(2024, 4)).toBe(first);

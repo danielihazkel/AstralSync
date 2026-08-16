@@ -10,6 +10,7 @@ import {
   type Sign,
 } from "@astralsync/astro-core";
 import * as Astronomy from "astronomy-engine";
+import { memoizeByMs } from "./ephemerisMemo";
 
 /**
  * The Sky Calendar's month model — computed entirely in the browser from the
@@ -86,16 +87,18 @@ function moonLonAt(t: Date): number {
 /** The full void-of-course window ending at `ingress`: from the Moon's last
  *  exact major aspect inside [spanStart, ingress] to the ingress itself.
  *  Null when an aspect perfects within an hour of the ingress (no practical
- *  void) or none is found in the span. */
+ *  void) or none is found in the span. `moonAt` is the caller's (memoized)
+ *  Moon sampler — the nine partner scans walk the same hourly grid. */
 function vocWindowFor(
   spanStart: Date,
   ingress: Date,
   nextSign: Sign,
+  moonAt: (t: Date) => number,
 ): VocWindow | null {
   let last: Date | null = null;
   for (const planet of VOC_PLANETS) {
     const hits = findAspectHits(
-      moonLonAt,
+      moonAt,
       (t) => astronomyEngineProvider.eclipticLongitude(planet, t),
       MAJOR_ANGLES,
       spanStart,
@@ -128,7 +131,14 @@ export function computeMoonMonthCached(
   const key = `${year}-${month1}`;
   const hit = monthCache.get(key);
   if (hit) return hit;
+  const started = performance.now();
   const computed = computeMoonMonth(year, month1);
+  if (process.env.NODE_ENV !== "production") {
+    // The measurement gate for whether a Web Worker is still warranted.
+    console.info(
+      `[skyCalendar] computed ${key} in ${Math.round(performance.now() - started)}ms`,
+    );
+  }
   monthCache.set(key, computed);
   return computed;
 }
@@ -144,6 +154,10 @@ export function computeMoonMonth(year: number, month1: number): MoonMonth {
   const scanFrom = new Date(monthStart.getTime() - 4 * DAY_MS);
   const scanTo = new Date(monthEnd.getTime() + DAY_MS);
 
+  // One Moon sample per instant for the whole month: the nine VoC partner
+  // scans and the per-day noon signs all draw from the same sampler.
+  const moonAt = memoizeByMs(moonLonAt);
+
   const ingresses = findIngresses("moon", scanFrom, scanTo);
 
   // One VoC window per inter-ingress span that ends inside (or just after)
@@ -156,6 +170,7 @@ export function computeMoonMonth(year: number, month1: number): MoonMonth {
       ingresses[i - 1].utc,
       ingress.utc,
       SIGNS[ingress.signIndex],
+      moonAt,
     );
     if (w) vocWindows.push(w);
   }
@@ -173,36 +188,51 @@ export function computeMoonMonth(year: number, month1: number): MoonMonth {
     (e) => new Date(e.peakUtc).getTime() < monthEnd.getTime(),
   );
 
+  // Epoch ms once per event, not once per day×event comparison.
+  const ingressAt = ingresses.map((i) => ({ ms: i.utc.getTime(), event: i }));
+  const quarterAt = quarters.map((q) => ({ ms: q.utc.getTime(), event: q }));
+  const vocAt = vocWindows.map((w) => ({
+    fromMs: new Date(w.fromUtc).getTime(),
+    untilMs: new Date(w.untilUtc).getTime(),
+    window: w,
+  }));
+  const eclipseAt = eclipses.map((e) => ({
+    ms: new Date(e.peakUtc).getTime(),
+    event: e,
+  }));
+
   const days: MoonDayCell[] = [];
   for (let day = 1; day <= daysInMonth; day++) {
     const dayStart = new Date(year, month1 - 1, day);
     const dayEnd = new Date(year, month1 - 1, day + 1);
     const noon = new Date(year, month1 - 1, day, 12);
-    const key = localDayKey(dayStart);
+    const startMs = dayStart.getTime();
+    const endMs = dayEnd.getTime();
+    const inDay = (ms: number) => ms >= startMs && ms < endMs;
 
-    const inDay = (iso: string) => {
-      const t = new Date(iso).getTime();
-      return t >= dayStart.getTime() && t < dayEnd.getTime();
-    };
+    const quarterHit = quarterAt.find((q) => inDay(q.ms));
 
     days.push({
-      date: key,
-      signAtNoon: signOf(moonLonAt(noon)),
+      date: localDayKey(dayStart),
+      signAtNoon: signOf(moonAt(noon)),
       illumination: Astronomy.Illumination(Astronomy.Body.Moon, noon)
         .phase_fraction,
-      ingresses: ingresses
-        .filter((i) => inDay(i.utc.toISOString()))
-        .map((i) => ({ utc: i.utc.toISOString(), sign: SIGNS[i.signIndex] })),
-      quarter: (() => {
-        const hit = quarters.find((x) => inDay(x.utc.toISOString()));
-        return hit ? { name: hit.name, utc: hit.utc.toISOString() } : null;
-      })(),
-      voc: vocWindows.filter(
-        (w) =>
-          new Date(w.fromUtc).getTime() < dayEnd.getTime() &&
-          new Date(w.untilUtc).getTime() > dayStart.getTime(),
-      ),
-      eclipses: eclipses.filter((e) => inDay(e.peakUtc)),
+      ingresses: ingressAt
+        .filter((i) => inDay(i.ms))
+        .map((i) => ({
+          utc: i.event.utc.toISOString(),
+          sign: SIGNS[i.event.signIndex],
+        })),
+      quarter: quarterHit
+        ? {
+            name: quarterHit.event.name,
+            utc: quarterHit.event.utc.toISOString(),
+          }
+        : null,
+      voc: vocAt
+        .filter((w) => w.fromMs < endMs && w.untilMs > startMs)
+        .map((w) => w.window),
+      eclipses: eclipseAt.filter((e) => inDay(e.ms)).map((e) => e.event),
     });
   }
 
