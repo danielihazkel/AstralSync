@@ -67,6 +67,9 @@ export const CONTENT_CATEGORIES = [
   // keys (transiter first); unauthored pairs fall back to natal `aspect`
   // archetypes in the forecast prompt and transit list.
   "transit_aspect",
+  // Transiting outer planets over the natal ASC/MC; unauthored keys fall
+  // back to the natal `angle_aspect` archetypes in the transit list.
+  "transit_angle_aspect",
   "element_dominance",
   "modality_dominance",
   "life_path",

@@ -97,15 +97,16 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1022 entries", () => {
+  it("contains exactly the 1072 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
-    // + 250 transit aspects (5 transiters x 10 natal targets) + 12 destiny
-    // + 12 soul urge + 105 synastry aspects (21 sorted pairs over 6
-    // planets) + 12 MC signs + 5 chart patterns + 8 natal retrogrades
-    // + 48 points in sign.
-    expect(entries).toHaveLength(1022);
+    // + 250 transit aspects (5 transiters x 10 natal targets) + 50 transit
+    // angle aspects (5 transiters x ASC/MC x 5 types) + 12 destiny + 12
+    // soul urge + 105 synastry aspects (21 sorted pairs over 6 planets)
+    // + 12 MC signs + 5 chart patterns + 8 natal retrogrades + 48 points
+    // in sign.
+    expect(entries).toHaveLength(1072);
   });
 
   it("covers every planet in every sign", () => {
@@ -273,6 +274,24 @@ describe("content library lint", () => {
     const authored = entries.filter((e) => e.category === "aspect");
     expect(authored).toHaveLength(
       FULL_ASPECT_PAIRS.length * MAJOR_ASPECT_TYPES.length + PARTIAL_ASPECT_KEYS.length,
+    );
+  });
+
+  it("covers the transit angle-aspect matrix (every transiter, both angles)", () => {
+    for (const transiter of TRANSIT_ASPECT_TRANSITERS) {
+      for (const angle of ANGLE_BODIES) {
+        for (const type of MAJOR_ASPECT_TYPES) {
+          const key = `transit_angle_aspect/${transiter}/${angle}/${type}`;
+          expect(entry(key), key).not.toBeNull();
+        }
+      }
+    }
+    expect(
+      entries.filter((e) => e.category === "transit_angle_aspect"),
+    ).toHaveLength(
+      TRANSIT_ASPECT_TRANSITERS.length *
+        ANGLE_BODIES.length *
+        MAJOR_ASPECT_TYPES.length,
     );
   });
 

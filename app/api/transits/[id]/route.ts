@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getEntry,
   loadContentIndex,
+  natalAngleAspectKey,
   natalAspectKey,
   transitAspectKey,
 } from "@/lib/content";
+import { transitAngleAspectKey } from "@/lib/contentKeys";
 import { getTransitView, transitOptionsFromQuery } from "@/lib/transits";
 import { transitQuerySchema } from "@/lib/validation";
 
@@ -61,6 +63,15 @@ export async function GET(
     const key = transitAspectKey(c.a, c.b, c.type);
     const entry =
       getEntry(index, key) ?? getEntry(index, natalAspectKey(c.a, c.b, c.type));
+    if (entry) prose[key] = { title: entry.title, bodyMd: entry.bodyMd };
+  }
+  // Angle rows use the same chain one register over: the authored
+  // transit_angle_aspect entry, else the natal angle_aspect archetype.
+  for (const a of view.angleAspects) {
+    const key = transitAngleAspectKey(a.planet, a.target, a.type);
+    const entry =
+      getEntry(index, key) ??
+      getEntry(index, natalAngleAspectKey(a.planet, a.target, a.type));
     if (entry) prose[key] = { title: entry.title, bodyMd: entry.bodyMd };
   }
   return NextResponse.json({ ...view, prose }, { headers: NO_STORE });

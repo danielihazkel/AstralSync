@@ -69,6 +69,27 @@ describe("GET /api/transits/[id]", () => {
     expect(body.prose["transit_aspect/moon/moon/square"]).toBeUndefined();
   });
 
+  it("attaches angle prose, falling back to the natal angle archetype", async () => {
+    mockView.mockResolvedValue({
+      ...canned,
+      angleAspects: [
+        // Authored directly: a slow transiter over an angle.
+        { planet: "saturn", target: "mc", type: "square", angle: 90, orb: 0.8, applying: true },
+        // Fast mover — no transit_angle_aspect entry; the natal angle_aspect
+        // archetype serves instead, keyed by the transit key.
+        { planet: "venus", target: "ascendant", type: "conjunction", angle: 0, orb: 1.2, applying: false },
+      ],
+    });
+    const res = await GET(request("/api/transits/1"), params("1"));
+    const body = await res.json();
+    expect(body.prose["transit_angle_aspect/saturn/mc/square"].title).toBe(
+      "Transiting Saturn square natal Midheaven",
+    );
+    expect(body.prose["transit_angle_aspect/venus/ascendant/conjunction"].title).toBe(
+      "Venus conjunct Ascendant",
+    );
+  });
+
   it("passes a valid `at` instant through", async () => {
     const res = await GET(
       request("/api/transits/1?at=2026-08-11T12:00:00Z"),

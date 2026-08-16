@@ -1,5 +1,5 @@
 import type { AngleAspect, CrossAspect, Placement } from "@astralsync/astro-core";
-import { transitAspectKey } from "@/lib/contentKeys";
+import { transitAngleAspectKey, transitAspectKey } from "@/lib/contentKeys";
 import {
   ANGLE_NAMES,
   ASPECT_NAMES,
@@ -129,18 +129,26 @@ export function TransitAspectList({
           </li>
         );
       })}
-      {angleAspects.map((a, i) => (
-        <li key={`${a.planet}-${a.target}-${a.type}-${i}`}>
-          <span className={styles.glyph} aria-hidden="true">
-            {PLANET_GLYPH_CHARS[a.planet] + "︎"}
-          </span>
-          Transiting {PLANET_NAMES[a.planet]}{" "}
-          {ASPECT_NAMES[a.type].toLowerCase()} natal{" "}
-          {ANGLE_NAMES[a.target]}
-          <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
-          {motionNote(a.applying)}
-        </li>
-      ))}
+      {angleAspects.map((a, i) => {
+        const entry = prose?.[transitAngleAspectKey(a.planet, a.target, a.type)];
+        return (
+          <li key={`${a.planet}-${a.target}-${a.type}-${i}`}>
+            <span className={styles.glyph} aria-hidden="true">
+              {PLANET_GLYPH_CHARS[a.planet] + "︎"}
+            </span>
+            Transiting {PLANET_NAMES[a.planet]}{" "}
+            {ASPECT_NAMES[a.type].toLowerCase()} natal{" "}
+            {ANGLE_NAMES[a.target]}
+            <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
+            {motionNote(a.applying)}
+            {entry && (
+              <div className={styles.prose}>
+                <Markdown md={entry.bodyMd} />
+              </div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
