@@ -97,13 +97,14 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 867 entries", () => {
+  it("contains exactly the 922 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 250 transit aspects (5 transiters x 10 natal targets)
-    // + 12 destiny + 12 soul urge + 50 synastry aspects + 12 MC signs
-    // + 5 chart patterns + 8 natal retrogrades + 48 points in sign.
-    expect(entries).toHaveLength(867);
+    // + 12 destiny + 12 soul urge + 105 synastry aspects (21 sorted pairs
+    // over 6 planets) + 12 MC signs + 5 chart patterns + 8 natal
+    // retrogrades + 48 points in sign.
+    expect(entries).toHaveLength(922);
   });
 
   it("covers every planet in every sign", () => {
@@ -195,10 +196,18 @@ describe("content library lint", () => {
     }
   });
 
-  it("covers the full personal-planet synastry matrix", () => {
+  it("covers the full relationship-planet synastry matrix", () => {
     // Every sorted pair (PLANETS order, same-planet pairs included) among
-    // the personal relationship planets, across all five aspect types.
-    const SYNASTRY_PLANETS: Planet[] = ["sun", "moon", "venus", "mars"];
+    // the relationship planets — the personal four plus Mercury
+    // (communication) and Saturn (commitment) — across all five types.
+    const SYNASTRY_PLANETS: Planet[] = [
+      "sun",
+      "moon",
+      "mercury",
+      "venus",
+      "mars",
+      "saturn",
+    ];
     let expected = 0;
     for (let i = 0; i < SYNASTRY_PLANETS.length; i++) {
       for (let j = i; j < SYNASTRY_PLANETS.length; j++) {
