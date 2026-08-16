@@ -40,6 +40,8 @@ export {
 } from "./fortune";
 export { annualProfection, TRADITIONAL_RULERS } from "./profections";
 export type { AnnualProfection } from "./profections";
+export { essentialDignity, solarCondition, EXALTATIONS } from "./dignities";
+export type { EssentialDignity, SolarCondition } from "./dignities";
 export { detectPatterns } from "./patterns";
 export type { ChartPattern, PatternType } from "./patterns";
 export type { EclipseEvent, EclipseKind, EclipseType } from "./eclipses";
