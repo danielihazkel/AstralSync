@@ -3,7 +3,7 @@ import {
   separation,
 } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { computeMoonMonth } from "./skyCalendar";
+import { computeMoonMonth, computeMoonMonthCached } from "./skyCalendar";
 import { computeVoidOfCourse } from "./today";
 
 /**
@@ -97,6 +97,12 @@ describe("computeMoonMonth", () => {
       ).toBeLessThan(60_000);
       expect(voc!.nextSign).toBe(w.nextSign);
     }
+  });
+
+  it("returns the identical cached object on repeated cached calls", () => {
+    const first = computeMoonMonthCached(2024, 4);
+    expect(computeMoonMonthCached(2024, 4)).toBe(first);
+    expect(first.days).toHaveLength(30);
   });
 
   it("starts each window at an exact major lunar aspect", () => {

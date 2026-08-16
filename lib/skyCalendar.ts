@@ -115,8 +115,27 @@ function vocWindowFor(
   };
 }
 
+/** Session-lifetime month memo, shared by every view that needs a month
+ *  (the /calendar grid and the /calendar/[date] almanac) so navigating
+ *  between them never recomputes the ~1s of ephemeris work. Module-level on
+ *  purpose: a component-held cache dies on unmount. */
+const monthCache = new Map<string, MoonMonth>();
+
+export function computeMoonMonthCached(
+  year: number,
+  month1: number,
+): MoonMonth {
+  const key = `${year}-${month1}`;
+  const hit = monthCache.get(key);
+  if (hit) return hit;
+  const computed = computeMoonMonth(year, month1);
+  monthCache.set(key, computed);
+  return computed;
+}
+
 /** Pure: a local calendar month → per-day Moon data. ~0.5–1s of ephemeris
- *  work for a month; callers should memoize per (year, month). */
+ *  work for a month; callers should memoize per (year, month) — or use
+ *  computeMoonMonthCached. */
 export function computeMoonMonth(year: number, month1: number): MoonMonth {
   const monthStart = new Date(year, month1 - 1, 1);
   const monthEnd = new Date(year, month1, 1);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
 import { SIGN_NAMES } from "@/components/format";
 import DayPicker from "./DayPicker";
@@ -42,21 +42,15 @@ export default function SkyCalendar() {
   const [month1, setMonth1] = useState(now.getMonth() + 1);
   const [month, setMonth] = useState<MoonMonth | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const cache = useRef(new Map<string, MoonMonth>());
 
   useEffect(() => {
     let cancelled = false;
-    const key = `${year}-${month1}`;
-    const cached = cache.current.get(key);
-    if (cached) {
-      setMonth(cached);
-      return;
-    }
     setMonth(null);
     void (async () => {
-      const { computeMoonMonth } = await import("@/lib/skyCalendar");
-      const computed = computeMoonMonth(year, month1);
-      cache.current.set(key, computed);
+      // Memoized at module level in lib/skyCalendar — shared with the
+      // almanac page, survives unmount.
+      const { computeMoonMonthCached } = await import("@/lib/skyCalendar");
+      const computed = computeMoonMonthCached(year, month1);
       if (!cancelled) setMonth(computed);
     })();
     return () => {

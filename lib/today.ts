@@ -19,6 +19,7 @@ import {
   type PlanetaryHourResult,
 } from "@astralsync/hebrew-core";
 import * as Astronomy from "astronomy-engine";
+import { moonPhaseName } from "./moonPhase";
 
 /**
  * The home page's "Today" dashboard — computed entirely in the browser from
@@ -202,19 +203,9 @@ export function computeStations(now: Date, horizonDays = 7): StationAlert[] {
   return stations;
 }
 
-/** Phase-angle → common name; cardinal points get a ±11.25° band. */
-export function moonPhaseName(phaseDeg: number): string {
-  const p = ((phaseDeg % 360) + 360) % 360;
-  const band = 11.25;
-  if (p < band || p >= 360 - band) return "New Moon";
-  if (Math.abs(p - 90) < band) return "First Quarter";
-  if (Math.abs(p - 180) < band) return "Full Moon";
-  if (Math.abs(p - 270) < band) return "Third Quarter";
-  if (p < 90) return "Waxing Crescent";
-  if (p < 180) return "Waxing Gibbous";
-  if (p < 270) return "Waning Gibbous";
-  return "Waning Crescent";
-}
+// Moved to lib/moonPhase.ts (dependency-free); re-exported so existing
+// importers keep working.
+export { moonPhaseName };
 
 /** Civil Y/M/D of `now` in the given zone (machine-local when zone is null). */
 function civilDateIn(now: Date, tzIana: string | null) {
