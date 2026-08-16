@@ -46,12 +46,14 @@ export {
   findLongitudeCrossings,
   findIngresses,
   findAspectHits,
+  findMundaneAspects,
   findStations,
 } from "./scan";
 export type {
   ScanHit,
   IngressEvent,
   AspectHit,
+  MundaneAspectHit,
   StationEvent,
 } from "./scan";
 export type { EphemerisProvider } from "./ephemeris/interface";

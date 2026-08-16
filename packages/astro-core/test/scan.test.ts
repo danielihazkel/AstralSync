@@ -1,9 +1,11 @@
+import * as Astronomy from "astronomy-engine";
 import { describe, expect, it } from "vitest";
 import {
   astronomyEngineProvider as eph,
   findAspectHits,
   findIngresses,
   findLongitudeCrossings,
+  findMundaneAspects,
   findStations,
   separation,
 } from "../src";
@@ -154,5 +156,60 @@ describe("findStations", () => {
     // Venus was direct (no station) across March–April 2024.
     const events = findStations(utc(2024, 3, 1), utc(2024, 4, 30), ["venus"]);
     expect(events).toHaveLength(0);
+  });
+});
+
+describe("findMundaneAspects", () => {
+  it("agrees with the lunar quarters (quarters ARE Sun–Moon aspects)", () => {
+    const hits = findMundaneAspects(utc(2024, 4, 1), utc(2024, 5, 1), {
+      planets: ["sun", "moon"],
+      angles: [0, 90, 180],
+    });
+    let q = Astronomy.SearchMoonQuarter(utc(2024, 4, 1));
+    let quarters = 0;
+    while (q.time.date.getTime() < utc(2024, 5, 1).getTime()) {
+      quarters++;
+      const match = hits.find(
+        (h) => Math.abs(h.utc.getTime() - q.time.date.getTime()) < 2 * 60_000,
+      );
+      expect(match, `quarter at ${q.time.date.toISOString()}`).toBeDefined();
+      q = Astronomy.NextMoonQuarter(q);
+    }
+    expect(quarters).toBeGreaterThanOrEqual(4);
+    // Nothing beyond the quarters: one hit per quarter, no extras.
+    expect(hits).toHaveLength(quarters);
+  });
+
+  it("finds the 2024-04-21 Jupiter–Uranus conjunction, faster body first", () => {
+    const hits = findMundaneAspects(utc(2024, 4, 1), utc(2024, 5, 1), {
+      planets: ["jupiter", "uranus"],
+      angles: [0],
+    });
+    expect(hits).toHaveLength(1);
+    expect(hits[0].a).toBe("jupiter");
+    expect(hits[0].b).toBe("uranus");
+    expect(hits[0].angle).toBe(0);
+    expect(["2024-04-20", "2024-04-21"]).toContain(
+      hits[0].utc.toISOString().slice(0, 10),
+    );
+  });
+
+  it("returns hits whose separation is exact, in time order", () => {
+    const hits = findMundaneAspects(utc(2024, 4, 8), utc(2024, 4, 9), {
+      planets: ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "moon"],
+    });
+    expect(hits.length).toBeGreaterThan(0);
+    for (const h of hits) {
+      const sep = separation(
+        eph.eclipticLongitude(h.a, h.utc),
+        eph.eclipticLongitude(h.b, h.utc),
+      );
+      expect(Math.abs(sep - h.angle), `${h.a}-${h.b}`).toBeLessThan(1e-3);
+    }
+    for (let i = 1; i < hits.length; i++) {
+      expect(hits[i].utc.getTime()).toBeGreaterThanOrEqual(
+        hits[i - 1].utc.getTime(),
+      );
+    }
   });
 });

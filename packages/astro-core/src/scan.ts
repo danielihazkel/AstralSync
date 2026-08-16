@@ -169,6 +169,71 @@ export function findAspectHits(
   }));
 }
 
+export interface MundaneAspectHit {
+  /** The faster body of the pair (by mean geocentric motion). */
+  a: Planet;
+  b: Planet;
+  /** The aspect angle perfected, in [0, 180]. */
+  angle: number;
+  utc: Date;
+}
+
+/** Mean geocentric daily motion, fastest first — fixes each pair's (a, b)
+ *  orientation and its sampling step. */
+const SPEED_ORDER: Planet[] = [
+  "moon",
+  "mercury",
+  "venus",
+  "sun",
+  "mars",
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto",
+];
+
+const MAJOR_ASPECT_ANGLES = [0, 60, 90, 120, 180];
+
+/**
+ * Exact perfection instants (no orb semantics) of `angles` between every
+ * pair drawn from `planets`, in time order. Relative motion is bounded by
+ * the faster body's own motion, so each pair samples at half that body's
+ * ingress step — comfortably under the 90° wrap guard even when the pair
+ * closes head-on.
+ */
+export function findMundaneAspects(
+  from: Date,
+  to: Date,
+  opts?: {
+    planets?: Planet[];
+    angles?: number[];
+    provider?: EphemerisProvider;
+  },
+): MundaneAspectHit[] {
+  const planets = opts?.planets ?? PLANETS;
+  const angles = opts?.angles ?? MAJOR_ASPECT_ANGLES;
+  const provider = opts?.provider ?? astronomyEngineProvider;
+  const ordered = SPEED_ORDER.filter((p) => planets.includes(p));
+  const out: MundaneAspectHit[] = [];
+  for (let i = 0; i < ordered.length; i++) {
+    for (let j = i + 1; j < ordered.length; j++) {
+      const a = ordered[i];
+      const b = ordered[j];
+      const hits = findAspectHits(
+        (t) => provider.eclipticLongitude(a, t),
+        (t) => provider.eclipticLongitude(b, t),
+        angles,
+        from,
+        to,
+        INGRESS_STEP_MS[a] / 2,
+      );
+      for (const h of hits) out.push({ a, b, angle: h.angle, utc: h.utc });
+    }
+  }
+  return out.sort((x, y) => x.utc.getTime() - y.utc.getTime());
+}
+
 export interface StationEvent {
   planet: Planet;
   utc: Date;
