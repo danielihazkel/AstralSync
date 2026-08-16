@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { HouseSystem } from "@astralsync/astro-core";
+import type { ResolvedReading } from "@/lib/content";
 import type { AstroView, ProfileData, WheelChart } from "@/lib/view-types";
 import {
   TIME_CERTAINTY_LABELS,
@@ -26,13 +27,18 @@ export default function DetailsPanel({
   chart,
   versions,
   isLatest,
+  reading,
 }: {
   profile: ProfileData;
   astro: AstroView;
   chart: WheelChart;
   versions: SnapshotVersionInfo[];
   isLatest: boolean;
+  reading: ResolvedReading;
 }) {
+  // Library sections only — the composed synthesis has no entry key.
+  const authoredSections = reading.sections.filter((s) => s.key !== null).length;
+  const attemptedSections = authoredSections + reading.missingKeys.length;
   return (
     <div className={styles.details}>
       <section className={styles.detailsSection}>
@@ -107,6 +113,34 @@ export default function DetailsPanel({
           versions={versions}
           currentVersion={astro.version}
         />
+      </section>
+
+      <section className={styles.detailsSection}>
+        <h3 className={styles.sectionTitle}>Reading coverage</h3>
+        <p>
+          {authoredSections} of {attemptedSections} interpretation sections
+          this chart references are authored.
+        </p>
+        {reading.missingKeys.length > 0 ? (
+          <details>
+            <summary>
+              Show the {reading.missingKeys.length} unauthored{" "}
+              {reading.missingKeys.length === 1 ? "key" : "keys"}
+            </summary>
+            <ul className={styles.missingKeyList}>
+              {reading.missingKeys.map((k) => (
+                <li key={k}>
+                  <code>{k}</code>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : (
+          <p className={styles.hint}>
+            Every section this chart references is authored — the Reading tab
+            shows the full set.
+          </p>
+        )}
       </section>
 
       <section className={styles.detailsSection}>

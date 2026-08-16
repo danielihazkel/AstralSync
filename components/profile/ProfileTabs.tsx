@@ -189,6 +189,7 @@ export default function ProfileTabs({
             chart={chart}
             versions={versions}
             isLatest={isLatest}
+            reading={reading}
           />
         </div>
       )}
