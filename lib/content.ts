@@ -63,6 +63,9 @@ export const CONTENT_CATEGORIES = [
   // Synastry pair prose, Phase 3c — authoring is the optional 3d Tier 6;
   // the aspect list degrades to prose-less rows until entries land.
   "synastry_aspect",
+  // One chart's planet on the other's ASC/MC; unauthored keys fall back
+  // to the natal `angle_aspect` archetypes on the synastry page.
+  "synastry_angle_aspect",
   // Transit prose: transiting outer planets over natal points. Directional
   // keys (transiter first); unauthored pairs fall back to natal `aspect`
   // archetypes in the forecast prompt and transit list.

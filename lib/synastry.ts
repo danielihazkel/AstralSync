@@ -165,7 +165,11 @@ export function computeSynastry(
 
 // synastryAspectKey moved to lib/contentKeys.ts (client-safe, no Prisma);
 // re-exported here so existing server-side imports keep working.
-import { synastryAspectKey } from "./contentKeys";
+import {
+  natalAngleAspectKey,
+  synastryAngleAspectKey,
+  synastryAspectKey,
+} from "./contentKeys";
 export { synastryAspectKey };
 
 /** The canonical stored order for a profile pair: smaller id first, so
@@ -191,6 +195,33 @@ export function resolveSynastryEntries(
     const entry =
       getEntry(index, synastryAspectKey(c.a, c.b, c.type)) ??
       getEntry(index, natalAspectKey(c.a, c.b, c.type));
+    if (!entry || seen.has(entry.key)) continue;
+    seen.add(entry.key);
+    entries.push(entry);
+  }
+  return entries;
+}
+
+/**
+ * Library entries for the tightest angle contacts across both directions
+ * (deduped): the authored `synastry_angle_aspect` entry when it exists, else
+ * the natal `angle_aspect` archetype — the same chain the synastry page uses
+ * for per-row prose. Feeds the AI synastry reading prompt.
+ */
+export function resolveSynastryAngleEntries(
+  contacts: SynastryAngleContacts,
+  index: ContentIndex,
+  limit = 4,
+): ContentEntry[] {
+  const entries: ContentEntry[] = [];
+  const seen = new Set<string>();
+  const tightest = [...contacts.aOnB, ...contacts.bOnA].sort(
+    (x, y) => x.orb - y.orb,
+  );
+  for (const c of tightest.slice(0, limit)) {
+    const entry =
+      getEntry(index, synastryAngleAspectKey(c.planet, c.target, c.type)) ??
+      getEntry(index, natalAngleAspectKey(c.planet, c.target, c.type));
     if (!entry || seen.has(entry.key)) continue;
     seen.add(entry.key);
     entries.push(entry);

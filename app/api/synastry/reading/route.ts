@@ -12,6 +12,7 @@ import {
   getSynastryReading,
   getSynastryView,
   normalizePair,
+  resolveSynastryAngleEntries,
   resolveSynastryEntries,
 } from "@/lib/synastry";
 import { synastryQuerySchema } from "@/lib/validation";
@@ -95,10 +96,12 @@ export async function POST(req: NextRequest) {
   }
 
   const index = loadContentIndex();
-  const prompt = buildSynastryReadingPrompt(
-    view,
-    resolveSynastryEntries(view.aspects, index),
-  );
+  const prompt = buildSynastryReadingPrompt(view, [
+    ...resolveSynastryEntries(view.aspects, index),
+    // The tightest angle contacts join the same context list — authored
+    // synastry_angle_aspect entries or their natal angle archetypes.
+    ...resolveSynastryAngleEntries(view.angleContacts, index),
+  ]);
   const [pairA, pairB] = normalizePair(a, b);
   const versionOf = (profileId: number) =>
     view.a.profileId === profileId ? view.a.version : view.b.version;

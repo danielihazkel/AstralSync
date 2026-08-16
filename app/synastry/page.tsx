@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEntry, loadContentIndex, natalAspectKey } from "@/lib/content";
+import {
+  getEntry,
+  loadContentIndex,
+  natalAngleAspectKey,
+  natalAspectKey,
+} from "@/lib/content";
+import { synastryAngleAspectKey } from "@/lib/contentKeys";
 import { llmClientFromEnv } from "@/lib/llm";
 import { listProfiles } from "@/lib/snapshots";
 import {
@@ -150,6 +156,18 @@ export default async function SynastryPage({
     const entry = getEntry(index, key);
     if (entry) prose[key] = { title: entry.title, bodyMd: entry.bodyMd };
   }
+  // Angle contacts: the authored synastry_angle_aspect entry, else the
+  // natal angle_aspect archetype — the transit list's chain, one register
+  // over. Both directions share one map (keys are direction-agnostic).
+  const angleProse: Record<string, AspectProse> = {};
+  for (const c of [...angleContacts.aOnB, ...angleContacts.bOnA]) {
+    const key = synastryAngleAspectKey(c.planet, c.target, c.type);
+    if (angleProse[key]) continue;
+    const entry =
+      getEntry(index, key) ??
+      getEntry(index, natalAngleAspectKey(c.planet, c.target, c.type));
+    if (entry) angleProse[key] = { title: entry.title, bodyMd: entry.bodyMd };
+  }
   // Composite aspects reuse natal pair prose as archetypal context, the
   // same degradation path the forecast route uses.
   const compositeProse: Record<string, AspectProse> = {};
@@ -221,11 +239,13 @@ export default async function SynastryPage({
             ownerName={a.displayName}
             hostName={b.displayName}
             contacts={angleContacts.aOnB}
+            prose={angleProse}
           />
           <AngleContactList
             ownerName={b.displayName}
             hostName={a.displayName}
             contacts={angleContacts.bOnA}
+            prose={angleProse}
           />
         </section>
       )}
