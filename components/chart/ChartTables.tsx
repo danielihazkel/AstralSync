@@ -13,6 +13,7 @@ import {
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS, POINT_GLYPH_CHARS } from "./glyphs";
 import UncertaintyBadge from "./UncertaintyBadge";
+import type { TwoRingRow } from "@/lib/wheelTableRows";
 import styles from "./chart.module.css";
 
 /**
@@ -91,6 +92,74 @@ export function PlacementsTable({
                 {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
               </td>
               {showHouses && <td>{p.house}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function positionCell(p: { degreeInSign: number; sign: keyof typeof SIGN_NAMES; retrograde: boolean }) {
+  return (
+    <>
+      {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
+      {p.retrograde && (
+        <span className={styles.retro} title="Retrograde">
+          {" "}
+          ℞
+        </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * Table twin of a two-ring wheel (transit/progressed/synastry overlays):
+ * one row per planet, both rings' positions side by side. Aspects are
+ * deliberately absent — every host already renders its cross-aspect list as
+ * the accessible aspect surface. The optional house column shows the
+ * right-hand (moving/overlaid) body's house.
+ */
+export function TwoRingTable({
+  rows,
+  leftHeader,
+  rightHeader,
+  showHouses = false,
+  houseHeader = "House",
+}: {
+  rows: TwoRingRow[];
+  leftHeader: string;
+  rightHeader: string;
+  showHouses?: boolean;
+  houseHeader?: string;
+}) {
+  return (
+    <div className="tableWrap">
+      <table
+        className={styles.table}
+        aria-label={`${leftHeader} and ${rightHeader} positions`}
+      >
+        <thead>
+          <tr>
+            <th scope="col">Planet</th>
+            <th scope="col">{leftHeader}</th>
+            <th scope="col">{rightHeader}</th>
+            {showHouses && <th scope="col">{houseHeader}</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.planet}>
+              <td>
+                <span className={styles.tableGlyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[row.planet] + "︎"}
+                </span>
+                {PLANET_NAMES[row.planet]}
+              </td>
+              <td>{positionCell(row.left)}</td>
+              <td>{positionCell(row.right)}</td>
+              {showHouses && <td>{row.right.house}</td>}
             </tr>
           ))}
         </tbody>

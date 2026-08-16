@@ -11,6 +11,7 @@ import {
 } from "@/lib/orbSettings";
 import type { WheelChart } from "@/lib/view-types";
 import OrbSettingsControl from "@/components/settings/OrbSettingsControl";
+import { TransitPositionsTable } from "@/components/transits/TransitTables";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -237,42 +238,13 @@ export default function CyclesPanel({
           </div>
         )}
 
-        <div className="tableWrap">
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th scope="col">Planet</th>
-              <th scope="col">Progressed position</th>
-              {showHouses && <th scope="col">Natal house</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {progressions.placements.map((p) => (
-              <tr key={p.planet}>
-                <td>
-                  <span className={styles.glyph} aria-hidden="true">
-                    {PLANET_GLYPH_CHARS[p.planet] + "︎"}
-                  </span>
-                  {PLANET_NAMES[p.planet]}
-                  {p.retrograde && (
-                    <span className={styles.retro} title="Retrograde">
-                      {" "}
-                      ℞
-                    </span>
-                  )}
-                </td>
-                <td>
-                  {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
-                  {p.planet === "moon" && data.natal.moonUncertain && (
-                    <UncertaintyBadge reason={moonReason} />
-                  )}
-                </td>
-                {showHouses && <td>{p.house}</td>}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
+        <TransitPositionsTable
+          placements={progressions.placements}
+          showHouses={showHouses}
+          positionHeader="Progressed position"
+          moonUncertain={data.natal.moonUncertain}
+          moonReason={moonReason}
+        />
 
         <h4 className={styles.sectionTitle}>Progressed aspects to the natal chart</h4>
         {orbs && <OrbSettingsControl value={orbs} onChange={changeOrbs} />}

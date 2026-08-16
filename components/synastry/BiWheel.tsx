@@ -1,8 +1,16 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CrossAspect, Planet } from "@astralsync/astro-core";
 import type { SynastrySide } from "@/lib/synastry";
+import {
+  loadChartSettings,
+  saveChartSettings,
+  type ChartView,
+} from "@/lib/chartSettings";
+import { pairPlacements } from "@/lib/wheelTableRows";
+import { TwoRingTable } from "@/components/chart/ChartTables";
+import { useTabList } from "@/components/useTabList";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -64,6 +72,29 @@ export default function BiWheel({
   const [hovered, setHovered] = useState<SynastrySelection>(null);
   const selection = hovered ?? pinned;
 
+  // Wheel | Table preference, shared app-wide via chart.view (ChartWheel
+  // owns the same key). Loads post-mount; SSR renders the wheel default.
+  const [view, setView] = useState<ChartView>("wheel");
+  useEffect(() => {
+    setView(loadChartSettings().chartView);
+  }, []);
+  const viewIdBase = useId();
+  const viewTabs = useTabList({
+    count: 2,
+    selected: view === "wheel" ? 0 : 1,
+    onSelect: (i) => {
+      const next: ChartView = i === 1 ? "table" : "wheel";
+      setView(next);
+      saveChartSettings({ ...loadChartSettings(), chartView: next });
+    },
+    idBase: viewIdBase,
+  });
+  const tableRows = useMemo(
+    () => pairPlacements(a.chart.placements, b.chart.placements),
+    [a.chart.placements, b.chart.placements],
+  );
+  const wheelPanel = viewTabs.getPanelProps(0);
+
   function isPlanetActive(side: "a" | "b", planet: Planet): boolean {
     if (!selection) return true;
     if (selection.kind === "planet") {
@@ -123,11 +154,32 @@ export default function BiWheel({
   return (
     <div className={chartStyles.wheelWrap}>
       <div className={chartStyles.wheelColumn}>
+        <div
+          className={chartStyles.viewSwitch}
+          role="tablist"
+          aria-label="Chart display"
+        >
+          <button {...viewTabs.getTabProps(0)}>Wheel</button>
+          <button {...viewTabs.getTabProps(1)}>Table</button>
+        </div>
+        {view === "table" ? (
+          <div {...viewTabs.getPanelProps(1)}>
+            {/* No house column: the overlay tables below own house
+                placements, including the solar-side omission. */}
+            <TwoRingTable
+              rows={tableRows}
+              leftHeader={a.displayName}
+              rightHeader={b.displayName}
+            />
+          </div>
+        ) : (
         <svg
           ref={svgRef}
           viewBox={`0 0 ${layout.size} ${layout.size}`}
           className={chartStyles.wheel}
-          role="img"
+          role={wheelPanel.role}
+          id={wheelPanel.id}
+          tabIndex={wheelPanel.tabIndex}
           aria-label={`Synastry bi-wheel: ${b.displayName}'s planets around ${a.displayName}'s chart`}
         >
           {/* Partner band boundary */}
@@ -319,11 +371,14 @@ export default function BiWheel({
             </g>
           ))}
         </svg>
+        )}
 
-        <DownloadChartButton
-          svgRef={svgRef}
-          baseName={`${a.displayName} ${b.displayName} synastry`}
-        />
+        {view === "wheel" && (
+          <DownloadChartButton
+            svgRef={svgRef}
+            baseName={`${a.displayName} ${b.displayName} synastry`}
+          />
+        )}
 
         <p className={styles.legend}>
           <span>
@@ -344,13 +399,15 @@ export default function BiWheel({
         {a.isSolarChart && <SolarChartNotice chart={a.chart} />}
       </div>
 
-      <SynastryDetail
-        a={a}
-        b={b}
-        aspects={aspects}
-        selection={selection}
-        pinned={pinned}
-      />
+      {view === "wheel" && (
+        <SynastryDetail
+          a={a}
+          b={b}
+          aspects={aspects}
+          selection={selection}
+          pinned={pinned}
+        />
+      )}
     </div>
   );
 }

@@ -32,9 +32,17 @@ export function transitProseKey(c: {
 export function TransitPositionsTable({
   placements,
   showHouses,
+  positionHeader = "Position",
+  houseHeader = "Natal house",
+  moonUncertain = false,
+  moonReason,
 }: {
   placements: Placement[];
   showHouses: boolean;
+  positionHeader?: string;
+  houseHeader?: string;
+  moonUncertain?: boolean;
+  moonReason?: string;
 }) {
   return (
     <div className="tableWrap">
@@ -42,8 +50,8 @@ export function TransitPositionsTable({
       <thead>
         <tr>
           <th scope="col">Planet</th>
-          <th scope="col">Position</th>
-          {showHouses && <th scope="col">Natal house</th>}
+          <th scope="col">{positionHeader}</th>
+          {showHouses && <th scope="col">{houseHeader}</th>}
         </tr>
       </thead>
       <tbody>
@@ -63,6 +71,9 @@ export function TransitPositionsTable({
             </td>
             <td>
               {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
+              {p.planet === "moon" && moonUncertain && moonReason && (
+                <UncertaintyBadge reason={moonReason} />
+              )}
             </td>
             {showHouses && <td>{p.house}</td>}
           </tr>

@@ -1,9 +1,17 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Planet } from "@astralsync/astro-core";
 import type { TransitData } from "@/lib/transits";
 import type { WheelChart } from "@/lib/view-types";
+import {
+  loadChartSettings,
+  saveChartSettings,
+  type ChartView,
+} from "@/lib/chartSettings";
+import { pairPlacements } from "@/lib/wheelTableRows";
+import { TwoRingTable } from "@/components/chart/ChartTables";
+import { useTabList } from "@/components/useTabList";
 
 /** The slice of TransitData the wheel actually draws — progressions reuse
  *  the same two-ring layout with a different body label. */
@@ -64,6 +72,29 @@ export default function TransitWheel({
   const [hovered, setHovered] = useState<TransitSelection>(null);
   const selection = hovered ?? pinned;
 
+  // Wheel | Table preference, shared app-wide via chart.view (ChartWheel
+  // owns the same key). Loads post-mount; SSR renders the wheel default.
+  const [view, setView] = useState<ChartView>("wheel");
+  useEffect(() => {
+    setView(loadChartSettings().chartView);
+  }, []);
+  const viewIdBase = useId();
+  const viewTabs = useTabList({
+    count: 2,
+    selected: view === "wheel" ? 0 : 1,
+    onSelect: (i) => {
+      const next: ChartView = i === 1 ? "table" : "wheel";
+      setView(next);
+      saveChartSettings({ ...loadChartSettings(), chartView: next });
+    },
+    idBase: viewIdBase,
+  });
+  const tableRows = useMemo(
+    () => pairPlacements(chart.placements, transits.placements),
+    [chart.placements, transits.placements],
+  );
+  const wheelPanel = viewTabs.getPanelProps(0);
+
   function togglePin(next: Exclude<TransitSelection, null>) {
     setPinned((cur) => (cur && sameSelection(cur, next) ? null : next));
   }
@@ -102,11 +133,32 @@ export default function TransitWheel({
   return (
     <div className={chartStyles.wheelWrap}>
       <div className={chartStyles.wheelColumn}>
+        <div
+          className={chartStyles.viewSwitch}
+          role="tablist"
+          aria-label="Chart display"
+        >
+          <button {...viewTabs.getTabProps(0)}>Wheel</button>
+          <button {...viewTabs.getTabProps(1)}>Table</button>
+        </div>
+        {view === "table" ? (
+          <div {...viewTabs.getPanelProps(1)}>
+            <TwoRingTable
+              rows={tableRows}
+              leftHeader="Natal"
+              rightHeader={bodyLabel}
+              showHouses={chart.houses !== null}
+              houseHeader="Natal house"
+            />
+          </div>
+        ) : (
         <svg
           ref={svgRef}
           viewBox={`0 0 ${layout.size} ${layout.size}`}
           className={chartStyles.wheel}
-          role="img"
+          role={wheelPanel.role}
+          id={wheelPanel.id}
+          tabIndex={wheelPanel.tabIndex}
           aria-label={`${bodyLabel} planets around the natal chart`}
         >
           {/* Transit band boundary */}
@@ -291,17 +343,22 @@ export default function TransitWheel({
             );
           })}
         </svg>
-        <DownloadChartButton svgRef={svgRef} baseName={downloadName} />
+        )}
+        {view === "wheel" && (
+          <DownloadChartButton svgRef={svgRef} baseName={downloadName} />
+        )}
       </div>
 
-      <TransitDetail
-        chart={chart}
-        transits={transits}
-        aspects={aspects}
-        selection={selection}
-        pinned={pinned}
-        bodyLabel={bodyLabel}
-      />
+      {view === "wheel" && (
+        <TransitDetail
+          chart={chart}
+          transits={transits}
+          aspects={aspects}
+          selection={selection}
+          pinned={pinned}
+          bodyLabel={bodyLabel}
+        />
+      )}
     </div>
   );
 }
