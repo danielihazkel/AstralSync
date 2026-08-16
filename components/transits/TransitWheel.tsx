@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Planet } from "@astralsync/astro-core";
 import type { TransitData } from "@/lib/transits";
 import type { WheelChart } from "@/lib/view-types";
@@ -23,6 +23,7 @@ import {
 } from "@/components/chart/glyphs";
 import chartStyles from "@/components/chart/chart.module.css";
 import styles from "./transits.module.css";
+import DownloadChartButton from "@/components/chart/DownloadChartButton";
 import TransitDetail from "./TransitDetail";
 import {
   isAspectActive,
@@ -43,12 +44,16 @@ export default function TransitWheel({
   chart,
   transits,
   bodyLabel = "Transiting",
+  downloadName = "transit wheel",
 }: {
   chart: WheelChart;
   transits: RingBodies;
   /** Label for the outer-ring bodies ("Transiting" or "Progressed"). */
   bodyLabel?: string;
+  /** Base name for the SVG/PNG download. */
+  downloadName?: string;
 }) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const layout = useMemo(
     () => layoutTransitWheel(chart, transits),
     [chart, transits],
@@ -98,6 +103,7 @@ export default function TransitWheel({
     <div className={chartStyles.wheelWrap}>
       <div className={chartStyles.wheelColumn}>
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${layout.size} ${layout.size}`}
           className={chartStyles.wheel}
           role="img"
@@ -285,6 +291,7 @@ export default function TransitWheel({
             );
           })}
         </svg>
+        <DownloadChartButton svgRef={svgRef} baseName={downloadName} />
       </div>
 
       <TransitDetail

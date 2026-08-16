@@ -48,6 +48,12 @@ export interface CyclesData {
     placements: Placement[];
     /** Progressed (a) vs natal (b), sorted by orb ascending. */
     crossAspects: CrossAspect[];
+    /** The progressed chart in its own right: cast at the progressed instant
+     *  for the birth place, giving progressed ASC/MC/cusps (the simplest
+     *  progressed-house convention; quotidian variants could layer on
+     *  later). Houses are null when the natal chart is solar — the
+     *  progressed instant inherits the birth time's uncertainty. */
+    chart: WheelChart;
   };
   solarReturn: {
     /** Calendar year the return falls in (the solar year containing now). */
@@ -112,11 +118,24 @@ export function computeProgressions(
     options.orbs ?? DEFAULT_TRANSIT_ORBS,
     options.includeMinors ? ALL_ASPECTS : MAJOR_ASPECTS,
   ).sort((x, y) => x.orb - y.orb);
+  const snapshot = buildChart({
+    utc: progressedUtc,
+    latitude: natal.input.latitude,
+    longitude: natal.input.longitude,
+    houseSystem: natal.input.houseSystem,
+    // Unlike the returns (whose instants are exact), the progressed instant
+    // is natal + offset, so it inherits the birth time's certainty — a solar
+    // natal degrades to a houseless solar progressed chart. Internal aspects
+    // stay at chart-default orbs like every other full chart in this view.
+    timeCertainty: natal.input.timeCertainty,
+  });
+  const chart: WheelChart = { ...snapshot, tzWarnings: [] };
   return {
     progressedUtc: progressedUtc.toISOString(),
     ageYears,
     placements,
     crossAspects,
+    chart,
   };
 }
 

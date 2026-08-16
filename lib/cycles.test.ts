@@ -60,6 +60,43 @@ describe("computeProgressions", () => {
     const prog = computeProgressions(solar, new Date(Date.UTC(2026, 7, 13)));
     expect(prog.placements.every((p) => p.house === null)).toBe(true);
   });
+
+  it("casts a full progressed chart at the progressed instant", () => {
+    const at = new Date(Date.UTC(2026, 7, 13));
+    const prog = computeProgressions(NATAL, at);
+    expect(prog.chart.input.utc).toBe(prog.progressedUtc);
+    expect(prog.chart.input.latitude).toBe(51.48);
+    expect(prog.chart.isSolarChart).toBe(false);
+    expect(prog.chart.houses).not.toBeNull();
+    // Same instant, same pipeline: the chart's planets sit exactly where the
+    // overlay placements do.
+    for (const p of prog.placements) {
+      const cp = prog.chart.placements.find((c) => c.planet === p.planet)!;
+      expect(cp.longitude).toBe(p.longitude);
+    }
+  });
+
+  it("advances the progressed MC about one degree per year of age", () => {
+    // At exactly age 30 the progressed instant is 30 days past birth; the
+    // MC (like the RAMC) advances roughly 1°/day of progression.
+    const at = new Date(
+      Date.UTC(1990, 2, 4, 10, 30, 0) + 30 * 365.2425 * 86_400_000,
+    );
+    const prog = computeProgressions(NATAL, at);
+    const motion = separation(
+      prog.chart.houses!.mc,
+      NATAL.houses!.mc,
+    );
+    expect(motion).toBeGreaterThan(25);
+    expect(motion).toBeLessThan(35);
+  });
+
+  it("degrades the progressed chart to solar against a solar natal", () => {
+    const solar = chartOf(new Date(Date.UTC(1990, 2, 4, 12, 0, 0)), "unknown");
+    const prog = computeProgressions(solar, new Date(Date.UTC(2026, 7, 13)));
+    expect(prog.chart.isSolarChart).toBe(true);
+    expect(prog.chart.houses).toBeNull();
+  });
 });
 
 describe("computeSolarReturn", () => {

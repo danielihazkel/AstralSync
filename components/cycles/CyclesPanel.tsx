@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { SIGNS } from "@astralsync/astro-core";
 import type { CyclesData } from "@/lib/cycles";
 import {
   loadOrbSettings,
@@ -18,6 +19,7 @@ import {
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
+import { useTabList } from "@/components/useTabList";
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import styles from "@/components/transits/transits.module.css";
@@ -35,6 +37,14 @@ type State =
   | { kind: "data"; data: CyclesData }
   | { kind: "offline" }
   | { kind: "error" };
+
+const PROGRESSION_VIEWS = ["biwheel", "wheel"] as const;
+
+/** "15°32′ Scorpio" for an ecliptic longitude (progressed ASC/MC line). */
+function anglePosition(longitude: number): string {
+  const norm = ((longitude % 360) + 360) % 360;
+  return `${formatDegreeInSign(norm % 30)} ${SIGN_NAMES[SIGNS[Math.floor(norm / 30)]]}`;
+}
 
 function ordinal(house: number): string {
   const suffix =
@@ -61,6 +71,14 @@ export default function CyclesPanel({
   // Null until localStorage is read post-mount — the first fetch waits so a
   // custom setting doesn't trigger a default-orbs fetch first.
   const [orbs, setOrbs] = useState<OrbSettings | null>(null);
+  const [progView, setProgView] =
+    useState<(typeof PROGRESSION_VIEWS)[number]>("biwheel");
+  const progTabs = useTabList({
+    count: PROGRESSION_VIEWS.length,
+    selected: PROGRESSION_VIEWS.indexOf(progView),
+    onSelect: (i) => setProgView(PROGRESSION_VIEWS[i]),
+    idBase: "progressions-view",
+  });
 
   useEffect(() => {
     setOrbs(loadOrbSettings());
@@ -187,11 +205,37 @@ export default function CyclesPanel({
           years.
         </p>
 
-        <TransitWheel
-          chart={chart}
-          transits={progressions}
-          bodyLabel="Progressed"
-        />
+        <div
+          className={styles.viewSwitch}
+          role="tablist"
+          aria-label="Progressions view"
+        >
+          <button {...progTabs.getTabProps(0)}>Vs. natal</button>
+          <button {...progTabs.getTabProps(1)}>Progressed wheel</button>
+        </div>
+        {progView === "biwheel" ? (
+          <div {...progTabs.getPanelProps(0)} className={styles.tabPanel}>
+            <TransitWheel
+              chart={chart}
+              transits={progressions}
+              bodyLabel="Progressed"
+              downloadName="progressed bi-wheel"
+            />
+          </div>
+        ) : (
+          <div {...progTabs.getPanelProps(1)} className={styles.tabPanel}>
+            <p className={styles.muted}>
+              The progressed chart in its own right
+              {progressions.chart.houses
+                ? `: progressed Ascendant ${anglePosition(progressions.chart.houses.ascendant)}, Midheaven ${anglePosition(progressions.chart.houses.mc)}. Houses are cast for the progressed moment at the birth place.`
+                : ". Without a birth time it is a solar chart — no progressed houses or Ascendant."}
+            </p>
+            <ChartWheel
+              chart={progressions.chart}
+              downloadName="progressed chart"
+            />
+          </div>
+        )}
 
         <div className="tableWrap">
         <table className={styles.table}>

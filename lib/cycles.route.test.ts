@@ -19,6 +19,7 @@ const canned = {
     ageYears: 36.4,
     placements: [],
     crossAspects: [],
+    chart: {} as CyclesData["solarReturn"]["chart"],
   },
   solarReturn: {
     year: 2026,
