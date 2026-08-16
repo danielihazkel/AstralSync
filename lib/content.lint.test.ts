@@ -38,18 +38,34 @@ const TRANSIT_ASPECT_NATALS: Planet[] = [
   "mars",
 ];
 
-/** Tier 2 pairs authored across all five aspect types (PLANETS order). */
-const FULL_ASPECT_PAIRS: [Planet, Planet][] = [
-  ["sun", "moon"],
-  ["sun", "mars"],
-  ["sun", "jupiter"],
-  ["sun", "saturn"],
-  ["moon", "mercury"],
-  ["moon", "venus"],
-  ["moon", "mars"],
-  ["mercury", "mars"],
-  ["venus", "mars"],
+/**
+ * Deliberately unauthored: outer–outer aspects last for decades and are
+ * cohort-wide, not personal — a reading section for them would be filler.
+ * The negative assertion below keeps this an explicit decision.
+ */
+const EXCLUDED_GENERATIONAL_PAIRS: [Planet, Planet][] = [
+  ["uranus", "neptune"],
+  ["uranus", "pluto"],
+  ["neptune", "pluto"],
 ];
+
+/** Pairs authored only at their astronomically reachable types. */
+const PARTIAL_PAIRS: [Planet, Planet][] = [
+  ["sun", "mercury"],
+  ["sun", "venus"],
+  ["mercury", "venus"],
+];
+
+/** Every other sorted PLANETS pair is authored across all five types. */
+const FULL_ASPECT_PAIRS: [Planet, Planet][] = [];
+for (let i = 0; i < PLANETS.length; i++) {
+  for (let j = i + 1; j < PLANETS.length; j++) {
+    const skip = [...EXCLUDED_GENERATIONAL_PAIRS, ...PARTIAL_PAIRS].some(
+      ([a, b]) => a === PLANETS[i] && b === PLANETS[j],
+    );
+    if (!skip) FULL_ASPECT_PAIRS.push([PLANETS[i], PLANETS[j]]);
+  }
+}
 
 /**
  * Pairs whose remaining types are astronomically unreachable at natal orbs
@@ -86,13 +102,13 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 592 entries", () => {
+  it("contains exactly the 742 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
-    // paths + 4 elements + 3 modalities + 49 natal aspects + 125 transit
-    // aspects (Tiers 1+2) + 12 destiny + 12 soul urge + 50 synastry aspects
-    // + 12 MC signs + 5 chart patterns + 8 natal retrogrades + 48 points in
-    // sign.
-    expect(entries).toHaveLength(592);
+    // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
+    // + 4 partials) + 125 transit aspects (Tiers 1+2) + 12 destiny + 12
+    // soul urge + 50 synastry aspects + 12 MC signs + 5 chart patterns
+    // + 8 natal retrogrades + 48 points in sign.
+    expect(entries).toHaveLength(742);
   });
 
   it("covers every planet in every sign", () => {
@@ -231,7 +247,7 @@ describe("content library lint", () => {
     );
   });
 
-  it("covers the Tier 2 natal aspect matrix", () => {
+  it("covers the natal aspect matrix (all reachable pairs)", () => {
     for (const [a, b] of FULL_ASPECT_PAIRS) {
       for (const type of MAJOR_ASPECT_TYPES) {
         expect(entry(`aspect/${a}/${b}/${type}`), `${a}/${b}/${type}`).not.toBeNull();
@@ -239,6 +255,15 @@ describe("content library lint", () => {
     }
     for (const key of PARTIAL_ASPECT_KEYS) {
       expect(entry(key), key).not.toBeNull();
+    }
+    // The outer–outer exclusion is a decision, not a gap — assert it holds.
+    for (const [a, b] of EXCLUDED_GENERATIONAL_PAIRS) {
+      for (const type of MAJOR_ASPECT_TYPES) {
+        expect(
+          entry(`aspect/${a}/${b}/${type}`),
+          `${a}/${b}/${type} is deliberately unauthored`,
+        ).toBeNull();
+      }
     }
     const authored = entries.filter((e) => e.category === "aspect");
     expect(authored).toHaveLength(
