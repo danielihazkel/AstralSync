@@ -11,6 +11,7 @@ import {
 } from "@astralsync/astro-core";
 import * as Astronomy from "astronomy-engine";
 import { memoizeByMs } from "./ephemerisMemo";
+import { LruMap } from "./lruCache";
 
 /**
  * The Sky Calendar's month model — computed entirely in the browser from the
@@ -121,8 +122,9 @@ function vocWindowFor(
 /** Session-lifetime month memo, shared by every view that needs a month
  *  (the /calendar grid and the /calendar/[date] almanac) so navigating
  *  between them never recomputes the ~1s of ephemeris work. Module-level on
- *  purpose: a component-held cache dies on unmount. */
-const monthCache = new Map<string, MoonMonth>();
+ *  purpose: a component-held cache dies on unmount. LRU-capped at two years
+ *  of browsing so a long-lived tab stays bounded. */
+const monthCache = new LruMap<string, MoonMonth>(24);
 
 export function computeMoonMonthCached(
   year: number,

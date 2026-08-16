@@ -12,6 +12,7 @@ import {
   type ClassicalPlanet,
 } from "@astralsync/hebrew-core";
 import { memoizeByMs } from "./ephemerisMemo";
+import { LruMap } from "./lruCache";
 import type { HomeLocation } from "./today";
 
 /**
@@ -128,9 +129,9 @@ export interface LunarDayScan {
 
 /** Session-lifetime scan memo keyed by local civil date — the expensive part
  *  of scoring depends on the date alone, so intent and location changes
- *  rescore instantly. Entries are a few hundred numbers; unbounded like the
- *  month cache in lib/skyCalendar.ts and just as harmless. */
-const dayScanCache = new Map<string, LunarDayScan>();
+ *  rescore instantly. Entries are a few hundred numbers; LRU-capped at two
+ *  months of days like the month cache in lib/skyCalendar.ts. */
+const dayScanCache = new LruMap<string, LunarDayScan>(62);
 
 /**
  * The ephemeris work for one local civil day: exact lunar aspects and
