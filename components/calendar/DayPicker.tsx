@@ -11,7 +11,9 @@ import { downloadIcs } from "@/components/downloadIcs";
 import { electionalDayIcsEvents } from "./calendarIcsEvents";
 import styles from "./calendar.module.css";
 
-const INTENT_OPTIONS: Array<{ value: Intent; label: string }> = [
+/** Local copy of the intent list (lib/electional's INTENT_LABELS is a value
+ *  export in an ephemeris-importing module); shared with the almanac. */
+export const INTENT_OPTIONS: Array<{ value: Intent; label: string }> = [
   { value: "communication", label: "Communication & contracts" },
   { value: "love", label: "Love & beauty" },
   { value: "action", label: "Action & courage" },

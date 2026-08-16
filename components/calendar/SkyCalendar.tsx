@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
 import { SIGN_NAMES } from "@/components/format";
@@ -9,25 +10,10 @@ import { useTabList } from "@/components/useTabList";
 import { buildIcs } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
 import { moonMonthIcsEvents } from "./calendarIcsEvents";
+import { dayTitle, timeOf } from "./calendarFormat";
 import styles from "./calendar.module.css";
 
 const VIEWS = ["moon", "picker"] as const;
-
-function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function dayTitle(date: string): string {
-  return new Date(`${date}T12:00:00`).toLocaleDateString([], {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 /**
  * The Sky Calendar: a month of Moon signs, phases, void-of-course windows
@@ -211,6 +197,7 @@ function DayDetail({ cell }: { cell: MoonDayCell }) {
           </li>
         ))}
       </ul>
+      <Link href={`/calendar/${cell.date}`}>Full day view →</Link>
     </section>
   );
 }

@@ -96,6 +96,16 @@ export const ASPECT_NAMES: Record<AspectType, string> = {
   quintile: "Quintile",
 };
 
+/** Relational phrasing for the major angles ("Venus trine Jupiter") — used
+ *  where an event carries the perfected angle rather than an AspectType. */
+export const MAJOR_ANGLE_NAMES: Record<number, string> = {
+  0: "conjunct",
+  60: "sextile",
+  90: "square",
+  120: "trine",
+  180: "opposite",
+};
+
 export const HOUSE_SYSTEM_NAMES: Record<HouseSystem, string> = {
   placidus: "Placidus",
   whole_sign: "Whole Sign",

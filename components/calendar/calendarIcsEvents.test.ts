@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { AlmanacDay } from "@/lib/almanac";
 import type { ElectionalDay } from "@/lib/electional";
 import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
-import { electionalDayIcsEvents, moonMonthIcsEvents } from "./calendarIcsEvents";
+import {
+  almanacDayIcsEvents,
+  electionalDayIcsEvents,
+  moonMonthIcsEvents,
+} from "./calendarIcsEvents";
 
 function cell(overrides: Partial<MoonDayCell>): MoonDayCell {
   return {
@@ -78,6 +83,70 @@ describe("moonMonthIcsEvents", () => {
     };
     const events = moonMonthIcsEvents(month);
     expect(events).toHaveLength(1);
+  });
+});
+
+describe("almanacDayIcsEvents", () => {
+  const day: AlmanacDay = {
+    date: "2026-08-08",
+    moon: cell({
+      date: "2026-08-08",
+      quarter: { name: "Full Moon", utc: "2026-08-08T02:00:00.000Z" },
+      voc: [
+        {
+          fromUtc: "2026-08-08T01:00:00.000Z",
+          untilUtc: "2026-08-08T05:00:00.000Z",
+          nextSign: "virgo",
+        },
+      ],
+    }),
+    phaseName: "Full Moon",
+    mundane: [
+      { a: "venus", b: "jupiter", angle: 120, utc: "2026-08-08T14:32:00.000Z" },
+    ],
+    ingresses: [
+      { planet: "mars", sign: "leo", utc: "2026-08-08T18:40:00.000Z" },
+    ],
+    stations: [
+      {
+        planet: "mercury",
+        direction: "retrograde",
+        utc: "2026-08-08T03:11:00.000Z",
+      },
+    ],
+  };
+
+  it("maps moon, mundane, ingress and station events with stable uids", () => {
+    const events = almanacDayIcsEvents(day);
+    expect(events.map((e) => e.summary)).toEqual([
+      "Full Moon",
+      "Moon void of course (then Virgo)",
+      "Venus trine Jupiter",
+      "Mars enters Leo",
+      "Mercury stations retrograde",
+    ]);
+    expect(events.map((e) => e.uid)).toEqual([
+      "quarter-20260808T020000Z",
+      "voc-20260808T050000Z",
+      "mundane-venus-jupiter-20260808T143200Z",
+      "ingress-mars-20260808T184000Z",
+      "station-mercury-20260808T031100Z",
+    ]);
+    // Only the VoC window is a span; the rest are instants.
+    expect(events[1].end).toBe("2026-08-08T05:00:00.000Z");
+    expect(events[2].end).toBeUndefined();
+  });
+
+  it("shares moon-event uids with the month export so re-imports dedupe", () => {
+    const dayEvents = almanacDayIcsEvents(day);
+    const monthEvents = moonMonthIcsEvents({
+      year: 2026,
+      month: 8,
+      days: [day.moon],
+    });
+    for (const m of monthEvents) {
+      expect(dayEvents.map((e) => e.uid)).toContain(m.uid);
+    }
   });
 });
 
