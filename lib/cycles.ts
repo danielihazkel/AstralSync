@@ -98,6 +98,33 @@ export interface PlanetaryReturnData {
   chart: WheelChart | null;
 }
 
+/** One resolved content entry, ready to render. */
+export interface CyclesEntryProse {
+  title: string;
+  bodyMd: string;
+}
+
+/**
+ * Optional per-section prose the cycles route resolves from the content
+ * library and attaches to the payload (the /api/transits pattern — the
+ * panel is a client component, so prose must ride the response). Each field
+ * maps to one fixed section slot; missing entries or null inputs (solar
+ * charts have no profection or progressed Ascendant) leave the field absent.
+ */
+export interface CyclesProse {
+  /** profection_year/<house 1-12> */
+  profection?: CyclesEntryProse;
+  /** progressed_sun_sign/<sign> */
+  progressedSun?: CyclesEntryProse;
+  /** progressed_asc_sign/<sign> */
+  progressedAsc?: CyclesEntryProse;
+  /** return_overview/{solar,lunar,jupiter,saturn} */
+  solarReturn?: CyclesEntryProse;
+  lunarReturn?: CyclesEntryProse;
+  jupiterReturn?: CyclesEntryProse;
+  saturnReturn?: CyclesEntryProse;
+}
+
 /** Pure: natal chart + instant → progressed placements and natal contacts. */
 export function computeProgressions(
   natal: WheelChart,

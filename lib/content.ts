@@ -73,6 +73,13 @@ export const CONTENT_CATEGORIES = [
   // Transiting outer planets over the natal ASC/MC; unauthored keys fall
   // back to the natal `angle_aspect` archetypes in the transit list.
   "transit_angle_aspect",
+  // Cycles-tab prose, resolved by the cycles route into fixed section
+  // slots: the profected house's year theme, the progressed Sun/ASC sign
+  // chapters, and one overview per return type.
+  "profection_year",
+  "progressed_sun_sign",
+  "progressed_asc_sign",
+  "return_overview",
   "element_dominance",
   "modality_dominance",
   "life_path",

@@ -97,7 +97,7 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1132 entries", () => {
+  it("contains exactly the 1172 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
@@ -105,8 +105,10 @@ describe("content library lint", () => {
     // angle aspects (5 transiters x ASC/MC x 5 types) + 12 destiny + 12
     // soul urge + 105 synastry aspects (21 sorted pairs over 6 planets)
     // + 60 synastry angle aspects (6 planets x ASC/MC x 5 types) + 12 MC
-    // signs + 5 chart patterns + 8 natal retrogrades + 48 points in sign.
-    expect(entries).toHaveLength(1132);
+    // signs + 5 chart patterns + 8 natal retrogrades + 48 points in sign
+    // + 12 profection years + 12 progressed Sun signs + 12 progressed ASC
+    // signs + 4 return overviews.
+    expect(entries).toHaveLength(1172);
   });
 
   it("covers every planet in every sign", () => {
@@ -223,6 +225,23 @@ describe("content library lint", () => {
     expect(entries.filter((e) => e.category === "synastry_aspect")).toHaveLength(
       expected,
     );
+  });
+
+  it("covers the Cycles categories: profections, progressed signs, returns", () => {
+    for (let house = 1; house <= 12; house++) {
+      expect(entry(`profection_year/${house}`), `house ${house}`).not.toBeNull();
+    }
+    for (const sign of SIGNS) {
+      expect(entry(`progressed_sun_sign/${sign}`), sign).not.toBeNull();
+      expect(entry(`progressed_asc_sign/${sign}`), sign).not.toBeNull();
+    }
+    for (const kind of ["solar", "lunar", "jupiter", "saturn"]) {
+      expect(entry(`return_overview/${kind}`), kind).not.toBeNull();
+    }
+    expect(entries.filter((e) => e.category === "profection_year")).toHaveLength(12);
+    expect(entries.filter((e) => e.category === "progressed_sun_sign")).toHaveLength(12);
+    expect(entries.filter((e) => e.category === "progressed_asc_sign")).toHaveLength(12);
+    expect(entries.filter((e) => e.category === "return_overview")).toHaveLength(4);
   });
 
   it("covers every element dominance", () => {

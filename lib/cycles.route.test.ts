@@ -54,11 +54,69 @@ describe("GET /api/cycles/[id]", () => {
     const res = await GET(request("/api/cycles/1"), params("1"));
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
-    expect(await res.json()).toEqual(canned);
+    // The route decorates the view with per-section prose from the real
+    // library. The canned view has no profection, progressed placements, or
+    // planetary returns, so only the solar/lunar overviews resolve.
+    expect(await res.json()).toEqual({
+      ...canned,
+      prose: {
+        solarReturn: { title: "The solar return", bodyMd: expect.any(String) },
+        lunarReturn: { title: "The lunar return", bodyMd: expect.any(String) },
+      },
+    });
     expect(mockView).toHaveBeenCalledWith(1, undefined, {
       orbs: undefined,
       includeMinors: false,
     });
+  });
+
+  it("attaches profection, progressed-sign, and return prose when inputs exist", async () => {
+    mockView.mockResolvedValue({
+      ...canned,
+      profection: {
+        age: 36,
+        profectedHouse: 5,
+        profectedSign: "leo",
+        yearLord: "sun",
+        yearStartUtc: "2026-08-01T00:00:00.000Z",
+        yearEndUtc: "2027-08-01T00:00:00.000Z",
+      },
+      progressions: {
+        ...canned.progressions,
+        placements: [
+          {
+            planet: "sun",
+            sign: "taurus",
+            longitude: 35,
+            degreeInSign: 5,
+            house: null,
+            retrograde: false,
+          },
+        ],
+        chart: {
+          bigThree: { sun: "taurus", moon: "cancer", ascendant: "virgo" },
+        } as CyclesData["solarReturn"]["chart"],
+      },
+      planetaryReturns: [
+        {
+          planet: "jupiter",
+          cycleYears: 11.9,
+          natalLongitude: 0,
+          currentLongitude: 1,
+          lastExactUtc: null,
+          crossings: [],
+          nextExactUtc: null,
+          chart: null,
+        },
+      ],
+    });
+    const res = await GET(request("/api/cycles/1"), params("1"));
+    const { prose } = await res.json();
+    expect(prose.profection.title).toBe("A 5th-house year");
+    expect(prose.progressedSun.title).toBe("Progressed Sun in Taurus");
+    expect(prose.progressedAsc.title).toBe("Progressed Ascendant in Virgo");
+    expect(prose.jupiterReturn.title).toBe("The Jupiter return");
+    expect(prose.saturnReturn).toBeUndefined();
   });
 
   it("passes a valid `at` instant through", async () => {

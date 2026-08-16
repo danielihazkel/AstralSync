@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCyclesView } from "@/lib/cycles";
+import { getEntry, loadContentIndex } from "@/lib/content";
+import { getCyclesView, type CyclesProse } from "@/lib/cycles";
 import { transitOptionsFromQuery } from "@/lib/transits";
 import { transitQuerySchema } from "@/lib/validation";
 
@@ -44,5 +45,38 @@ export async function GET(
       { status: 404, headers: NO_STORE },
     );
   }
-  return NextResponse.json(view, { headers: NO_STORE });
+  // Per-section prose from the content library (the /api/transits pattern):
+  // one fixed slot per Cycles section, absent when the input is null (solar
+  // charts have no profection or progressed Ascendant) or unauthored.
+  const index = loadContentIndex();
+  const resolve = (key: string) => {
+    const entry = getEntry(index, key);
+    return entry ? { title: entry.title, bodyMd: entry.bodyMd } : undefined;
+  };
+  const prose: CyclesProse = {};
+  if (view.profection) {
+    prose.profection = resolve(
+      `profection_year/${view.profection.profectedHouse}`,
+    );
+  }
+  const progressedSun = view.progressions.placements.find(
+    (p) => p.planet === "sun",
+  )?.sign;
+  if (progressedSun) {
+    prose.progressedSun = resolve(`progressed_sun_sign/${progressedSun}`);
+  }
+  const progressedAsc = view.progressions.chart.bigThree?.ascendant;
+  if (progressedAsc) {
+    prose.progressedAsc = resolve(`progressed_asc_sign/${progressedAsc}`);
+  }
+  prose.solarReturn = resolve("return_overview/solar");
+  if (view.lunarReturn) prose.lunarReturn = resolve("return_overview/lunar");
+  for (const r of view.planetaryReturns) {
+    if (r.planet === "jupiter") {
+      prose.jupiterReturn = resolve("return_overview/jupiter");
+    } else if (r.planet === "saturn") {
+      prose.saturnReturn = resolve("return_overview/saturn");
+    }
+  }
+  return NextResponse.json({ ...view, prose }, { headers: NO_STORE });
 }

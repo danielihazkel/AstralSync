@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SIGNS } from "@astralsync/astro-core";
-import type { CyclesData } from "@/lib/cycles";
+import type {
+  CyclesData,
+  CyclesEntryProse,
+  CyclesProse,
+} from "@/lib/cycles";
 import {
   loadOrbSettings,
   orbQuery,
@@ -20,6 +24,7 @@ import {
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
+import Markdown from "@/components/Markdown";
 import { useTabList } from "@/components/useTabList";
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
@@ -33,9 +38,12 @@ const TransitWheel = dynamic(
   { loading: () => <WheelSkeleton /> },
 );
 
+/** The route decorates the view with per-section content-library prose. */
+type CyclesPayload = CyclesData & { prose?: CyclesProse };
+
 type State =
   | { kind: "loading" }
-  | { kind: "data"; data: CyclesData }
+  | { kind: "data"; data: CyclesPayload }
   | { kind: "offline" }
   | { kind: "error" };
 
@@ -45,6 +53,16 @@ const PROGRESSION_VIEWS = ["biwheel", "wheel"] as const;
 function anglePosition(longitude: number): string {
   const norm = ((longitude % 360) + 360) % 360;
   return `${formatDegreeInSign(norm % 30)} ${SIGN_NAMES[SIGNS[Math.floor(norm / 30)]]}`;
+}
+
+/** Library prose under a section's explainer — nothing when unauthored. */
+function Prose({ entry }: { entry?: CyclesEntryProse }) {
+  if (!entry) return null;
+  return (
+    <div className={styles.prose}>
+      <Markdown md={entry.bodyMd} />
+    </div>
+  );
 }
 
 function ordinal(house: number): string {
@@ -191,6 +209,7 @@ export default function CyclesPanel({
             {PLANET_NAMES[profection.yearLord]} fares in the solar return
             below — traditional practice reads the two together.
           </p>
+          <Prose entry={data.prose?.profection} />
         </section>
       )}
 
@@ -246,6 +265,9 @@ export default function CyclesPanel({
           moonReason={moonReason}
         />
 
+        <Prose entry={data.prose?.progressedSun} />
+        <Prose entry={data.prose?.progressedAsc} />
+
         <h4 className={styles.sectionTitle}>Progressed aspects to the natal chart</h4>
         {orbs && <OrbSettingsControl value={orbs} onChange={changeOrbs} />}
         {progressions.crossAspects.length === 0 ? (
@@ -290,6 +312,7 @@ export default function CyclesPanel({
             {(data.natal.isSolarChart || data.natal.moonUncertain) &&
               " The natal Moon position is uncertain (birth time), so the return moment is approximate."}
           </p>
+          <Prose entry={data.prose?.lunarReturn} />
           <ChartWheel chart={lunarReturn.chart} downloadName="lunar return" />
         </section>
       )}
@@ -306,6 +329,7 @@ export default function CyclesPanel({
           {data.natal.isSolarChart &&
             " The birth time is unknown, so the natal Sun is a noon estimate — the return moment (and this chart's houses) shift with it."}
         </p>
+        <Prose entry={data.prose?.solarReturn} />
         <ChartWheel
           chart={solarReturn.chart}
           downloadName={`solar return ${solarReturn.year}`}
@@ -343,6 +367,13 @@ export default function CyclesPanel({
             {r.crossings.length > 1 &&
               ` A retrograde loop makes ${r.crossings.length} exact passes over the natal degree in this window — the theme repeats.`}
           </p>
+          <Prose
+            entry={
+              r.planet === "jupiter"
+                ? data.prose?.jupiterReturn
+                : data.prose?.saturnReturn
+            }
+          />
           {r.chart && (
             <>
               <p className={styles.muted}>
