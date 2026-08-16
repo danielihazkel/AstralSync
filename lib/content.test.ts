@@ -205,8 +205,12 @@ describe("loadContentIndex", () => {
       "planet_in_sign/venus/libra",
       "point_in_sign/lilith/sagittarius",
       "point_in_sign/north_node/aquarius",
+      "point_in_sign/north_node/sagittarius",
+      "point_in_sign/north_node/scorpio",
       "point_in_sign/part_of_fortune/virgo",
+      "point_in_sign/south_node/gemini",
       "point_in_sign/south_node/leo",
+      "point_in_sign/south_node/taurus",
       "soul_urge/22",
     ]);
   });
@@ -435,6 +439,38 @@ describe("resolveReading", () => {
     expect(
       reading.missingKeys.some((k) => k.includes("part_of_fortune")),
     ).toBe(false);
+  });
+
+  it("emits both node sections, tagged, when mean and true disagree on sign", () => {
+    // 1975-06-12: the true node sits at 0° Sagittarius while the mean node
+    // is still at 29° Scorpio (verified against pointsAt directly).
+    const base = fixtureChart();
+    const reading = resolveReading(
+      fixtureChart({ input: { ...base.input, utc: "1975-06-12T12:00:00.000Z" } }),
+      null,
+      CONTENT_VERSION,
+      index,
+    );
+    const nodes = reading.sections.filter(
+      (s) => s.slot === "point" && s.key?.includes("node"),
+    );
+    expect(nodes.map((s) => [s.key, s.nodeVariant])).toEqual([
+      ["point_in_sign/north_node/sagittarius", "true"],
+      ["point_in_sign/north_node/scorpio", "mean"],
+      ["point_in_sign/south_node/gemini", "true"],
+      ["point_in_sign/south_node/taurus", "mean"],
+    ]);
+    expect(nodes[0].source).toMatch(/^North Node in Sagittarius — .* \(true node\)$/);
+    expect(nodes[1].source).toMatch(/^North Node in Scorpio — .* \(mean node\)$/);
+  });
+
+  it("leaves node sections untagged when the variants agree on sign", () => {
+    const reading = resolveReading(fixtureChart(), null, CONTENT_VERSION, index);
+    const nodes = reading.sections.filter(
+      (s) => s.slot === "point" && s.key?.includes("node"),
+    );
+    expect(nodes).toHaveLength(2);
+    expect(nodes.every((s) => s.nodeVariant === undefined)).toBe(true);
   });
 
   it("resolves the Midheaven and Part of Fortune when houses exist", () => {

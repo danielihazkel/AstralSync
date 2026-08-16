@@ -7,8 +7,10 @@ import {
   pointsAt,
   signOf,
   type AspectType,
+  type NodeVariant,
   type Planet,
   type PointName,
+  type PointPlacement,
 } from "@astralsync/astro-core";
 import type { WheelChart } from "./view-types";
 import { CONTENT_VERSION } from "./versions";
@@ -252,6 +254,11 @@ export interface ReadingSection {
   bodyMd: string;
   /** Human-readable provenance, e.g. "Sun in Leo — 17°04′". */
   source: string;
+  /** Set only on node sections when the mean and true nodes land in
+   *  different signs: both variants are emitted, tagged, and the Reading
+   *  panel shows the one matching the per-browser wheel pref. Untagged
+   *  sections apply to every variant. */
+  nodeVariant?: NodeVariant;
 }
 
 export interface NumeroReadingInput {
@@ -324,13 +331,25 @@ export function resolveReading(
   const sections: ReadingSection[] = [];
   const missingKeys: string[] = [];
 
-  const take = (key: string, slot: ReadingSlot, source: string): ContentEntry | null => {
+  const take = (
+    key: string,
+    slot: ReadingSlot,
+    source: string,
+    nodeVariant?: NodeVariant,
+  ): ContentEntry | null => {
     const entry = getEntry(index, key);
     if (!entry) {
       missingKeys.push(key);
       return null;
     }
-    sections.push({ slot, key, title: entry.title, bodyMd: entry.bodyMd, source });
+    sections.push({
+      slot,
+      key,
+      title: entry.title,
+      bodyMd: entry.bodyMd,
+      source,
+      ...(nodeVariant ? { nodeVariant } : {}),
+    });
     return entry;
   };
 
@@ -448,21 +467,48 @@ export function resolveReading(
 
   // Calculated points, recomputed from the stored instant like the Chart
   // tab's overlay. The wheel's mean/true node toggle is a per-browser pref
-  // unavailable server-side — the reading uses true nodes, matching the LLM
-  // prompt data. The Part of Fortune needs an Ascendant, so solar charts
-  // list nodes and Lilith only.
+  // unavailable server-side, so when the two variants land in different
+  // signs (a few weeks around each cusp crossing) the reading carries BOTH
+  // node sections, tagged by variant — the panel shows the one matching the
+  // browser pref, while server-only surfaces (print, the LLM prompt) keep
+  // the true-node section. The Part of Fortune needs an Ascendant, so solar
+  // charts list nodes and Lilith only.
   const POINT_LABELS: Record<PointName, string> = {
     north_node: "North Node",
     south_node: "South Node",
     lilith: "Lilith",
     part_of_fortune: "Part of Fortune",
   };
-  const points = pointsAt(new Date(chart.input.utc), "true");
+  const takePoint = (pt: PointPlacement, variant?: NodeVariant): void => {
+    const base = `${POINT_LABELS[pt.point]} in ${cap(pt.sign)}`;
+    // Solar charts suppress degree precision, like the planet sections.
+    const source = chart.isSolarChart ? base : `${base} — ${degreeLabel(pt.degreeInSign)}`;
+    take(
+      `point_in_sign/${pt.point}/${pt.sign}`,
+      "point",
+      variant ? `${source} (${variant} node)` : source,
+      variant,
+    );
+  };
+  const instant = new Date(chart.input.utc);
+  const meanPoints = pointsAt(instant, "mean");
+  for (const pt of pointsAt(instant, "true")) {
+    const mean =
+      pt.point === "north_node" || pt.point === "south_node"
+        ? meanPoints.find((m) => m.point === pt.point)
+        : undefined;
+    if (mean && mean.sign !== pt.sign) {
+      takePoint(pt, "true");
+      takePoint(mean, "mean");
+    } else {
+      takePoint(pt);
+    }
+  }
   if (chart.houses !== null) {
     const sun = chart.placements.find((p) => p.planet === "sun");
     const moon = chart.placements.find((p) => p.planet === "moon");
     if (sun && moon) {
-      points.push(
+      takePoint(
         partOfFortunePlacement(
           chart.houses.ascendant,
           sun.longitude,
@@ -471,15 +517,6 @@ export function resolveReading(
         ),
       );
     }
-  }
-  for (const pt of points) {
-    const base = `${POINT_LABELS[pt.point]} in ${cap(pt.sign)}`;
-    take(
-      `point_in_sign/${pt.point}/${pt.sign}`,
-      "point",
-      // Solar charts suppress degree precision, like the planet sections.
-      chart.isSolarChart ? base : `${base} — ${degreeLabel(pt.degreeInSign)}`,
-    );
   }
 
   const lifePathEntry = numero

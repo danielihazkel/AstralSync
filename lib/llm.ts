@@ -792,7 +792,9 @@ export function buildReadingPrompt(
     .join(", ");
 
   const sections = resolved.sections
-    .filter((s) => s.slot !== "synthesis")
+    // The stored prompt pins true nodes (the mean-tagged twin exists only
+    // for the browser-pref display path).
+    .filter((s) => s.slot !== "synthesis" && s.nodeVariant !== "mean")
     .map((s) => `### ${s.title} (${s.source})\n${s.bodyMd}`)
     .join("\n\n");
 

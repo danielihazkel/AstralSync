@@ -176,7 +176,9 @@ export default async function PrintReportPage({
 
       <section className={styles.section} aria-label="Reading">
         <h2 className={styles.sectionTitle}>Reading</h2>
-        {reading.sections.map((s) => (
+        {/* Print is server-only, so it pins true nodes — the mean-tagged
+            twin exists only for the browser-pref display path. */}
+        {reading.sections.filter((s) => s.nodeVariant !== "mean").map((s) => (
           <div key={s.key ?? s.title} className={styles.readingSection}>
             <h3 className={styles.readingTitle}>{s.title}</h3>
             <p className={styles.readingSource}>{s.source}</p>

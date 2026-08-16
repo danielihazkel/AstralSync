@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import type { NodeVariant } from "@astralsync/astro-core";
+import { loadChartSettings } from "@/lib/chartSettings";
 import type { ReadingSlot, ResolvedReading } from "@/lib/content";
 import type { AstroView } from "@/lib/view-types";
 import Markdown from "@/components/Markdown";
@@ -69,6 +71,18 @@ export default function ReadingPanel({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const { busy, streamText, generate: streamGenerate, reset } = useStreamedGeneration();
+
+  // Node sections come in both variants when mean and true disagree on the
+  // sign; show the one matching the wheel pref (loaded post-mount, like
+  // ChartWheel — the panel remounts on every tab switch, so this stays
+  // fresh without an event channel).
+  const [nodeVariant, setNodeVariant] = useState<NodeVariant>("true");
+  useEffect(() => {
+    setNodeVariant(loadChartSettings().nodeVariant);
+  }, []);
+  const sections = reading.sections.filter(
+    (s) => !s.nodeVariant || s.nodeVariant === nodeVariant,
+  );
 
   // Once the stored reading arrives (post-refresh), drop the live preview so
   // a later discard doesn't resurrect stale text.
@@ -150,9 +164,9 @@ export default function ReadingPanel({
         )}
       </div>
 
-      {reading.sections.map((section, i) => {
+      {sections.map((section, i) => {
         const group = SLOT_GROUP[section.slot];
-        const prevGroup = i > 0 ? SLOT_GROUP[reading.sections[i - 1].slot] : null;
+        const prevGroup = i > 0 ? SLOT_GROUP[sections[i - 1].slot] : null;
         // Index-qualified key: the same entry can legitimately repeat (two
         // stelliums both resolve chart_pattern/stellium).
         return (
