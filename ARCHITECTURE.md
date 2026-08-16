@@ -86,7 +86,7 @@ No external APIs, no rate limits, no cost. **Known limitation surfaced in UI:** 
 
 The math is solved; the text is the product (PRD §5). Content is a first-class, versioned deliverable:
 
-- **Format:** Markdown/JSON files in `content/`, keyed by placement (`planet_in_sign`, `planet_in_house`, `aspect`, `ascendant_sign`, `element_dominance`, `modality_dominance`, `life_path`, `destiny`, `soul_urge`).
+- **Format:** Markdown files in `content/`, keyed by placement — natal (`planet_in_sign`, `planet_in_house`, `aspect`, `angle_aspect`, `ascendant_sign`, `mc_sign`, `chart_pattern`, `natal_retrograde`, `point_in_sign`, `element_dominance`, `modality_dominance`), predictive (`transit_aspect`, `transit_angle_aspect`, `profection_year`, `progressed_sun_sign`, `progressed_asc_sign`, `return_overview`), relational (`synastry_aspect`, `synastry_angle_aspect`), numerological (`life_path`, `destiny`, `soul_urge`), and the Hebrew (Mazal) categories under `content/he/`. See `content/README.md` for the full key table and scope.
 - **Versioning:** snapshots record the `content_version` that rendered them.
 - **v1 scope:** ~40 entries — Big Three + Life Path + element dominance. The schema supports the full matrix from day one; entries fill in incrementally.
 - **Sourcing:** original authored text (informed by public-domain literature, never copied).

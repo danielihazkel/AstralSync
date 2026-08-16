@@ -30,6 +30,13 @@ become key segments.
 | `planet_in_sign`     | `planet_in_sign/<planet>/<sign>` | `planet_in_sign/sun-aries.md` → `planet_in_sign/sun/aries` |
 | `planet_in_house`    | `planet_in_house/<planet>/<1-12>`| `planet_in_house/mars-7.md` |
 | `aspect`             | `aspect/<a>/<b>/<type>`          | `aspect/sun-moon-square.md` |
+| `angle_aspect`       | `angle_aspect/<planet>/<ascendant\|mc>/<type>` | `angle_aspect/venus-mc-trine.md` → `angle_aspect/venus/mc/trine` |
+| `transit_angle_aspect` | `transit_angle_aspect/<transiter>/<angle>/<type>` | `transit_angle_aspect/saturn-ascendant-square.md` |
+| `synastry_angle_aspect` | `synastry_angle_aspect/<planet>/<angle>/<type>` | `synastry_angle_aspect/venus-ascendant-conjunction.md` |
+| `profection_year`    | `profection_year/<house 1-12>`   | `profection_year/5.md` |
+| `progressed_sun_sign` | `progressed_sun_sign/<sign>`    | `progressed_sun_sign/taurus.md` |
+| `progressed_asc_sign` | `progressed_asc_sign/<sign>`    | `progressed_asc_sign/virgo.md` |
+| `return_overview`    | `return_overview/<solar\|lunar\|jupiter\|saturn>` | `return_overview/saturn.md` |
 | `ascendant_sign`     | `ascendant_sign/<sign>`          | `ascendant_sign/leo.md` |
 | `mc_sign`            | `mc_sign/<sign>`                 | `mc_sign/leo.md` |
 | `chart_pattern`      | `chart_pattern/<type>`           | `chart_pattern/t_square.md` |
@@ -51,14 +58,28 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (592 entries):** `planet_in_sign` ×120
+**English scope (1172 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
-framing), `planet_in_house` ×120, `aspect` ×49 (nine pairs across all five
-types, plus conjunction-only Sun–Mercury and Sun–Venus and
-conjunction+sextile Mercury–Venus — the remaining combinations are
-astronomically unreachable at natal orbs), `transit_aspect` ×125 (Tiers 1+2:
-transiting Jupiter–Pluto over natal Sun/Moon/Mercury/Venus/Mars across all
-five types; directional keys, transiter first — never sorted),
+framing), `planet_in_house` ×120, `aspect` ×199 (39 full pairs across all
+five types plus conjunction-only Sun–Mercury and Sun–Venus and
+conjunction+sextile Mercury–Venus — the remaining partial combinations are
+astronomically unreachable at natal orbs; the three outer–outer pairs
+Uranus–Neptune, Uranus–Pluto, and Neptune–Pluto are deliberately
+unauthored: they last for decades and are cohort-wide, not personal, and
+the lint asserts the exclusion), `angle_aspect` ×100 (all ten planets ×
+ASC/MC × five types — natal archetypes that double as fallback prose for
+the transit and synastry angle surfaces), `transit_aspect` ×250 (transiting
+Jupiter–Pluto over every natal planet across all five types — same-planet
+keys carry the planet's own return-cycle framing; directional keys,
+transiter first — never sorted), `transit_angle_aspect` ×50 (the five slow
+transiters × ASC/MC × five types), `synastry_aspect` ×105 (the full
+sorted-pair matrix over Sun/Moon/Mercury/Venus/Mars/Saturn, same-planet
+pairs included, across all five types), `synastry_angle_aspect` ×60 (the
+six relationship planets × the other chart's ASC/MC × five types),
+`profection_year` ×12 (keyed by profected house; the profected sign and
+year lord ride in the panel's explainer), `progressed_sun_sign` and
+`progressed_asc_sign` ×12 each (developmental chapter voice, not natal
+identity), `return_overview` ×4 (solar/lunar/Jupiter/Saturn),
 `ascendant_sign` ×12, `mc_sign` ×12, `chart_pattern` ×5 (stellium, grand
 trine, t-square, grand cross, yod — prose is per-type and planet-generic;
 the pattern's members ride in the section's source line),
@@ -66,15 +87,18 @@ the pattern's members ride in the section's source line),
 `point_in_sign` ×48 (north node, south node, Lilith, Part of Fortune × 12
 signs; point segments use the `PointName` identifiers from
 `astro-core/points.ts`), `life_path` / `destiny` / `soul_urge` ×12 each
-(1–9, 11, 22, 33), `element_dominance` ×4, `modality_dominance` ×3, and
-`synastry_aspect` ×50 (the full sorted-pair matrix over Sun/Moon/Venus/Mars,
-same-planet pairs included, across all five types). The reading renders
-sign and house sections for all ten planets — Jupiter/Saturn with the
-placements, the outer three under a "Generational backdrop" heading, houses
-for every planet with a placed house. The AI period
-forecasts and the Transits tab prefer `transit_aspect` prose for pairs in
-play and fall back to the natal `aspect` archetypes for everything
-unauthored (fast-mover pairs stay on the fallback by design).
+(1–9, 11, 22, 33), `element_dominance` ×4, and `modality_dominance` ×3.
+The reading renders sign and house sections for all ten planets —
+Jupiter/Saturn with the placements, the outer three under a "Generational
+backdrop" heading, houses for every planet with a placed house — plus the
+eight tightest natal aspects and the four tightest angle aspects (houses
+permitting). Two fallback chains degrade gracefully: the AI period
+forecasts, Transits tab, and synastry page prefer `transit_aspect` /
+`synastry_aspect` prose for pairs in play and fall back to the natal
+`aspect` archetypes (fast-mover pairs stay on the fallback by design);
+the angle surfaces likewise prefer `transit_angle_aspect` /
+`synastry_angle_aspect` and fall back to the natal `angle_aspect`
+archetypes, which cover all ten planets so every angle row finds prose.
 
 **Hebrew scope (62 entries under `he/`, Phase 2c):** `mazal_month` ×12 (the
 single `adar` entry covers Adar I/II), `day_planet` ×7 + `hour_planet` ×7

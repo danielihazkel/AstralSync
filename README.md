@@ -14,7 +14,7 @@ viewed remain readable with no network at all.
 Everything runs on your machine: the ephemeris math (`astronomy-engine`), the
 Hebrew calendar (`@hebcal/core`), city search (imported GeoNames data),
 timezone resolution (`geo-tz` + the IANA database), and the interpretation
-library (654 Markdown files in this repo). The only optional network feature
+library (1234 Markdown files in this repo). The only optional network feature
 is the AI synthesis layer, which is **off by default** and can point at a
 local Ollama server.
 
@@ -237,7 +237,7 @@ content has moved on since.
 app/                  Next.js App Router pages + API routes (incl. app/sw.js/route.ts,
                       the service worker route, and /profiles/[id]/print)
 components/           React components (wizard, chart wheel, panels, Today dashboard)
-content/en/           English interpretation library (592 Markdown entries)
+content/en/           English interpretation library (1172 Markdown entries)
 content/he/           Hebrew interpretation library (62 Markdown entries)
 lib/                  App services: snapshots, timezone, content, forecasts, LLM, PWA
 packages/astro-core/  Framework-free chart engine (ephemeris, houses, aspects,
