@@ -56,10 +56,15 @@ export function findLongitudeCrossings(
 ): ScanHit[] {
   const out: ScanHit[] = [];
   let prevT = from;
-  let prevD = targets.map((v) => angleDiff(valueAt(prevT), v));
+  // One ephemeris evaluation per sample, shared across all targets — with
+  // 12 sign boundaries (or 8 signed aspect angles) a per-target call would
+  // multiply the dominant cost of every scan by that factor.
+  const prevVal = valueAt(prevT);
+  let prevD = targets.map((v) => angleDiff(prevVal, v));
   while (prevT.getTime() < to.getTime()) {
     const t = new Date(Math.min(prevT.getTime() + stepMs, to.getTime()));
-    const d = targets.map((v) => angleDiff(valueAt(t), v));
+    const val = valueAt(t);
+    const d = targets.map((v) => angleDiff(val, v));
     for (let i = 0; i < targets.length; i++) {
       const d0 = prevD[i];
       const d1 = d[i];

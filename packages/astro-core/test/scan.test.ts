@@ -98,6 +98,26 @@ describe("findLongitudeCrossings", () => {
     expect(months).toEqual(["2025-5", "2025-9", "2026-2"]);
   });
 
+  it("evaluates valueAt once per sample, not once per target", () => {
+    // Perf regression pin: the ephemeris evaluation is the dominant cost of
+    // every scan, so it must be shared across targets. A constant value far
+    // from every target crosses nothing, so no refinement calls happen and
+    // the count is exactly one per coarse sample.
+    let calls = 0;
+    const steps = 10;
+    findLongitudeCrossings(
+      () => {
+        calls++;
+        return 45;
+      },
+      [0, 90, 180, 270],
+      utc(2024, 4, 1),
+      new Date(utc(2024, 4, 1).getTime() + steps * DAY_MS),
+      DAY_MS,
+    );
+    expect(calls).toBe(steps + 1);
+  });
+
   it("refines crossings to well under a minute of arc", () => {
     const hits = findLongitudeCrossings(
       (t) => eph.eclipticLongitude("moon", t),
