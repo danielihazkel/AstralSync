@@ -404,9 +404,9 @@ export function resolveReading(
     take(`chart_pattern/${pattern.type}`, "chart_pattern", source);
   }
 
-  // The chart's five tightest aspects; unauthored pairs (e.g. outer-planet
-  // combinations) degrade into missingKeys like everything else.
-  const tightest = [...chart.aspects].sort((x, y) => x.orb - y.orb).slice(0, 5);
+  // The chart's eight tightest aspects; unauthored pairs (the excluded
+  // outer–outer combinations) degrade into missingKeys like everything else.
+  const tightest = [...chart.aspects].sort((x, y) => x.orb - y.orb).slice(0, 8);
   for (const asp of tightest) {
     const base = `${cap(asp.a)} ${asp.type} ${cap(asp.b)}`;
     take(

@@ -306,16 +306,19 @@ describe("resolveReading", () => {
     expect(synthesis?.bodyMd).toContain("a researcher's need");
   });
 
-  it("resolves the five tightest aspects in orb order, dropping the rest", () => {
+  it("resolves the eight tightest aspects in orb order, dropping the rest", () => {
     const reading = resolveReading(
       fixtureChart({
         aspects: [
           aspect("venus", "mars", "trine", 2.5),
           aspect("sun", "moon", "square", 0.4),
-          aspect("mercury", "jupiter", "sextile", 5.9), // 6th tightest — cut
+          aspect("mercury", "jupiter", "sextile", 5.9), // unauthored
           aspect("sun", "pluto", "opposition", 3.2), // unauthored
           aspect("moon", "saturn", "conjunction", 1.1), // unauthored
           aspect("jupiter", "neptune", "trine", 4.8), // unauthored
+          aspect("mercury", "saturn", "square", 6.4), // unauthored
+          aspect("venus", "jupiter", "sextile", 7.0), // unauthored
+          aspect("moon", "uranus", "square", 7.8), // 9th tightest — cut
         ],
       }),
       numeroSeven,
@@ -329,11 +332,14 @@ describe("resolveReading", () => {
     ]);
     expect(aspectSections[0].source).toBe("Sun square Moon — orb 0°24′");
     expect(aspectSections[1].source).toBe("Venus trine Mars — orb 2°30′");
-    // The three unauthored top-5 keys degrade; the cut 6th is never attempted.
+    // The six unauthored top-8 keys degrade; the cut 9th is never attempted.
     expect(reading.missingKeys).toEqual([
       "aspect/moon/saturn/conjunction",
       "aspect/sun/pluto/opposition",
       "aspect/jupiter/neptune/trine",
+      "aspect/mercury/jupiter/sextile",
+      "aspect/mercury/saturn/square",
+      "aspect/venus/jupiter/sextile",
     ]);
   });
 
