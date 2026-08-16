@@ -227,6 +227,11 @@ export type ReadingSlot =
   | "mercury"
   | "venus"
   | "mars"
+  | "jupiter"
+  | "saturn"
+  | "uranus"
+  | "neptune"
+  | "pluto"
   | "element"
   | "modality"
   | "chart_pattern"
@@ -360,9 +365,17 @@ export function resolveReading(
     );
   }
 
-  // Personal planets get their own sign sections; Jupiter–Pluto sign entries
-  // are authored for other surfaces but not rendered in the reading.
-  for (const planet of ["mercury", "venus", "mars"] as const) {
+  // Personal and social planets get their own sign sections; Jupiter and
+  // Saturn move fast enough (1–2.5 years per sign) to stay individually
+  // meaningful, so they sit with the placements.
+  for (const planet of ["mercury", "venus", "mars", "jupiter", "saturn"] as const) {
+    const p = chart.placements.find((pl) => pl.planet === planet);
+    if (p) take(`planet_in_sign/${planet}/${p.sign}`, planet, planetSource(planet));
+  }
+
+  // The outer planets' signs are cohort-level (7–20+ years per sign) — the
+  // UI groups these under a "Generational backdrop" heading.
+  for (const planet of ["uranus", "neptune", "pluto"] as const) {
     const p = chart.placements.find((pl) => pl.planet === planet);
     if (p) take(`planet_in_sign/${planet}/${p.sign}`, planet, planetSource(planet));
   }
@@ -418,11 +431,11 @@ export function resolveReading(
     }
   }
 
-  // House placements for the personal planets, behind the per-placement
+  // House placements for all ten planets, behind the per-placement
   // house-null guard — solar charts have no houses, so the keys are never
-  // attempted (no missingKeys noise). Jupiter–Pluto house entries are
-  // authored for other surfaces but not rendered here.
-  for (const planet of ["sun", "moon", "mercury", "venus", "mars"] as const) {
+  // attempted (no missingKeys noise). Unlike signs, an outer planet's house
+  // is personal (it depends on the birth time and place).
+  for (const planet of PLANETS) {
     const p = chart.placements.find((pl) => pl.planet === planet);
     if (p && p.house !== null) {
       take(
