@@ -17,6 +17,8 @@ import {
   type JournalMood,
 } from "@/lib/journalMeta";
 import { MOOD_LABELS } from "./moodLabels";
+import { useTabList } from "@/components/useTabList";
+import InsightsView from "./InsightsView";
 import Markdown from "@/components/Markdown";
 import {
   TransitAspectList,
@@ -67,6 +69,7 @@ export default function JournalPanel({
   chart: WheelChart;
   isLatest: boolean;
 }) {
+  const [view, setView] = useState<"notes" | "insights">("notes");
   const [date, setDate] = useState(todayLocalDate);
   const [sky, setSky] = useState<SkyState>({ kind: "loading" });
   const [entries, setEntries] = useState<EntriesState>({ kind: "loading" });
@@ -187,8 +190,49 @@ export default function JournalPanel({
     "The natal Moon sign is uncertain.";
   const today = todayLocalDate();
 
+  const { getTabProps, getPanelProps } = useTabList({
+    count: 2,
+    selected: view === "notes" ? 0 : 1,
+    onSelect: (i) => setView(i === 0 ? "notes" : "insights"),
+    idBase: "journal-view",
+  });
+  const viewSwitch = (
+    <div
+      className={styles.viewSwitch}
+      role="tablist"
+      aria-label="Journal view"
+    >
+      <button {...getTabProps(0)}>Notes</button>
+      <button {...getTabProps(1)}>Insights</button>
+    </div>
+  );
+
+  if (view === "insights") {
+    return (
+      <div className={styles.panel}>
+        {viewSwitch}
+        <div {...getPanelProps(1)}>
+          {entries.kind === "loading" && (
+            <p className={styles.muted}>Loading notes…</p>
+          )}
+          {(entries.kind === "offline" || entries.kind === "error") && (
+            <div className={styles.notice} role="status">
+              <p>Insights needs the notes list, which could not load.</p>
+              <button onClick={() => void loadEntries()}>Retry</button>
+            </div>
+          )}
+          {entries.kind === "data" && (
+            <InsightsView entries={entries.entries} chart={chart} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.panel}>
+      {viewSwitch}
+      <div {...getPanelProps(0)} className={styles.panel}>
       <div className={styles.dateRow}>
         <label htmlFor="journal-date">Date</label>
         <input
@@ -321,6 +365,7 @@ export default function JournalPanel({
             />
           ))}
       </section>
+      </div>
     </div>
   );
 }

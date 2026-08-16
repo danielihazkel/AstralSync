@@ -95,6 +95,67 @@
   resize: vertical;
 }
 
+.viewSwitch {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.viewSwitch button[aria-selected="true"] {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+}
+
+/* Insights stat rows: entry share (accent) over baseline share (muted). */
+.statList {
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: 9rem 1fr max-content;
+  gap: 0.6rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.statBars {
+  display: grid;
+  gap: 2px;
+}
+
+.statBarEntry {
+  height: 0.5rem;
+  background: var(--accent);
+  border-radius: 2px;
+  min-width: 1px;
+}
+
+.statBarBase {
+  height: 0.35rem;
+  background: var(--border-strong);
+  border-radius: 2px;
+  min-width: 1px;
+}
+
+.statNums {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .statRow {
+    grid-template-columns: 6.5rem 1fr;
+  }
+
+  .statNums {
+    grid-column: 2;
+    white-space: normal;
+  }
+}
+
 .moodRow {
   display: flex;
   align-items: center;
