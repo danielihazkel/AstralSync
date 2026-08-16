@@ -1,17 +1,24 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  DEFAULT_ORBS,
   PLANETS,
+  detectAngleAspects,
   detectPatterns,
   partOfFortunePlacement,
   pointsAt,
   signOf,
+  type AngleBody,
   type NodeVariant,
   type Planet,
   type PointName,
   type PointPlacement,
 } from "@astralsync/astro-core";
-import { natalAspectKey, transitAspectKey } from "./contentKeys";
+import {
+  natalAngleAspectKey,
+  natalAspectKey,
+  transitAspectKey,
+} from "./contentKeys";
 import type { WheelChart } from "./view-types";
 import { CONTENT_VERSION } from "./versions";
 import {
@@ -37,6 +44,10 @@ export const CONTENT_CATEGORIES = [
   "planet_in_sign",
   "planet_in_house",
   "aspect",
+  // Natal planet-to-angle aspects (ASC/MC, majors only). These archetypes
+  // also serve as the fallback prose for the transit and synastry angle
+  // surfaces, mirroring the transit_aspect → aspect chain.
+  "angle_aspect",
   "ascendant_sign",
   // The other angle: the MC's sign, resolved from houses (absent on solar
   // charts, exactly like the Ascendant).
@@ -198,7 +209,7 @@ export function getEntry(index: ContentIndex, key: string): ContentEntry | null 
 
 // Key builders live in lib/contentKeys.ts (client-safe — no fs); re-exported
 // here so server-side callers keep a single import.
-export { natalAspectKey, transitAspectKey };
+export { natalAngleAspectKey, natalAspectKey, transitAspectKey };
 
 export type ReadingSlot =
   | "sun"
@@ -217,6 +228,7 @@ export type ReadingSlot =
   | "modality"
   | "chart_pattern"
   | "aspect"
+  | "angle"
   | "retrograde"
   | "house"
   | "point"
@@ -415,6 +427,27 @@ export function resolveReading(
       // Solar-chart positions are noon estimates — suppress orb precision.
       chart.isSolarChart ? base : `${base} — orb ${degreeLabel(asp.orb)}`,
     );
+  }
+
+  // Aspects to the chart angles, recomputed at read time exactly like the
+  // patterns — angle aspects are never stored on the snapshot. Houses are
+  // null on solar charts, so the section silently skips there (an angle
+  // built from a noon estimate would mislead). Tightest four by orb.
+  if (chart.houses !== null) {
+    const angleLabel: Record<AngleBody, string> = {
+      ascendant: "Ascendant",
+      mc: "Midheaven",
+    };
+    const angles = detectAngleAspects(chart.placements, chart.houses, DEFAULT_ORBS)
+      .sort((x, y) => x.orb - y.orb)
+      .slice(0, 4);
+    for (const asp of angles) {
+      take(
+        natalAngleAspectKey(asp.planet, asp.target, asp.type),
+        "angle",
+        `${cap(asp.planet)} ${asp.type} ${angleLabel[asp.target]} — orb ${degreeLabel(asp.orb)}`,
+      );
+    }
   }
 
   // Natal retrogrades — the luminaries never retrograde, and stations are so

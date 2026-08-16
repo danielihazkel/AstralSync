@@ -39,6 +39,7 @@ const SLOT_GROUP: Record<ReadingSlot, string | null> = {
   modality: "Chart balance",
   chart_pattern: "Chart patterns",
   aspect: "Key aspects",
+  angle: "Angles",
   retrograde: "Retrogrades",
   house: "Houses",
   point: "Points",

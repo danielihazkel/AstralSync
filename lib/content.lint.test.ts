@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLANETS, SIGNS, type Planet } from "@astralsync/astro-core";
+import { ANGLE_BODIES, PLANETS, SIGNS, type Planet } from "@astralsync/astro-core";
 import { DAY_PLANETS, HEBREW_MONTH_KEYS } from "@astralsync/hebrew-core";
 import { ELEMENTS, MODALITIES } from "./dominance";
 import { contentRoot, loadContentIndex, type ContentEntry } from "./content";
@@ -97,14 +97,15 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 922 entries", () => {
+  it("contains exactly the 1022 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
-    // + 4 partials) + 250 transit aspects (5 transiters x 10 natal targets)
-    // + 12 destiny + 12 soul urge + 105 synastry aspects (21 sorted pairs
-    // over 6 planets) + 12 MC signs + 5 chart patterns + 8 natal
-    // retrogrades + 48 points in sign.
-    expect(entries).toHaveLength(922);
+    // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
+    // + 250 transit aspects (5 transiters x 10 natal targets) + 12 destiny
+    // + 12 soul urge + 105 synastry aspects (21 sorted pairs over 6
+    // planets) + 12 MC signs + 5 chart patterns + 8 natal retrogrades
+    // + 48 points in sign.
+    expect(entries).toHaveLength(1022);
   });
 
   it("covers every planet in every sign", () => {
@@ -272,6 +273,20 @@ describe("content library lint", () => {
     const authored = entries.filter((e) => e.category === "aspect");
     expect(authored).toHaveLength(
       FULL_ASPECT_PAIRS.length * MAJOR_ASPECT_TYPES.length + PARTIAL_ASPECT_KEYS.length,
+    );
+  });
+
+  it("covers the natal angle-aspect matrix (every planet, both angles)", () => {
+    for (const planet of PLANETS) {
+      for (const angle of ANGLE_BODIES) {
+        for (const type of MAJOR_ASPECT_TYPES) {
+          const key = `angle_aspect/${planet}/${angle}/${type}`;
+          expect(entry(key), key).not.toBeNull();
+        }
+      }
+    }
+    expect(entries.filter((e) => e.category === "angle_aspect")).toHaveLength(
+      PLANETS.length * ANGLE_BODIES.length * MAJOR_ASPECT_TYPES.length,
     );
   });
 

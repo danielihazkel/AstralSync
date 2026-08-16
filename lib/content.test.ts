@@ -172,6 +172,8 @@ describe("loadContentIndex", () => {
     const index = loadContentIndex(FIXTURE_ROOT);
     expect(index.version).toBe(CONTENT_VERSION);
     expect([...index.entries.keys()].sort()).toEqual([
+      "angle_aspect/moon/ascendant/square",
+      "angle_aspect/venus/ascendant/conjunction",
       "ascendant_sign/virgo",
       "aspect/sun/moon/square",
       "aspect/venus/mars/trine",
@@ -341,6 +343,50 @@ describe("resolveReading", () => {
       "aspect/mercury/saturn/square",
       "aspect/venus/jupiter/sextile",
     ]);
+  });
+
+  it("resolves the tightest angle aspects when houses exist, degrading like aspects", () => {
+    const reading = resolveReading(
+      fixtureChart({
+        houses: {
+          system: "placidus",
+          requestedSystem: "placidus",
+          fallbackApplied: false,
+          cusps: [170, 200, 230, 260, 290, 320, 350, 20, 50, 80, 110, 140],
+          ascendant: 170,
+          mc: 100,
+        },
+        // Moon square ASC (orb 0.5°), Venus conjunct ASC (2°), Sun trine MC
+        // (3°); every other placement stays at 0° — no aspect to either angle.
+        placements: fixtureChart().placements.map((p) =>
+          p.planet === "moon"
+            ? { ...p, longitude: 260.5 }
+            : p.planet === "venus"
+              ? { ...p, longitude: 172 }
+              : p.planet === "sun"
+                ? { ...p, longitude: 223 }
+                : p,
+        ),
+      }),
+      numeroSeven,
+      CONTENT_VERSION,
+      index,
+    );
+    const angleSections = reading.sections.filter((s) => s.slot === "angle");
+    expect(angleSections.map((s) => s.key)).toEqual([
+      "angle_aspect/moon/ascendant/square",
+      "angle_aspect/venus/ascendant/conjunction",
+    ]);
+    expect(angleSections[0].source).toBe("Moon square Ascendant — orb 0°30′");
+    expect(angleSections[1].source).toBe(
+      "Venus conjunction Ascendant — orb 2°00′",
+    );
+    // The unauthored Sun–MC trine degrades into missingKeys like any key.
+    expect(reading.missingKeys).toContain("angle_aspect/sun/mc/trine");
+
+    // No houses (the solar-chart shape) → no angle sections at all.
+    const solar = resolveReading(fixtureChart(), numeroSeven, CONTENT_VERSION, index);
+    expect(solar.sections.some((s) => s.slot === "angle")).toBe(false);
   });
 
   it("suppresses aspect orb precision on a solar chart", () => {

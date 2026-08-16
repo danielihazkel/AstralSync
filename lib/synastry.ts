@@ -1,16 +1,13 @@
 import {
   DEFAULT_ORBS,
-  PLANETS,
   compositeChart,
   detectAngleAspects,
   detectCrossAspects,
   overlayHouses,
   type AngleAspect,
   type Aspect,
-  type AspectType,
   type CrossAspect,
   type Placement,
-  type Planet,
 } from "@astralsync/astro-core";
 import { getEntry, natalAspectKey, type ContentEntry, type ContentIndex } from "./content";
 import { prisma } from "./db";
@@ -166,19 +163,10 @@ export function computeSynastry(
   };
 }
 
-/** Canonical synastry_aspect content key: the pair is ordered by PLANETS
- *  index, matching the Tier 2 aspect-key convention. Keys use slash segments
- *  (keyFromPath turns filename hyphens into slashes), so the entry authored
- *  as `synastry_aspect/sun-mars-square.md` resolves to this key. */
-export function synastryAspectKey(
-  a: Planet,
-  b: Planet,
-  type: AspectType,
-): string {
-  const [first, second] =
-    PLANETS.indexOf(a) <= PLANETS.indexOf(b) ? [a, b] : [b, a];
-  return `synastry_aspect/${first}/${second}/${type}`;
-}
+// synastryAspectKey moved to lib/contentKeys.ts (client-safe, no Prisma);
+// re-exported here so existing server-side imports keep working.
+import { synastryAspectKey } from "./contentKeys";
+export { synastryAspectKey };
 
 /** The canonical stored order for a profile pair: smaller id first, so
  *  (a, b) and (b, a) share one synastry-reading slot. */
