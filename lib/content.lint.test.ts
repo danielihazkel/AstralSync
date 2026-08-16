@@ -20,9 +20,10 @@ const LIFE_PATHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 22, 33];
 // etc.) are read-time overlays with graceful prose fallback.
 const MAJOR_ASPECT_TYPES = ["conjunction", "sextile", "square", "trine", "opposition"];
 
-/** Transit prose: slow transiters over the personal planets, all types —
- *  Tier 1 (luminaries) plus the Tier 2 expansion (Mercury/Venus/Mars).
- *  Fast-mover transits stay on the natal-archetype fallback by design. */
+/** Transit prose: slow transiters over every natal planet, all types —
+ *  same-planet keys are the planet's own return cycle (e.g. the Saturn
+ *  return). Fast-mover transits stay on the natal-archetype fallback by
+ *  design. */
 const TRANSIT_ASPECT_TRANSITERS: Planet[] = [
   "jupiter",
   "saturn",
@@ -30,13 +31,7 @@ const TRANSIT_ASPECT_TRANSITERS: Planet[] = [
   "neptune",
   "pluto",
 ];
-const TRANSIT_ASPECT_NATALS: Planet[] = [
-  "sun",
-  "moon",
-  "mercury",
-  "venus",
-  "mars",
-];
+const TRANSIT_ASPECT_NATALS: Planet[] = [...PLANETS];
 
 /**
  * Deliberately unauthored: outer–outer aspects last for decades and are
@@ -102,13 +97,13 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 742 entries", () => {
+  it("contains exactly the 867 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
-    // + 4 partials) + 125 transit aspects (Tiers 1+2) + 12 destiny + 12
-    // soul urge + 50 synastry aspects + 12 MC signs + 5 chart patterns
-    // + 8 natal retrogrades + 48 points in sign.
-    expect(entries).toHaveLength(742);
+    // + 4 partials) + 250 transit aspects (5 transiters x 10 natal targets)
+    // + 12 destiny + 12 soul urge + 50 synastry aspects + 12 MC signs
+    // + 5 chart patterns + 8 natal retrogrades + 48 points in sign.
+    expect(entries).toHaveLength(867);
   });
 
   it("covers every planet in every sign", () => {
@@ -231,7 +226,7 @@ describe("content library lint", () => {
     }
   });
 
-  it("covers the transit aspect matrix (Tiers 1+2)", () => {
+  it("covers the transit aspect matrix (all natal targets)", () => {
     for (const transiter of TRANSIT_ASPECT_TRANSITERS) {
       for (const natal of TRANSIT_ASPECT_NATALS) {
         for (const type of MAJOR_ASPECT_TYPES) {
