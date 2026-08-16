@@ -143,6 +143,12 @@ export function computeMoonMonthCached(
   return computed;
 }
 
+/** The cached month, if this session already computed it — lets the UI
+ *  distinguish an instant cache hit from a ~1s compute it should announce. */
+export function peekMoonMonth(year: number, month1: number): MoonMonth | null {
+  return monthCache.get(`${year}-${month1}`) ?? null;
+}
+
 /** Pure: a local calendar month → per-day Moon data. ~0.5–1s of ephemeris
  *  work for a month; callers should memoize per (year, month) — or use
  *  computeMoonMonthCached. */

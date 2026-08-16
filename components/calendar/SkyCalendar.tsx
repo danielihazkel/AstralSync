@@ -15,6 +15,17 @@ import styles from "./calendar.module.css";
 
 const VIEWS = ["moon", "picker"] as const;
 
+/** Run `work` when the main thread is idle; 200ms fallback where
+ *  requestIdleCallback is unavailable (Safari). */
+function scheduleIdle(work: () => void): { cancel: () => void } {
+  if (typeof requestIdleCallback === "function") {
+    const id = requestIdleCallback(() => work());
+    return { cancel: () => cancelIdleCallback(id) };
+  }
+  const id = setTimeout(work, 200);
+  return { cancel: () => clearTimeout(id) };
+}
+
 /**
  * The Sky Calendar: a month of Moon signs, phases, void-of-course windows
  * and eclipses, computed in-browser (lib/skyCalendar via dynamic import —
@@ -31,16 +42,39 @@ export default function SkyCalendar() {
 
   useEffect(() => {
     let cancelled = false;
-    setMonth(null);
+    const idleHandles: Array<{ cancel: () => void }> = [];
     void (async () => {
       // Memoized at module level in lib/skyCalendar — shared with the
       // almanac page, survives unmount.
-      const { computeMoonMonthCached } = await import("@/lib/skyCalendar");
-      const computed = computeMoonMonthCached(year, month1);
-      if (!cancelled) setMonth(computed);
+      const { computeMoonMonthCached, peekMoonMonth } = await import(
+        "@/lib/skyCalendar"
+      );
+      let computed = peekMoonMonth(year, month1);
+      if (!computed) {
+        // Show the indicator and let it actually paint before the ~1s
+        // synchronous compute blocks the main thread. Cache hits skip
+        // this entirely — no flash on revisits.
+        setMonth(null);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (cancelled) return;
+        computed = computeMoonMonthCached(year, month1);
+      }
+      if (cancelled) return;
+      setMonth(computed);
+      // Warm the neighbours in idle time — one idle slot each — so ‹ / ›
+      // navigation lands on a cache hit.
+      for (const delta of [-1, 1]) {
+        const d = new Date(year, month1 - 1 + delta, 1);
+        idleHandles.push(
+          scheduleIdle(() =>
+            computeMoonMonthCached(d.getFullYear(), d.getMonth() + 1),
+          ),
+        );
+      }
     })();
     return () => {
       cancelled = true;
+      for (const h of idleHandles) h.cancel();
     };
   }, [year, month1]);
 

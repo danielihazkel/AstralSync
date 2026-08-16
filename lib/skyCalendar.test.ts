@@ -3,7 +3,11 @@ import {
   separation,
 } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { computeMoonMonth, computeMoonMonthCached } from "./skyCalendar";
+import {
+  computeMoonMonth,
+  computeMoonMonthCached,
+  peekMoonMonth,
+} from "./skyCalendar";
 import { computeVoidOfCourse } from "./today";
 
 /**
@@ -109,6 +113,14 @@ describe("computeMoonMonth", () => {
     const first = computeMoonMonthCached(2024, 4);
     expect(computeMoonMonthCached(2024, 4)).toBe(first);
     expect(first.days).toHaveLength(30);
+  });
+
+  it("peeks the cache without computing", () => {
+    // 1997-03 is touched by no other test — peek must miss, then hit the
+    // exact object once computed.
+    expect(peekMoonMonth(1997, 3)).toBeNull();
+    const computed = computeMoonMonthCached(1997, 3);
+    expect(peekMoonMonth(1997, 3)).toBe(computed);
   });
 
   it("starts each window at an exact major lunar aspect", () => {
