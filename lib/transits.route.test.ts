@@ -20,6 +20,7 @@ const canned: TransitData = {
   natal: { version: 1, isSolarChart: false, moonUncertain: false },
   placements: [],
   crossAspects: [],
+  angleAspects: [],
   engine: { name: "astronomy-engine", version: "2.1.19" },
 };
 
@@ -54,10 +55,10 @@ describe("GET /api/transits/[id]", () => {
     mockView.mockResolvedValue({
       ...canned,
       crossAspects: [
-        { a: "saturn", b: "sun", type: "square", angle: 90, orb: 1.1 },
+        { a: "saturn", b: "sun", type: "square", angle: 90, orb: 1.1, applying: true },
         // No transit entry and no natal fallback for this pair/type combo:
         // moon-moon square exists in neither library.
-        { a: "moon", b: "moon", type: "square", angle: 90, orb: 0.5 },
+        { a: "moon", b: "moon", type: "square", angle: 90, orb: 0.5, applying: false },
       ],
     });
     const res = await GET(request("/api/transits/1"), params("1"));

@@ -72,6 +72,34 @@ describe("computeTransits", () => {
     expect(computeTransits(uncertain, 1, AT).natal.moonUncertain).toBe(true);
   });
 
+  it("flags every cross aspect applying or separating", () => {
+    const view = computeTransits(natalChart(), 1, AT);
+    for (const c of view.crossAspects) {
+      expect(typeof c.applying).toBe("boolean");
+    }
+  });
+
+  it("reports transiting aspects to the natal angles, none for a solar natal", () => {
+    const housed = computeTransits(natalChart(), 1, AT, {
+      // Wide orb so the two angles reliably catch several of ten planets.
+      orbs: { luminary: 8, default: 6 },
+    });
+    expect(housed.angleAspects.length).toBeGreaterThan(0);
+    for (const a of housed.angleAspects) {
+      expect(["ascendant", "mc"]).toContain(a.target);
+      expect(a.orb).toBeLessThanOrEqual(6);
+      expect(typeof a.applying).toBe("boolean");
+    }
+    for (let i = 1; i < housed.angleAspects.length; i++) {
+      expect(housed.angleAspects[i].orb).toBeGreaterThanOrEqual(
+        housed.angleAspects[i - 1].orb,
+      );
+    }
+
+    const solar = computeTransits(natalChart({ timeCertainty: "unknown" }), 1, AT);
+    expect(solar.angleAspects).toEqual([]);
+  });
+
   it("applies transit orbs, not natal orbs", () => {
     // Against DEFAULT_ORBS (8/6) many more pairs qualify than under the
     // transit config (3/2); every reported orb must respect the tight limits.

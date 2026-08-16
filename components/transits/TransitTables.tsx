@@ -1,6 +1,7 @@
-import type { CrossAspect, Placement } from "@astralsync/astro-core";
+import type { AngleAspect, CrossAspect, Placement } from "@astralsync/astro-core";
 import { transitAspectKey } from "@/lib/contentKeys";
 import {
+  ANGLE_NAMES,
   ASPECT_NAMES,
   PLANET_NAMES,
   SIGN_NAMES,
@@ -81,16 +82,25 @@ export function TransitAspectList({
   moonUncertain,
   moonReason,
   emptyText,
+  angleAspects = [],
 }: {
-  aspects: CrossAspect[];
+  /** `applying` rides on live transit reads; stored journal skies predate
+   *  it and simply render no motion note. */
+  aspects: (CrossAspect & { applying?: boolean })[];
   prose: TransitProse | undefined;
   moonUncertain: boolean;
   moonReason: string;
   emptyText: string;
+  /** Transiting planets vs the natal ASC/MC — live reads only. */
+  angleAspects?: (AngleAspect & { applying?: boolean })[];
 }) {
-  if (aspects.length === 0) {
+  if (aspects.length === 0 && angleAspects.length === 0) {
     return <p className={styles.muted}>{emptyText}</p>;
   }
+  const motionNote = (applying: boolean | undefined) =>
+    applying === undefined ? null : (
+      <span className={styles.orb}> · {applying ? "applying" : "separating"}</span>
+    );
   return (
     <ul className={styles.aspectList}>
       {aspects.map((c, i) => {
@@ -107,6 +117,7 @@ export function TransitAspectList({
             </span>
             {PLANET_NAMES[c.b]}
             <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
+            {motionNote(c.applying)}
             {c.b === "moon" && moonUncertain && (
               <UncertaintyBadge reason={moonReason} />
             )}
@@ -118,6 +129,18 @@ export function TransitAspectList({
           </li>
         );
       })}
+      {angleAspects.map((a, i) => (
+        <li key={`${a.planet}-${a.target}-${a.type}-${i}`}>
+          <span className={styles.glyph} aria-hidden="true">
+            {PLANET_GLYPH_CHARS[a.planet] + "︎"}
+          </span>
+          Transiting {PLANET_NAMES[a.planet]}{" "}
+          {ASPECT_NAMES[a.type].toLowerCase()} natal{" "}
+          {ANGLE_NAMES[a.target]}
+          <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
+          {motionNote(a.applying)}
+        </li>
+      ))}
     </ul>
   );
 }

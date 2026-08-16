@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { Planet } from "@astralsync/astro-core";
-import type { TransitData } from "@/lib/transits";
+import type { CrossAspect, Placement, Planet } from "@astralsync/astro-core";
 import type { WheelChart } from "@/lib/view-types";
 import {
   loadChartSettings,
@@ -13,9 +12,13 @@ import { pairPlacements } from "@/lib/wheelTableRows";
 import { TwoRingTable } from "@/components/chart/ChartTables";
 import { useTabList } from "@/components/useTabList";
 
-/** The slice of TransitData the wheel actually draws — progressions reuse
- *  the same two-ring layout with a different body label. */
-export type RingBodies = Pick<TransitData, "placements" | "crossAspects">;
+/** The slice of a transit view the wheel actually draws — progressions
+ *  reuse the same two-ring layout with a different body label, and the live
+ *  view's motion-flagged aspects narrow to this cleanly. */
+export type RingBodies = {
+  placements: Placement[];
+  crossAspects: CrossAspect[];
+};
 import {
   ASPECT_NAMES,
   PLANET_NAMES,

@@ -25,14 +25,17 @@ export interface EntrySky {
   crossAspects: CrossAspect[];
 }
 
-/** Pure: full transit view → the slice worth storing per entry. */
+/** Pure: full transit view → the slice worth storing per entry. The
+ *  read-time extras (applying flags, angle aspects) stay out of skyJson —
+ *  the stored shape is the plain cross-aspect list and must not grow with
+ *  the live view. */
 export function entrySkyFromTransits(t: TransitData): EntrySky {
   return {
     computedAt: t.computedAt,
     natalVersion: t.natal.version,
     engine: t.engine,
     placements: t.placements,
-    crossAspects: t.crossAspects,
+    crossAspects: t.crossAspects.map(({ applying: _applying, ...c }) => c),
   };
 }
 

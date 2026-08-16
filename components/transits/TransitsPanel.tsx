@@ -225,6 +225,7 @@ export default function TransitsPanel({
         {orbs && <OrbSettingsControl value={orbs} onChange={changeOrbs} />}
         <TransitAspectList
           aspects={data.crossAspects}
+          angleAspects={data.angleAspects}
           prose={data.prose}
           moonUncertain={data.natal.moonUncertain}
           moonReason={moonReason}

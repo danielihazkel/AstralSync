@@ -24,8 +24,14 @@ describe("entrySkyFromTransits", () => {
       natalVersion: 3,
       engine: t.engine,
       placements: t.placements,
-      crossAspects: t.crossAspects,
+      // The live view's read-time extras never reach storage.
+      crossAspects: t.crossAspects.map(({ applying: _a, ...c }) => c),
     });
+    expect(t.crossAspects.length).toBeGreaterThan(0);
+    for (const c of sky.crossAspects) {
+      expect("applying" in c).toBe(false);
+    }
+    expect("angleAspects" in sky).toBe(false);
     // Round-trips through JSON (it is stored in a Json column).
     expect(JSON.parse(JSON.stringify(sky))).toEqual(sky);
   });

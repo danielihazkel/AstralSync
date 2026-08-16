@@ -2,14 +2,19 @@ import {
   ALL_ASPECTS,
   DEFAULT_TRANSIT_ORBS,
   MAJOR_ASPECTS,
+  PLANETS,
   astronomyEngineProvider,
+  detectAngleAspects,
   detectCrossAspects,
+  isApplying,
   overlayHouses,
   positionsAt,
+  type AngleAspect,
   type Aspect,
   type CrossAspect,
   type OrbConfig,
   type Placement,
+  type Planet,
 } from "@astralsync/astro-core";
 import { prisma } from "./db";
 import type { TransitQuery } from "./validation";
@@ -21,6 +26,12 @@ import type { StoredChart, WheelChart } from "./view-types";
  * read and are NEVER persisted; the write-once guard in lib/db.ts is
  * untouched because nothing here writes at all.
  */
+
+/** A cross-chart aspect with its motion verdict — the natal side is static,
+ *  so applying is purely the transiting body's doing. Ephemeral, like every
+ *  transit read; the journal's stored EntrySky keeps the plain shape. */
+export type MovingCrossAspect = CrossAspect & { applying: boolean };
+export type MovingAngleAspect = AngleAspect & { applying: boolean };
 
 export interface TransitData {
   /** ISO instant the positions were computed for (the `at` param or now). */
@@ -35,7 +46,10 @@ export interface TransitData {
    *  the natal chart is solar. */
   placements: Placement[];
   /** Transiting (a) vs natal (b), sorted by orb ascending (tightest first). */
-  crossAspects: CrossAspect[];
+  crossAspects: MovingCrossAspect[];
+  /** Transiting planets vs the natal ASC/MC (majors, default orb), sorted
+   *  by orb; empty on a solar chart. */
+  angleAspects: MovingAngleAspect[];
   engine: { name: string; version: string };
 }
 
@@ -74,12 +88,49 @@ export function computeTransits(
 ): TransitData {
   const raw = positionsAt(at);
   const placements = overlayHouses(raw, natal.houses?.cusps ?? null);
+  const orbs = options.orbs ?? DEFAULT_TRANSIT_ORBS;
+  // Applying/separating: the natal side is static (speed 0), so one speed
+  // sample per transiting planet decides every verdict.
+  const speed = new Map<Planet, number>(
+    PLANETS.map((p) => [p, astronomyEngineProvider.longitudeSpeed(p, at)]),
+  );
+  const lonTransit = new Map<Planet, number>(
+    placements.map((p) => [p.planet, p.longitude]),
+  );
+  const lonNatal = new Map<Planet, number>(
+    natal.placements.map((p) => [p.planet, p.longitude]),
+  );
   const crossAspects = detectCrossAspects(
     placements,
     natal.placements,
-    options.orbs ?? DEFAULT_TRANSIT_ORBS,
+    orbs,
     options.includeMinors ? ALL_ASPECTS : MAJOR_ASPECTS,
-  ).sort((x, y) => x.orb - y.orb);
+  )
+    .sort((x, y) => x.orb - y.orb)
+    .map((c) => ({
+      ...c,
+      applying: isApplying(
+        lonTransit.get(c.a) ?? 0,
+        speed.get(c.a) ?? 0,
+        lonNatal.get(c.b) ?? 0,
+        0,
+        c.angle,
+      ),
+    }));
+  const angleAspects = (
+    natal.houses ? detectAngleAspects(placements, natal.houses, orbs) : []
+  )
+    .sort((x, y) => x.orb - y.orb)
+    .map((a) => ({
+      ...a,
+      applying: isApplying(
+        lonTransit.get(a.planet) ?? 0,
+        speed.get(a.planet) ?? 0,
+        a.target === "mc" ? natal.houses!.mc : natal.houses!.ascendant,
+        0,
+        a.angle,
+      ),
+    }));
   return {
     computedAt: at.toISOString(),
     natal: {
@@ -89,6 +140,7 @@ export function computeTransits(
     },
     placements,
     crossAspects,
+    angleAspects,
     engine: {
       name: astronomyEngineProvider.name,
       version: astronomyEngineProvider.version,
