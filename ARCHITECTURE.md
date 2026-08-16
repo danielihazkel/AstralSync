@@ -58,14 +58,17 @@ AstralSync/
 
 ## 5. Data model (MySQL, PRD §6)
 
-Five tables; access pattern is "fetch profile and its snapshots by ID" — standard PK/FK indexing only.
+Nine models; access pattern is "fetch profile and its snapshots by ID" — standard PK/FK indexing only.
 
 - **`profile`** — display name, optional full birth name + script (`latin|hebrew|other`), birth date, nullable birth time, time certainty, city FK, lat/lng, IANA tz, UTC offset minutes, `offset_overridden`
 - **`geo_city`** — imported once from GeoNames `cities15000` (~30k cities: name, ascii_name, country, admin1, lat/lng, population)
 - **`astro_snapshot`** *(write-once)* — version, house system, `is_solar_chart`, Big Three columns, `placements_json`, `aspects_json`, engine + engine_version + content_version
 - **`numero_snapshot`** *(write-once)* — version, system (`pythagorean|gematria`), life path / destiny / soul urge, `is_master_lp`, `derivation_json` (letter-by-letter)
+- **`hebrew_snapshot`** *(write-once)* — version, sunset-adjusted Hebrew date, month key, day/hour planets, date gematria, plus the full `mazal_json` and `gematria_json` payloads
 - **`reading`** — optional synthesis, generated once per snapshot pair; `generator` (`template|llm`), nullable model name
 - **`forecast`** — AI period forecasts, unique per `(profile_id, mode, kind, period_start)` with `mode` (`western|hebrew`), `kind` (`day|week|month`); `natal_version` records the snapshot generated against (staleness flag, not part of the key). Not write-once: discard frees the slot for regeneration, like `reading`.
+- **`synastry_reading`** — cached AI relationship reading, one slot per ordered profile pair; discardable like `forecast`.
+- **`journal_entry`** — freely editable dated notes with `mood`, `tags_json`, and `sky_json` (the transit snapshot captured at save; body edits never recompute it, date edits do).
 
 ORM: **Prisma** (first-class MySQL support; schema-as-migrations keeps a clean path to hosted MySQL/Postgres in Phase 3).
 

@@ -1,4 +1,5 @@
 import type { CrossAspect, Placement } from "@astralsync/astro-core";
+import { transitAspectKey } from "@/lib/contentKeys";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -18,16 +19,6 @@ import styles from "./transits.module.css";
 
 export type TransitProse = Record<string, { title: string; bodyMd: string }>;
 
-/** Directional transit content key. Mirrors lib/content.ts transitAspectKey —
- *  that module is server-only (reads content/ from disk), so the key is
- *  built inline here. */
-export function transitProseKey(c: {
-  a: string;
-  b: string;
-  type: string;
-}): string {
-  return `transit_aspect/${c.a}/${c.b}/${c.type}`;
-}
 
 export function TransitPositionsTable({
   placements,
@@ -103,7 +94,7 @@ export function TransitAspectList({
   return (
     <ul className={styles.aspectList}>
       {aspects.map((c, i) => {
-        const entry = prose?.[transitProseKey(c)];
+        const entry = prose?.[transitAspectKey(c.a, c.b, c.type)];
         return (
           <li key={`${c.a}-${c.b}-${c.type}-${i}`}>
             <span className={styles.glyph} aria-hidden="true">

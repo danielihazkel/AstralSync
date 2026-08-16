@@ -69,8 +69,9 @@ signs; point segments use the `PointName` identifiers from
 (1–9, 11, 22, 33), `element_dominance` ×4, `modality_dominance` ×3, and
 `synastry_aspect` ×50 (the full sorted-pair matrix over Sun/Moon/Venus/Mars,
 same-planet pairs included, across all five types). The reading renders
-sign/house sections for the personal planets only; Jupiter–Pluto entries
-are authored for future surfaces (transits, LLM prompts). The AI period
+sign and house sections for all ten planets — Jupiter/Saturn with the
+placements, the outer three under a "Generational backdrop" heading, houses
+for every planet with a placed house. The AI period
 forecasts and the Transits tab prefer `transit_aspect` prose for pairs in
 play and fall back to the natal `aspect` archetypes for everything
 unauthored (fast-mover pairs stay on the fallback by design).

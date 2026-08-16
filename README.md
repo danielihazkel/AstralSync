@@ -14,7 +14,7 @@ viewed remain readable with no network at all.
 Everything runs on your machine: the ephemeris math (`astronomy-engine`), the
 Hebrew calendar (`@hebcal/core`), city search (imported GeoNames data),
 timezone resolution (`geo-tz` + the IANA database), and the interpretation
-library (581 Markdown files in this repo). The only optional network feature
+library (654 Markdown files in this repo). The only optional network feature
 is the AI synthesis layer, which is **off by default** and can point at a
 local Ollama server.
 
@@ -93,12 +93,15 @@ picker.
   aspect chords, retrograde markers, plus the calculated points (lunar nodes
   true/mean, Lilith, Part of Fortune) and an optional dashed overlay of tight
   minor aspects. Detected **chart patterns** (stelliums, grand trines,
-  t-squares, grand crosses, yods) are listed under the wheel. The wheel
-  downloads as SVG or PNG — and shares directly on devices where the Web
-  Share API accepts files.
-- **Reading** — interpretation assembled from the in-repo content library
-  (signs, houses, aspects, dominance, numerology), plus the optional stored
-  AI synthesis.
+  t-squares, grand crosses, yods) are listed under the wheel. A **Wheel |
+  Table** switch renders the same data as accessible placement and aspect
+  tables. The wheel downloads as SVG or PNG — and shares directly on devices
+  where the Web Share API accepts files.
+- **Reading** — interpretation assembled from the in-repo content library:
+  all ten planets in sign and house (the outer planets grouped as the
+  generational backdrop), angles, the tightest aspects, patterns, dominance,
+  retrogrades, points, and numerology — plus the optional stored AI
+  synthesis.
 - **Numerology** — Life Path, Destiny, and Soul Urge with the full
   letter-by-letter derivation ("show your work"); master numbers 11/22/33 are
   never reduced.
@@ -107,17 +110,26 @@ picker.
   correspondences, date and name gematria — with RTL Hebrew sources and an
   optional English AI synthesis.
 - **Transits** — live positions against the natal chart with per-aspect
-  prose, a transit bi-wheel, and adjustable orbs (see settings below).
-- **Cycles** — the annual profection (year lord), secondary progressions,
-  the current lunar and solar return charts, and **Jupiter & Saturn returns**
-  (last/next exact dates, retrograde multi-pass notes, the return chart).
+  prose, a transit bi-wheel, and adjustable orbs (see settings below); a
+  **Calendar** view lists exact perfection dates, ingresses, stations, and
+  eclipses over any range up to three months, exportable as an `.ics` file.
+- **Cycles** — the annual profection (year lord), secondary progressions
+  (against the natal wheel or as a standalone progressed chart with
+  progressed houses), the current lunar and solar return charts, and
+  **Jupiter & Saturn returns** (last/next exact dates, retrograde multi-pass
+  notes, the return chart).
 - **Forecast** — cached AI readings for the day / week / month, in a Western
   mode (Moon spans, ingresses, stations, eclipses, aspect windows) and a
   Hebrew mode (day planets, month mazalot, gematria).
-- **Journal** — dated notes plus a "what was hitting your chart" transit
-  timeline for any date.
+- **Journal** — dated notes with mood and free-form tags, each pinned to a
+  sky snapshot captured at save time ("what was hitting your chart"),
+  filterable by transiting planet or aspect — plus an **Insights** view that
+  correlates your entries against a long-run baseline with honest minimum
+  sample sizes.
 - **Details** — birth data, engine metadata, version history, house-system
-  selector, JSON export, the printable report, and delete.
+  selector, reading coverage (which interpretation keys this chart wants but
+  the library hasn't authored), JSON export, the printable report, and
+  delete.
 
 There is also a per-profile **chat** ("ask about your chart") when the AI
 layer is enabled — ephemeral, rate-limited, never stored.
@@ -129,13 +141,34 @@ aspects at natal orbs, per-pair interpretation prose, mutual house-overlay
 tables, a midpoint composite chart, and a cached AI relationship reading.
 The page prints cleanly — use the print button to save it as a PDF.
 
+### The Sky Calendar and day almanac
+
+`/calendar` is a client-computed (offline-capable) month grid of the sky
+itself: the Moon's sign and phase each day, full void-of-course windows,
+sign ingresses, and eclipses. A second view is the **electional day picker**:
+pick an intent (start a venture, sign, launch, travel, …) and every
+planetary-hour window of the day is scored against transparent classical
+rules — each window lists exactly which factors moved it. Any day deep-links
+to `/calendar/[date]`, a full almanac page (mundane aspects, ingresses,
+stations, planetary hours, electional windows). Months, days, and electional
+windows all export as `.ics` files with stable UIDs, so re-imports update
+instead of duplicating.
+
+### Settings
+
+`/settings` consolidates the per-browser preferences: **theme** (dark /
+light / auto, no flash on reload), **aspect orbs** (luminary / planet /
+minor-aspect orbs plus the minor-aspect opt-in), **home location** (powers
+planetary hours and the electional picker — birth cities are never assumed),
+and **chart display** (points on/off, true vs. mean nodes, minor overlay,
+wheel vs. table default).
+
 ### Aspect & orb settings
 
-Transits, progressed aspects, and the Today strip honor a per-browser orb
-configuration (luminary / planet / minor-aspect orbs, plus an opt-in for
-minor aspects), available directly on the Transits and Cycles tabs. Stored
-forecasts deliberately keep the engine defaults so cached prose stays
-consistent. Natal snapshots always use the standard orbs.
+Transits, progressed aspects, and the Today strip honor the per-browser orb
+configuration, editable inline on the Transits and Cycles tabs as well as on
+`/settings`. Stored forecasts deliberately keep the engine defaults so
+cached prose stays consistent. Natal snapshots always use the standard orbs.
 
 ### Snapshots, versions, and edits
 
@@ -204,7 +237,7 @@ content has moved on since.
 app/                  Next.js App Router pages + API routes (incl. app/sw.js/route.ts,
                       the service worker route, and /profiles/[id]/print)
 components/           React components (wizard, chart wheel, panels, Today dashboard)
-content/en/           English interpretation library (519 Markdown entries)
+content/en/           English interpretation library (592 Markdown entries)
 content/he/           Hebrew interpretation library (62 Markdown entries)
 lib/                  App services: snapshots, timezone, content, forecasts, LLM, PWA
 packages/astro-core/  Framework-free chart engine (ephemeris, houses, aspects,

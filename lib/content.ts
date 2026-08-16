@@ -6,12 +6,12 @@ import {
   partOfFortunePlacement,
   pointsAt,
   signOf,
-  type AspectType,
   type NodeVariant,
   type Planet,
   type PointName,
   type PointPlacement,
 } from "@astralsync/astro-core";
+import { natalAspectKey, transitAspectKey } from "./contentKeys";
 import type { WheelChart } from "./view-types";
 import { CONTENT_VERSION } from "./versions";
 import {
@@ -196,30 +196,9 @@ export function getEntry(index: ContentIndex, key: string): ContentEntry | null 
   return index.entries.get(key) ?? null;
 }
 
-/**
- * Canonical natal-aspect key: pair ordered by `PLANETS` index, matching
- * `detectAspects` output and the synastry key convention. Defined here
- * rather than imported from lib/synastry.ts, which pulls in prisma.
- */
-export function natalAspectKey(a: Planet, b: Planet, type: AspectType): string {
-  const [first, second] =
-    PLANETS.indexOf(a) <= PLANETS.indexOf(b) ? [a, b] : [b, a];
-  return `aspect/${first}/${second}/${type}`;
-}
-
-/**
- * Canonical transit-aspect key — DIRECTIONAL, never sorted: transiting
- * Saturn square natal Sun is a different reading from transiting Sun square
- * natal Saturn. Tier 1 authors the slow movers (Jupiter–Pluto) over the
- * luminaries; everything else stays on the natal-archetype fallback.
- */
-export function transitAspectKey(
-  transiting: Planet,
-  natal: Planet,
-  type: AspectType,
-): string {
-  return `transit_aspect/${transiting}/${natal}/${type}`;
-}
+// Key builders live in lib/contentKeys.ts (client-safe — no fs); re-exported
+// here so server-side callers keep a single import.
+export { natalAspectKey, transitAspectKey };
 
 export type ReadingSlot =
   | "sun"

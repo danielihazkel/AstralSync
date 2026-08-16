@@ -188,6 +188,20 @@ Ordered like Phase 1: engine primitives first (`astro-core`), since both transit
 - [x] Forecast tab (Day/Week/Month switcher × Western/Hebrew cards) — `components/forecast/`; the western daily card doubles as the Transits-tab "AI reading of today's transits" (same cached row); stale forecasts show a version note with discard-to-regenerate
 - [x] **Tests**: `lib/forecast.test.ts` (periods incl. Adar I/II and Hebrew month boundaries; ingress/station/aspect-window detection), `packages/hebrew-core/test/calendar.test.ts`, renderer/builder additions in `lib/promptData.test.ts` + `lib/llm.test.ts` (incl. no-birth-data assertions), `lib/forecast.route.test.ts` (full 409/502 matrix) — suite at 398
 
+## Post-3e feature batches (Aug 2026) — summary
+
+The per-task log stops at Phase 3e; later work landed as reviewed batches
+(see git history for the commit-level detail):
+
+- [x] **Synastry & composite** — bi-wheel, cross-aspect prose, mutual house overlays, midpoint composite, cached AI relationship reading, print
+- [x] **Journal** (Phase 3g) — dated notes, mood + tags, sky snapshots pinned at save, transit filters, Insights (entry-vs-baseline stats with honesty guards)
+- [x] **Batch #3** — eclipses, Jupiter/Saturn returns, Part of Fortune + profections, chart patterns, opt-in minor aspects, per-browser orbs, mobile pass, printable report
+- [x] **Batch #4** — golden Placidus suite, light theme, lazy wheels, shared scan engine, transit calendar, `/calendar` (sky month + electional picker), journal sky snapshots
+- [x] **Batch A** — 73 content entries (patterns/MC/retro/points), ARIA tab hook, `.ics` export, `/settings`
+- [x] **Batch B** — moon-phase extraction, journal mood/tags/Insights, mundane aspect scanner, `/calendar/[date]` almanac
+- [x] **Batch C** — scan-engine perf (~10×), month prefetch + caches, full progressed chart (progressed houses), Wheel|Table accessible views on every wheel
+- [x] **Batch D** — outer-planet reading sections, node-variant-aware readings, Details-tab reading coverage, docs refresh, bounded caches
+
 ## Phase 4 (public deployment gate — deferred)
 
 - Authentication / user accounts
@@ -198,4 +212,4 @@ Ordered like Phase 1: engine primitives first (`astro-core`), since both transit
 
 ## Explicitly out of scope (PRD §7)
 
-React Native / native apps · cloud hosting/CDN · minor aspects, asteroids, fixed stars, progressions · UI localization (content structure must not preclude it)
+React Native / native apps · cloud hosting/CDN · asteroids, fixed stars (minor aspects and progressions, originally listed here, have since shipped) · UI localization (content structure must not preclude it)
