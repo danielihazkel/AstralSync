@@ -1,13 +1,17 @@
 import {
   DEFAULT_ORBS,
+  buildChart,
+  circularMidpoint,
   compositeChart,
   detectAngleAspects,
   detectCrossAspects,
+  norm360,
   overlayHouses,
   type AngleAspect,
   type Aspect,
   type CrossAspect,
   type Placement,
+  type TimeCertainty,
 } from "@astralsync/astro-core";
 import { getEntry, natalAspectKey, type ContentEntry, type ContentIndex } from "./content";
 import { prisma } from "./db";
@@ -17,8 +21,9 @@ import type { StoredChart, WheelChart } from "./view-types";
  * Synastry — an ephemeral read over two write-once snapshots. Like transits
  * (PRD §9), nothing here is ever persisted: the comparison is a deterministic
  * recompute from two immutable natal charts, so the write-once guard in
- * lib/db.ts is untouched. Unlike transits, both sides come from storage —
- * no live ephemeris call is involved.
+ * lib/db.ts is untouched. Unlike transits, both sides come from storage;
+ * the only ephemeris computation is the Davison chart, which is a pure
+ * function of the two stored birth moments (no "now" involved).
  */
 
 export interface SynastrySide {
@@ -53,6 +58,8 @@ export interface SynastryData {
   angleContacts: SynastryAngleContacts;
   /** Midpoint composite — the relationship's own chart. */
   composite: CompositeView;
+  /** Davison chart — the real sky at the pair's time/space midpoint. */
+  davison: DavisonView;
 }
 
 export interface CompositeView {
@@ -94,6 +101,69 @@ function toSide(input: SynastryInputSide, other: WheelChart): SynastrySide {
     ),
     chart: input.chart,
     overlayPlacements: inOthersHouses(input.chart, other),
+  };
+}
+
+export interface DavisonView {
+  /** A real chart — buildChart output at the midpoint moment and place —
+   *  so unlike the composite it can carry houses and retrogrades. */
+  chart: WheelChart;
+  /** The midpoint the chart is cast for (longitude in (−180, 180]). */
+  midpoint: { utc: string; latitude: number; longitude: number };
+  /** True when either side's Moon sign is uncertain. */
+  moonUncertain: boolean;
+  /** True when either natal chart is solar — the midpoint instant inherits
+   *  a noon estimate, so the Davison degrades to a houseless solar chart. */
+  eitherSolar: boolean;
+}
+
+/** Weakest-certainty inheritance: a derived chart is only as sure as its
+ *  least sure input (the lib/cycles.ts progressions convention). */
+const CERTAINTY_RANK: Record<TimeCertainty, number> = {
+  exact: 0,
+  approx: 1,
+  unknown: 2,
+};
+
+/**
+ * Pure: two natal charts → the Davison relationship chart, cast at the
+ * midpoint of the two birth instants and the simple coordinate midpoint of
+ * the two birthplaces (the classical Davison convention — latitude averaged,
+ * longitude on the shorter arc; not the great-circle midpoint). This is a
+ * real chart through buildChart, so it has houses, angles and retrogrades
+ * the midpoint composite deliberately lacks — the two share nothing but the
+ * midpoint arithmetic. The one ephemeris use in this module; deterministic
+ * for a given pair, so the ephemeral-read stance is unchanged.
+ */
+export function computeDavison(a: WheelChart, b: WheelChart): DavisonView {
+  const utc = new Date(
+    (Date.parse(a.input.utc) + Date.parse(b.input.utc)) / 2,
+  );
+  const latitude = (a.input.latitude + b.input.latitude) / 2;
+  const lngMid = circularMidpoint(
+    norm360(a.input.longitude),
+    norm360(b.input.longitude),
+  );
+  const longitude = lngMid > 180 ? lngMid - 360 : lngMid;
+  const timeCertainty =
+    CERTAINTY_RANK[a.input.timeCertainty] >=
+    CERTAINTY_RANK[b.input.timeCertainty]
+      ? a.input.timeCertainty
+      : b.input.timeCertainty;
+  const snapshot = buildChart({
+    utc,
+    latitude,
+    longitude,
+    houseSystem: a.input.houseSystem,
+    timeCertainty,
+  });
+  return {
+    chart: { ...snapshot, tzWarnings: [] },
+    midpoint: { utc: utc.toISOString(), latitude, longitude },
+    moonUncertain: [a, b].some((c) =>
+      c.uncertainties.some((u) => u.field === "moon_sign"),
+    ),
+    eitherSolar: a.isSolarChart || b.isSolarChart,
   };
 }
 
@@ -160,6 +230,7 @@ export function computeSynastry(
     aspects,
     angleContacts,
     composite: computeComposite(a.chart, b.chart),
+    davison: computeDavison(a.chart, b.chart),
   };
 }
 

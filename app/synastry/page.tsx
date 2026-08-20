@@ -23,6 +23,7 @@ import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
 import BiWheel from "@/components/synastry/LazyBiWheel";
 import CompositePanel from "@/components/synastry/CompositePanel";
+import DavisonPanel from "@/components/synastry/DavisonPanel";
 import AngleContactList from "@/components/synastry/AngleContactList";
 import CrossAspectList, {
   type AspectProse,
@@ -135,7 +136,7 @@ export default async function SynastryPage({
   if (!query.success) notFound();
   const view = await getSynastryView(query.data.a, query.data.b);
   if (!view) notFound();
-  const { a, b, aspects, angleContacts, composite } = view;
+  const { a, b, aspects, angleContacts, composite, davison } = view;
 
   // The pair's stored AI reading (order-insensitive slot) + staleness.
   const storedReading = await getSynastryReading(query.data.a, query.data.b);
@@ -168,11 +169,13 @@ export default async function SynastryPage({
       getEntry(index, natalAngleAspectKey(c.planet, c.target, c.type));
     if (entry) angleProse[key] = { title: entry.title, bodyMd: entry.bodyMd };
   }
-  // Composite aspects reuse natal pair prose as archetypal context, the
-  // same degradation path the forecast route uses.
+  // Composite and Davison aspects reuse natal pair prose as archetypal
+  // context, the same degradation path the forecast route uses — the keys
+  // are identical, so one map serves both panels.
   const compositeProse: Record<string, AspectProse> = {};
-  for (const c of composite.chart.aspects) {
+  for (const c of [...composite.chart.aspects, ...davison.chart.aspects]) {
     const key = natalAspectKey(c.a, c.b, c.type);
+    if (compositeProse[key]) continue;
     const entry = getEntry(index, key);
     if (entry) compositeProse[key] = { title: entry.title, bodyMd: entry.bodyMd };
   }
@@ -257,6 +260,13 @@ export default async function SynastryPage({
 
       <CompositePanel
         composite={composite}
+        aName={a.displayName}
+        bName={b.displayName}
+        prose={compositeProse}
+      />
+
+      <DavisonPanel
+        davison={davison}
         aName={a.displayName}
         bName={b.displayName}
         prose={compositeProse}

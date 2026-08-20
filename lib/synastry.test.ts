@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ContentEntry, ContentIndex } from "./content";
 import {
   computeComposite,
+  computeDavison,
   computeSynastry,
   normalizePair,
   resolveSynastryEntries,
@@ -199,6 +200,94 @@ describe("computeSynastry", () => {
     const view = computeSynastry(side(1, "Alice", uncertain), SIDE_B);
     expect(view.a.moonUncertain).toBe(true);
     expect(view.b.moonUncertain).toBe(false);
+  });
+});
+
+describe("computeDavison", () => {
+  function chartAt(
+    utc: Date,
+    latitude: number,
+    longitude: number,
+    timeCertainty: "exact" | "approx" | "unknown" = "exact",
+  ): WheelChart {
+    return {
+      ...buildChart({ utc, latitude, longitude, timeCertainty }),
+      tzWarnings: [],
+    };
+  }
+
+  it("casts a real chart at the exact time and place midpoint", () => {
+    // London 2000-01-01 12:00Z × New York 1995-06-15 06:30Z.
+    const a = chartAt(new Date(Date.UTC(2000, 0, 1, 12, 0, 0)), 51.5, -0.1);
+    const b = chartAt(new Date(Date.UTC(1995, 5, 15, 6, 30, 0)), 40.7, -74.0);
+    const view = computeDavison(a, b);
+    expect(new Date(view.midpoint.utc).getTime()).toBe(
+      (Date.UTC(2000, 0, 1, 12, 0, 0) + Date.UTC(1995, 5, 15, 6, 30, 0)) / 2,
+    );
+    expect(view.midpoint.latitude).toBeCloseTo(46.1, 6);
+    expect(view.midpoint.longitude).toBeCloseTo(-37.05, 6);
+    // A real chart: houses, angles, retrogrades all present.
+    expect(view.chart.houses).not.toBeNull();
+    expect(view.chart.bigThree.ascendant).not.toBeNull();
+    expect(view.chart.placements).toHaveLength(10);
+    expect(view.chart.input.utc).toBe(view.midpoint.utc);
+    expect(view.eitherSolar).toBe(false);
+    expect(view.moonUncertain).toBe(false);
+  });
+
+  it("takes the shorter arc across the antimeridian", () => {
+    // Tokyo (139.7°E) × Honolulu (157.9°W): the midpoint is mid-Pacific
+    // (~171°E), not in Africa near 9°W.
+    const a = chartAt(new Date(Date.UTC(1990, 0, 1, 0, 0, 0)), 35.7, 139.7);
+    const b = chartAt(new Date(Date.UTC(1992, 0, 1, 0, 0, 0)), 21.3, -157.9);
+    const view = computeDavison(a, b);
+    expect(Math.abs(view.midpoint.longitude)).toBeGreaterThan(90);
+    expect(view.midpoint.longitude).toBeLessThanOrEqual(180);
+  });
+
+  it("inherits the weaker time certainty", () => {
+    const exact = chartAt(new Date(Date.UTC(2000, 0, 1, 12, 0, 0)), 51.5, 0);
+    const approx = chartAt(
+      new Date(Date.UTC(1995, 5, 15, 6, 30, 0)),
+      40.7,
+      -74.0,
+      "approx",
+    );
+    expect(computeDavison(exact, approx).chart.input.timeCertainty).toBe(
+      "approx",
+    );
+    expect(computeDavison(approx, exact).chart.input.timeCertainty).toBe(
+      "approx",
+    );
+
+    const solar = chartAt(
+      new Date(Date.UTC(1995, 5, 15, 12, 0, 0)),
+      40.7,
+      -74.0,
+      "unknown",
+    );
+    const view = computeDavison(exact, solar);
+    expect(view.chart.isSolarChart).toBe(true);
+    expect(view.chart.houses).toBeNull();
+    expect(view.eitherSolar).toBe(true);
+  });
+
+  it("propagates a natal Moon-sign uncertainty", () => {
+    const uncertain: WheelChart = {
+      ...CHART_A,
+      uncertainties: [
+        ...CHART_A.uncertainties,
+        { field: "moon_sign", reason: "test: Moon near a sign boundary" },
+      ],
+    };
+    expect(computeDavison(uncertain, CHART_B).moonUncertain).toBe(true);
+    expect(computeDavison(CHART_A, CHART_B).moonUncertain).toBe(false);
+  });
+
+  it("rides along in computeSynastry", () => {
+    const view = computeSynastry(SIDE_A, SIDE_B);
+    expect(view.davison.chart.placements).toHaveLength(10);
+    expect(view.davison).toEqual(computeDavison(CHART_A, CHART_B));
   });
 });
 
