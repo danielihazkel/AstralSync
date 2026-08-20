@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEntry, loadContentIndex } from "@/lib/content";
 import { getCyclesView, type CyclesProse } from "@/lib/cycles";
 import { transitOptionsFromQuery } from "@/lib/transits";
-import { transitQuerySchema } from "@/lib/validation";
+import { cyclesQuerySchema } from "@/lib/validation";
 
 function parseId(raw: string): number | null {
   const id = Number(raw);
@@ -28,7 +28,7 @@ export async function GET(
       { status: 400, headers: NO_STORE },
     );
   }
-  const parsed = transitQuerySchema.safeParse(
+  const parsed = cyclesQuerySchema.safeParse(
     Object.fromEntries(req.nextUrl.searchParams),
   );
   if (!parsed.success) {
@@ -38,7 +38,18 @@ export async function GET(
     );
   }
   const at = parsed.data.at ? new Date(parsed.data.at) : undefined;
-  const view = await getCyclesView(id, at, transitOptionsFromQuery(parsed.data));
+  // Optional solar-return relocation (Birth | Home toggle) — the schema
+  // guarantees the pair arrives together.
+  const srLocation =
+    parsed.data.srLat !== undefined && parsed.data.srLng !== undefined
+      ? { latitude: parsed.data.srLat, longitude: parsed.data.srLng }
+      : undefined;
+  const view = await getCyclesView(
+    id,
+    at,
+    transitOptionsFromQuery(parsed.data),
+    srLocation,
+  );
   if (!view) {
     return NextResponse.json(
       { error: "not_found" },

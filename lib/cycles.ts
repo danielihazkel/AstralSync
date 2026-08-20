@@ -79,8 +79,12 @@ export interface CyclesData {
     year: number;
     /** Exact instant the Sun returns to its natal longitude. */
     returnUtc: string;
-    /** Full chart at the return instant, cast for the birth location. */
+    /** Full chart at the return instant — cast for the birth location, or
+     *  the requested relocation. */
     chart: WheelChart;
+    /** True when the chart was cast for a location other than the birth
+     *  place (the instant is the same; only houses and angles move). */
+    relocated: boolean;
   };
   lunarReturn: {
     /** Most recent instant the Moon returned to its natal longitude. */
@@ -263,11 +267,20 @@ function solarReturnInstant(
   return found ? found.date : null;
 }
 
+/** An alternate casting location for a return chart (relocation). */
+export interface ReturnLocation {
+  latitude: number;
+  longitude: number;
+}
+
 /** Pure: natal chart + instant → the solar return chart for the solar year
- *  containing `at` (the most recent return not after `at`). */
+ *  containing `at` (the most recent return not after `at`). The return
+ *  instant is location-independent; `location` relocates only the chart —
+ *  houses and angles move, the planets hold their degrees. */
 export function computeSolarReturn(
   natal: WheelChart,
   at: Date,
+  location?: ReturnLocation,
 ): CyclesData["solarReturn"] | null {
   const natalUtc = new Date(natal.input.utc);
   const natalSun = natal.placements.find((p) => p.planet === "sun");
@@ -283,15 +296,20 @@ export function computeSolarReturn(
 
   const snapshot = buildChart({
     utc: instant,
-    latitude: natal.input.latitude,
-    longitude: natal.input.longitude,
+    latitude: location?.latitude ?? natal.input.latitude,
+    longitude: location?.longitude ?? natal.input.longitude,
     houseSystem: natal.input.houseSystem,
     // The return instant itself is exact; when the natal chart is solar the
     // instant inherits the noon estimate — surfaced via natal.isSolarChart.
     timeCertainty: "exact",
   });
   const chart: WheelChart = { ...snapshot, tzWarnings: [] };
-  return { year, returnUtc: instant.toISOString(), chart };
+  return {
+    year,
+    returnUtc: instant.toISOString(),
+    chart,
+    relocated: location !== undefined,
+  };
 }
 
 /** The Moon's apparent longitude via the same pipeline as the natal chart,
@@ -510,8 +528,9 @@ export function computeCycles(
   natalVersion: number,
   at: Date,
   options: TransitOptions = {},
+  srLocation?: ReturnLocation,
 ): CyclesData | null {
-  const solarReturn = computeSolarReturn(natal, at);
+  const solarReturn = computeSolarReturn(natal, at, srLocation);
   if (!solarReturn) return null;
   return {
     computedAt: at.toISOString(),
@@ -544,6 +563,7 @@ export async function getCyclesView(
   profileId: number,
   at?: Date,
   options?: TransitOptions,
+  srLocation?: ReturnLocation,
 ): Promise<CyclesData | null> {
   const snapshot = await prisma.astroSnapshot.findFirst({
     where: { profileId },
@@ -554,5 +574,11 @@ export async function getCyclesView(
     ...(snapshot.placementsJson as unknown as StoredChart),
     aspects: (snapshot.aspectsJson as unknown as Aspect[]) ?? [],
   };
-  return computeCycles(natal, snapshot.version, at ?? new Date(), options);
+  return computeCycles(
+    natal,
+    snapshot.version,
+    at ?? new Date(),
+    options,
+    srLocation,
+  );
 }

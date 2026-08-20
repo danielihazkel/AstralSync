@@ -13,7 +13,10 @@ import {
   saveOrbSettings,
   type OrbSettings,
 } from "@/lib/orbSettings";
+import { loadHomeLocation } from "@/lib/homeLocation";
+import type { HomeLocation } from "@/lib/today";
 import type { WheelChart } from "@/lib/view-types";
+import HomeLocationPicker from "@/components/settings/HomeLocationPicker";
 import OrbSettingsControl from "@/components/settings/OrbSettingsControl";
 import { TransitPositionsTable } from "@/components/transits/TransitTables";
 import {
@@ -49,6 +52,7 @@ type State =
   | { kind: "error" };
 
 const PROGRESSION_VIEWS = ["biwheel", "wheel"] as const;
+const SR_VIEWS = ["birth", "home"] as const;
 
 /** "15°32′ Scorpio" for an ecliptic longitude (progressed ASC/MC line). */
 function anglePosition(longitude: number): string {
@@ -99,9 +103,21 @@ export default function CyclesPanel({
     onSelect: (i) => setProgView(PROGRESSION_VIEWS[i]),
     idBase: "progressions-view",
   });
+  // Solar return relocation: Birth | Home casting location. The home
+  // location is the per-browser setting the almanac uses; Home with no
+  // saved location renders the picker inline instead of fetching.
+  const [srView, setSrView] = useState<(typeof SR_VIEWS)[number]>("birth");
+  const [homeLoc, setHomeLoc] = useState<HomeLocation | null>(null);
+  const srTabs = useTabList({
+    count: SR_VIEWS.length,
+    selected: SR_VIEWS.indexOf(srView),
+    onSelect: (i) => setSrView(SR_VIEWS[i]),
+    idBase: "solar-return-view",
+  });
 
   useEffect(() => {
     setOrbs(loadOrbSettings());
+    setHomeLoc(loadHomeLocation());
   }, []);
 
   const load = useCallback(async () => {
@@ -111,9 +127,17 @@ export default function CyclesPanel({
       return;
     }
     setState({ kind: "loading" });
+    // Relocate the solar return when the Home view is active and a home
+    // location exists — a whole-payload refetch, same cost model as an orb
+    // change (only the SR chart differs server-side).
+    const orbPart = orbQuery(orbs);
+    const srPart =
+      srView === "home" && homeLoc
+        ? `${orbPart ? "&" : "?"}srLat=${homeLoc.lat}&srLng=${homeLoc.lng}`
+        : "";
     let res: Response;
     try {
-      res = await fetch(`/api/cycles/${profileId}${orbQuery(orbs)}`);
+      res = await fetch(`/api/cycles/${profileId}${orbPart}${srPart}`);
     } catch {
       // sw.js never intercepts /api/*, so a network failure rejects cleanly.
       setState({ kind: "offline" });
@@ -124,7 +148,7 @@ export default function CyclesPanel({
       return;
     }
     setState({ kind: "data", data: await res.json() });
-  }, [profileId, orbs]);
+  }, [profileId, orbs, srView, homeLoc]);
 
   useEffect(() => {
     void load();
@@ -389,19 +413,50 @@ export default function CyclesPanel({
         <h3 className={styles.sectionTitle}>
           Solar return {solarReturn.year}
         </h3>
-        <p className={styles.muted}>
-          The chart for the year: cast for the exact moment the Sun returned
-          to its natal position (
-          {new Date(solarReturn.returnUtc).toLocaleString()}), at the birth
-          location.
-          {data.natal.isSolarChart &&
-            " The birth time is unknown, so the natal Sun is a noon estimate — the return moment (and this chart's houses) shift with it."}
-        </p>
-        <Prose entry={data.prose?.solarReturn} />
-        <ChartWheel
-          chart={solarReturn.chart}
-          downloadName={`solar return ${solarReturn.year}`}
-        />
+        <div
+          className={styles.viewSwitch}
+          role="tablist"
+          aria-label="Solar return location"
+        >
+          <button {...srTabs.getTabProps(0)}>Birth location</button>
+          <button {...srTabs.getTabProps(1)}>Home location</button>
+        </div>
+        <div
+          {...srTabs.getPanelProps(SR_VIEWS.indexOf(srView))}
+          className={styles.tabPanel}
+        >
+          <p className={styles.muted}>
+            The chart for the year: cast for the exact moment the Sun
+            returned to its natal position (
+            {new Date(solarReturn.returnUtc).toLocaleString()}),{" "}
+            {solarReturn.relocated && homeLoc
+              ? `relocated to ${homeLoc.label} — same moment, different horizon: the planets hold their degrees while the houses and Ascendant shift.`
+              : "at the birth location."}
+            {data.natal.isSolarChart &&
+              " The birth time is unknown, so the natal Sun is a noon estimate — the return moment (and this chart's houses) shift with it."}
+          </p>
+          {srView === "home" && !homeLoc ? (
+            <>
+              <p className={styles.muted}>
+                No home location set — pick the city you live in to cast the
+                return there. It is remembered in this browser (the same
+                setting the calendar uses), never stored server-side.
+              </p>
+              <HomeLocationPicker
+                onPick={(loc) => setHomeLoc(loc)}
+                onCancel={() => setSrView("birth")}
+              />
+            </>
+          ) : (
+            <>
+              <Prose entry={data.prose?.solarReturn} />
+              <ChartWheel
+                chart={solarReturn.chart}
+                downloadName={`solar return ${solarReturn.year}${solarReturn.relocated ? " relocated" : ""}`}
+              />
+            </>
+          )}
+        </div>
       </section>
 
       {planetaryReturns.map((r) => (

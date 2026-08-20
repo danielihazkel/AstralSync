@@ -179,6 +179,32 @@ describe("computeSolarReturn", () => {
     ).toBeLessThan(2 * 86_400_000);
   });
 
+  it("relocates only the houses, never the instant or planets", () => {
+    const at = new Date(Date.UTC(2026, 7, 13));
+    const birth = computeSolarReturn(NATAL, at)!;
+    // Sydney vs the Greenwich-latitude birth location: far enough that the
+    // Ascendant cannot coincide.
+    const home = computeSolarReturn(NATAL, at, {
+      latitude: -33.87,
+      longitude: 151.21,
+    })!;
+    expect(birth.relocated).toBe(false);
+    expect(home.relocated).toBe(true);
+    expect(home.returnUtc).toBe(birth.returnUtc);
+    expect(home.year).toBe(birth.year);
+    for (const p of home.chart.placements) {
+      const bp = birth.chart.placements.find((x) => x.planet === p.planet)!;
+      expect(p.longitude).toBe(bp.longitude);
+    }
+    expect(home.chart.input.latitude).toBe(-33.87);
+    expect(
+      separation(
+        home.chart.houses!.ascendant,
+        birth.chart.houses!.ascendant,
+      ),
+    ).toBeGreaterThan(1);
+  });
+
   it("casts full houses for the birth location", () => {
     const sr = computeSolarReturn(NATAL, new Date(Date.UTC(2026, 7, 13)))!;
     expect(sr.chart.houses).not.toBeNull();
