@@ -17,6 +17,7 @@ import type { WheelChart } from "@/lib/view-types";
 import OrbSettingsControl from "@/components/settings/OrbSettingsControl";
 import { TransitPositionsTable } from "@/components/transits/TransitTables";
 import {
+  ANGLE_NAMES,
   ASPECT_NAMES,
   PLANET_NAMES,
   SIGN_NAMES,
@@ -175,8 +176,14 @@ export default function CyclesPanel({
   const moonReason =
     chart.uncertainties.find((u) => u.field === "moon_sign")?.reason ??
     "The natal Moon sign is uncertain.";
-  const { progressions, solarReturn, lunarReturn, planetaryReturns, profection } =
-    data;
+  const {
+    progressions,
+    solarArc,
+    solarReturn,
+    lunarReturn,
+    planetaryReturns,
+    profection,
+  } = data;
 
   return (
     <div className={styles.panel}>
@@ -293,6 +300,67 @@ export default function CyclesPanel({
                 {c.b === "moon" && data.natal.moonUncertain && (
                   <UncertaintyBadge reason={moonReason} />
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-label="Solar arc directions">
+        <h3 className={styles.sectionTitle}>
+          Solar arc directions — arc {solarArc.arcDegrees.toFixed(1)}°
+        </h3>
+        <p className={styles.muted}>
+          Every natal point pushed forward by the progressed Sun&rsquo;s
+          motion, about a degree per year of life. A symbolic timing overlay
+          rather than a chart of its own — contacts to the natal chart are
+          listed at a fixed 1° orb (the directions convention; orb settings
+          don&rsquo;t apply here).
+        </p>
+
+        <TransitPositionsTable
+          placements={solarArc.placements}
+          showHouses={showHouses}
+          positionHeader="Directed position"
+          moonUncertain={data.natal.moonUncertain}
+          moonReason={moonReason}
+        />
+
+        {solarArc.crossAspects.length === 0 &&
+        solarArc.angleAspects.length === 0 ? (
+          <p className={styles.muted}>
+            No directed point is within 1° of a natal placement
+            {showHouses ? " or angle" : ""} right now — the next contact
+            arrives as the arc advances.
+          </p>
+        ) : (
+          <ul className={styles.aspectList}>
+            {solarArc.crossAspects.map((c, i) => (
+              <li key={`${c.a}-${c.b}-${c.type}-${i}`}>
+                <span className={styles.glyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[c.a] + "︎"}
+                </span>
+                Directed {PLANET_NAMES[c.a]}{" "}
+                {ASPECT_NAMES[c.type].toLowerCase()} natal{" "}
+                <span className={styles.glyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[c.b] + "︎"}
+                </span>
+                {PLANET_NAMES[c.b]}
+                <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
+                {c.b === "moon" && data.natal.moonUncertain && (
+                  <UncertaintyBadge reason={moonReason} />
+                )}
+              </li>
+            ))}
+            {solarArc.angleAspects.map((c, i) => (
+              <li key={`${c.planet}-${c.target}-${c.type}-${i}`}>
+                <span className={styles.glyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[c.planet] + "︎"}
+                </span>
+                Directed {PLANET_NAMES[c.planet]}{" "}
+                {ASPECT_NAMES[c.type].toLowerCase()} natal{" "}
+                {ANGLE_NAMES[c.target]}
+                <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
               </li>
             ))}
           </ul>

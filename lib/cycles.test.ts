@@ -5,6 +5,7 @@ import {
   computeLunarReturn,
   computePlanetaryReturn,
   computeProgressions,
+  computeSolarArc,
   computeSolarReturn,
 } from "./cycles";
 import type { WheelChart } from "./view-types";
@@ -96,6 +97,60 @@ describe("computeProgressions", () => {
     const prog = computeProgressions(solar, new Date(Date.UTC(2026, 7, 13)));
     expect(prog.chart.isSolarChart).toBe(true);
     expect(prog.chart.houses).toBeNull();
+  });
+});
+
+describe("computeSolarArc", () => {
+  const AT = new Date(Date.UTC(2026, 7, 13));
+
+  it("directs the Sun to exactly the progressed Sun longitude", () => {
+    const arc = computeSolarArc(NATAL, AT);
+    const prog = computeProgressions(NATAL, AT);
+    const directedSun = arc.placements.find((p) => p.planet === "sun")!;
+    const progSun = prog.placements.find((p) => p.planet === "sun")!;
+    expect(directedSun.longitude).toBeCloseTo(progSun.longitude, 6);
+  });
+
+  it("advances every point by the same arc, about a degree per year", () => {
+    const arc = computeSolarArc(NATAL, AT);
+    const ageYears =
+      (AT.getTime() - Date.UTC(1990, 2, 4, 10, 30, 0)) /
+      (365.2425 * 86_400_000);
+    expect(arc.arcDegrees / ageYears).toBeGreaterThan(0.94);
+    expect(arc.arcDegrees / ageYears).toBeLessThan(1.02);
+    for (const p of arc.placements) {
+      const natalP = NATAL.placements.find((n) => n.planet === p.planet)!;
+      const advanced = (natalP.longitude + arc.arcDegrees) % 360;
+      expect(separation(p.longitude, advanced)).toBeLessThan(1e-9);
+      // The directed chart is symbolic: it mirrors the natal condition.
+      expect(p.retrograde).toBe(natalP.retrograde);
+    }
+  });
+
+  it("reads contacts at the fixed 1° directions orb", () => {
+    const arc = computeSolarArc(NATAL, AT);
+    for (const c of arc.crossAspects) expect(c.orb).toBeLessThanOrEqual(1);
+    for (const c of arc.angleAspects) expect(c.orb).toBeLessThanOrEqual(1);
+    for (let i = 1; i < arc.crossAspects.length; i++) {
+      expect(arc.crossAspects[i].orb).toBeGreaterThanOrEqual(
+        arc.crossAspects[i - 1].orb,
+      );
+    }
+  });
+
+  it("overlays natal houses on the directed placements", () => {
+    const arc = computeSolarArc(NATAL, AT);
+    for (const p of arc.placements) {
+      expect(p.house).toBeGreaterThanOrEqual(1);
+      expect(p.house).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it("degrades houseless with no angle contacts against a solar natal", () => {
+    const solar = chartOf(new Date(Date.UTC(1990, 2, 4, 12, 0, 0)), "unknown");
+    const arc = computeSolarArc(solar, AT);
+    expect(arc.placements.every((p) => p.house === null)).toBe(true);
+    expect(arc.angleAspects).toEqual([]);
   });
 });
 

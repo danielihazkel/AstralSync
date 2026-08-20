@@ -21,6 +21,12 @@ const canned = {
     crossAspects: [],
     chart: {} as CyclesData["solarReturn"]["chart"],
   },
+  solarArc: {
+    arcDegrees: 36.4,
+    placements: [],
+    crossAspects: [],
+    angleAspects: [],
+  },
   solarReturn: {
     year: 2026,
     returnUtc: "2026-03-04T18:22:11.000Z",

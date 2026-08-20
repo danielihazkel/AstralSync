@@ -5,12 +5,17 @@ import {
   annualProfection,
   astronomyEngineProvider,
   buildChart,
+  detectAngleAspects,
   detectCrossAspects,
+  norm360,
   overlayHouses,
   positionsAt,
+  signOf,
+  type AngleAspect,
   type AnnualProfection,
   type Aspect,
   type CrossAspect,
+  type OrbConfig,
   type Placement,
 } from "@astralsync/astro-core";
 import * as Astronomy from "astronomy-engine";
@@ -54,6 +59,20 @@ export interface CyclesData {
      *  later). Houses are null when the natal chart is solar — the
      *  progressed instant inherits the birth time's uncertainty. */
     chart: WheelChart;
+  };
+  solarArc: {
+    /** Progressed-Sun minus natal-Sun longitude, degrees (~1°/year of age). */
+    arcDegrees: number;
+    /** Natal placements advanced by the arc; `house` is the natal-house
+     *  overlay (null on solar charts), `retrograde` carried from natal —
+     *  a directed chart is symbolic, it mirrors the natal condition. */
+    placements: Placement[];
+    /** Directed (a) vs natal (b) at the fixed 1° directions orb, majors
+     *  only, sorted by orb ascending. */
+    crossAspects: CrossAspect[];
+    /** Directed planets on the natal ASC/MC at the same 1° orb; empty when
+     *  the natal chart is houseless. */
+    angleAspects: AngleAspect[];
   };
   solarReturn: {
     /** Calendar year the return falls in (the solar year containing now). */
@@ -164,6 +183,60 @@ export function computeProgressions(
     crossAspects,
     chart,
   };
+}
+
+/** Directions doctrine: contacts perfect by a symbolic arc, not real motion,
+ *  so they are read at a tight fixed 1° — deliberately not user-tunable
+ *  (OrbSettingsControl does not apply; the UI says so). */
+const SOLAR_ARC_ORBS: OrbConfig = { luminary: 1, default: 1 };
+
+/**
+ * Pure: natal chart + instant → solar arc directions. Every natal point is
+ * advanced by the progressed Sun's arc (the same day-for-a-year instant as
+ * computeProgressions, so directed Sun ≡ progressed Sun by construction),
+ * then read against the natal chart. Aspects and angle contacts only — a
+ * directed chart is a timing overlay, not a chart in its own right.
+ */
+export function computeSolarArc(
+  natal: WheelChart,
+  at: Date,
+): CyclesData["solarArc"] {
+  const natalUtc = new Date(natal.input.utc);
+  const ageYears =
+    (at.getTime() - natalUtc.getTime()) / (TROPICAL_YEAR_DAYS * DAY_MS);
+  const progressedUtc = new Date(natalUtc.getTime() + ageYears * DAY_MS);
+  // The progressed Sun from the same pipeline as the stored natal Sun, so
+  // the arc is internally consistent with the snapshot's longitudes.
+  const progSun = positionsAt(progressedUtc).find((p) => p.planet === "sun")!;
+  const natalSun = natal.placements.find((p) => p.planet === "sun")!;
+  const arcDegrees = norm360(progSun.longitude - natalSun.longitude);
+
+  const placements = overlayHouses(
+    natal.placements.map((p) => {
+      const longitude = norm360(p.longitude + arcDegrees);
+      return {
+        planet: p.planet,
+        longitude,
+        sign: signOf(longitude),
+        degreeInSign: longitude % 30,
+        house: null,
+        retrograde: p.retrograde,
+      };
+    }),
+    natal.houses?.cusps ?? null,
+  );
+  const crossAspects = detectCrossAspects(
+    placements,
+    natal.placements,
+    SOLAR_ARC_ORBS,
+    MAJOR_ASPECTS,
+  ).sort((x, y) => x.orb - y.orb);
+  const angleAspects = natal.houses
+    ? detectAngleAspects(placements, natal.houses, SOLAR_ARC_ORBS).sort(
+        (x, y) => x.orb - y.orb,
+      )
+    : [];
+  return { arcDegrees, placements, crossAspects, angleAspects };
 }
 
 /** The instant the Sun returns to `natalSunLon` nearest the birthday in
@@ -448,6 +521,7 @@ export function computeCycles(
       moonUncertain: natal.uncertainties.some((u) => u.field === "moon_sign"),
     },
     progressions: computeProgressions(natal, at, options),
+    solarArc: computeSolarArc(natal, at),
     solarReturn,
     lunarReturn: computeLunarReturn(natal, at),
     planetaryReturns: (["jupiter", "saturn"] as const).map((p) =>
