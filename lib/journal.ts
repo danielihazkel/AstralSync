@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { CrossAspect, Placement } from "@astralsync/astro-core";
 import { prisma } from "./db";
 import type { JournalMood } from "./journalMeta";
+import type { TimelineEntryData } from "./journalTimeline";
 import { getTransitView, type TransitData } from "./transits";
 
 /**
@@ -208,6 +209,27 @@ export async function updateJournalEntry(
     },
   });
   return serialize(row);
+}
+
+/** Every entry across every profile, newest first — the global timeline's
+ *  data source (lib/journalTimeline.ts holds the serializable shape and the
+ *  client-side filter). The sky snapshot stays out: the timeline is a
+ *  reading surface, and each entry links back to its profile's Journal tab
+ *  for the full view. */
+export async function listAllJournalEntries(): Promise<TimelineEntryData[]> {
+  const rows = await prisma.journalEntry.findMany({
+    orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+    include: { profile: { select: { id: true, displayName: true } } },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    profileId: row.profile.id,
+    displayName: row.profile.displayName,
+    entryDate: dateString(row.entryDate),
+    bodyMd: row.bodyMd,
+    mood: (row.mood as JournalMood | null) ?? null,
+    tags: (row.tagsJson as unknown as string[] | null) ?? [],
+  }));
 }
 
 /** False when no entry with that id belongs to the profile (maps to 404). */
