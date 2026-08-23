@@ -360,3 +360,83 @@ export async function getSynastryView(
   if (!a || !b) return null;
   return computeSynastry(a, b);
 }
+
+/** One unordered pair's summary in the group grid — the full pair page is a
+ *  click away, so the grid keeps to what fits a cell: how much contact, and
+ *  the single tightest aspect. */
+export interface GroupPairSummary {
+  aId: number;
+  bId: number;
+  /** Cross aspects within natal orbs. */
+  count: number;
+  /** Tightest contact (a = the aId side's planet); null when nothing is in
+   *  orb. */
+  strongest: CrossAspect | null;
+}
+
+export interface GroupSynastryData {
+  profiles: Array<{
+    id: number;
+    displayName: string;
+    isSolarChart: boolean;
+    version: number;
+  }>;
+  /** One summary per unordered pair, in input order (aId before bId). */
+  pairs: GroupPairSummary[];
+}
+
+/** Pure: every pairwise cross-aspect summary over the given charts. Aspects
+ *  only — composites, overlays and angle contacts stay on the pair page. */
+export function computeGroupSynastry(
+  sides: SynastryInputSide[],
+): GroupSynastryData {
+  const pairs: GroupPairSummary[] = [];
+  for (let i = 0; i < sides.length; i++) {
+    for (let j = i + 1; j < sides.length; j++) {
+      const aspects = detectCrossAspects(
+        sides[i].chart.placements,
+        sides[j].chart.placements,
+        DEFAULT_ORBS,
+      ).sort((x, y) => x.orb - y.orb);
+      pairs.push({
+        aId: sides[i].profileId,
+        bId: sides[j].profileId,
+        count: aspects.length,
+        strongest: aspects[0] ?? null,
+      });
+    }
+  }
+  return {
+    profiles: sides.map((s) => ({
+      id: s.profileId,
+      displayName: s.displayName,
+      isSolarChart: s.chart.isSolarChart,
+      version: s.version,
+    })),
+    pairs,
+  };
+}
+
+/** Ephemeral read over every profile that has a snapshot, in creation
+ *  order — the group grid's data source. */
+export async function getGroupSynastry(): Promise<GroupSynastryData> {
+  const profiles = await prisma.profile.findMany({
+    orderBy: { createdAt: "asc" },
+    include: { astroSnapshots: { orderBy: { version: "desc" }, take: 1 } },
+  });
+  const sides: SynastryInputSide[] = [];
+  for (const p of profiles) {
+    const snapshot = p.astroSnapshots[0];
+    if (!snapshot) continue;
+    sides.push({
+      profileId: p.id,
+      displayName: p.displayName,
+      version: snapshot.version,
+      chart: {
+        ...(snapshot.placementsJson as unknown as StoredChart),
+        aspects: (snapshot.aspectsJson as unknown as Aspect[]) ?? [],
+      },
+    });
+  }
+  return computeGroupSynastry(sides);
+}

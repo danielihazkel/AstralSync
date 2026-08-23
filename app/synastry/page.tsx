@@ -126,6 +126,12 @@ export default async function SynastryPage({
             <Link href="/onboarding">create another chart</Link> to compare.
           </p>
         )}
+        {profiles.length >= 3 && (
+          <p className={styles.muted}>
+            Or see <Link href="/synastry/group">every pair at once</Link> in
+            the group grid.
+          </p>
+        )}
         <p className={styles.muted}>
           <Link href="/">← All profiles</Link>
         </p>

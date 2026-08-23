@@ -4,6 +4,7 @@ import type { ContentEntry, ContentIndex } from "./content";
 import {
   computeComposite,
   computeDavison,
+  computeGroupSynastry,
   computeSynastry,
   normalizePair,
   resolveSynastryEntries,
@@ -38,6 +39,29 @@ const CHART_A = chartOf(new Date(Date.UTC(2000, 0, 1, 12, 0, 0)));
 const CHART_B = chartOf(new Date(Date.UTC(1995, 5, 15, 6, 30, 0)));
 const SIDE_A = side(1, "Alice", CHART_A);
 const SIDE_B = side(2, "Ben", CHART_B);
+
+describe("computeGroupSynastry", () => {
+  const SIDE_C = side(3, "Cora", chartOf(new Date(Date.UTC(1988, 10, 2, 18, 0, 0))));
+
+  it("summarizes every unordered pair, agreeing with the full pair view", () => {
+    const group = computeGroupSynastry([SIDE_A, SIDE_B, SIDE_C]);
+    expect(group.profiles.map((p) => p.id)).toEqual([1, 2, 3]);
+    expect(group.pairs.map((p) => [p.aId, p.bId])).toEqual([
+      [1, 2],
+      [1, 3],
+      [2, 3],
+    ]);
+    const ab = group.pairs[0];
+    const full = computeSynastry(SIDE_A, SIDE_B);
+    expect(ab.count).toBe(full.aspects.length);
+    expect(ab.strongest).toEqual(full.aspects[0]);
+  });
+
+  it("handles fewer than two charts and empty contact sets", () => {
+    expect(computeGroupSynastry([SIDE_A]).pairs).toEqual([]);
+    expect(computeGroupSynastry([]).profiles).toEqual([]);
+  });
+});
 
 describe("computeSynastry", () => {
   it("is deterministic and echoes both sides", () => {
