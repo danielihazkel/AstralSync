@@ -368,6 +368,24 @@ describe("computeCycles", () => {
     expect(view.engine.name).toBe("astronomy-engine");
   });
 
+  it("attaches the firdaria for a housed chart and omits it on solar", () => {
+    const at = new Date(Date.UTC(2026, 7, 13));
+    const view = computeCycles(NATAL, 1, at)!;
+    // 1990-03-04 10:30 UT in Greenwich is a day birth (Sun above the
+    // horizon); at age 36 a day chart sits in the Moon major period
+    // (Sun 0–10, Venus 10–18, Mercury 18–31, Moon 31–40).
+    expect(view.firdaria).not.toBeNull();
+    expect(view.firdaria!.isDay).toBe(true);
+    expect(view.firdaria!.major.lord).toBe("moon");
+    expect(view.firdaria!.sub).not.toBeNull();
+    expect(view.firdaria!.cycle).toHaveLength(9);
+
+    const solar = chartOf(new Date(Date.UTC(1990, 2, 4, 12, 0, 0)), "unknown");
+    expect(
+      computeCycles(solar, 1, at)!.firdaria,
+    ).toBeNull();
+  });
+
   it("is deterministic for a fixed instant", () => {
     const at = new Date(Date.UTC(2026, 7, 13));
     expect(computeCycles(NATAL, 1, at)).toEqual(computeCycles(NATAL, 1, at));

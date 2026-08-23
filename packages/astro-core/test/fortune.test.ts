@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildChart, isDayChart, partOfFortune, partOfFortunePlacement } from "../src";
+import {
+  buildChart,
+  isDayChart,
+  partOfFortune,
+  partOfFortunePlacement,
+  partOfSpirit,
+  partOfSpiritPlacement,
+  separation,
+} from "../src";
 
 describe("partOfFortune", () => {
   it("day formula: Asc + Moon − Sun", () => {
@@ -20,6 +28,53 @@ describe("partOfFortune", () => {
   it("degenerates to the Ascendant at a New Moon (either sect)", () => {
     expect(partOfFortune(123.4, 77, 77, true)).toBeCloseTo(123.4, 10);
     expect(partOfFortune(123.4, 77, 77, false)).toBeCloseTo(123.4, 10);
+  });
+});
+
+describe("partOfSpirit", () => {
+  it("is Fortune with the sect flipped: Asc + Sun − Moon by day", () => {
+    expect(partOfSpirit(100, 40, 100, true)).toBeCloseTo(40, 10);
+    expect(partOfSpirit(100, 40, 100, false)).toBeCloseTo(160, 10);
+  });
+
+  it("mirrors Fortune across the Ascendant in either sect", () => {
+    // Fortune + Spirit = 2·Asc (mod 360) — the two lots reflect through it.
+    for (const isDay of [true, false]) {
+      const fortune = partOfFortune(123.4, 40, 300, isDay);
+      const spirit = partOfSpirit(123.4, 40, 300, isDay);
+      expect(separation(fortune + spirit, 2 * 123.4)).toBeCloseTo(0, 10);
+    }
+  });
+
+  it("degenerates to the Ascendant at a New Moon, like Fortune", () => {
+    expect(partOfSpirit(123.4, 77, 77, true)).toBeCloseTo(123.4, 10);
+  });
+
+  it("builds a placement tagged part_of_spirit", () => {
+    const chart = buildChart({
+      utc: new Date(Date.UTC(1990, 2, 4, 10, 30, 0)),
+      latitude: 51.48,
+      longitude: 0,
+      timeCertainty: "exact",
+    });
+    const sun = chart.placements.find((p) => p.planet === "sun")!;
+    const moon = chart.placements.find((p) => p.planet === "moon")!;
+    const placement = partOfSpiritPlacement(
+      chart.houses!.ascendant,
+      sun.longitude,
+      moon.longitude,
+      chart.houses!.cusps,
+    );
+    expect(placement.point).toBe("part_of_spirit");
+    expect(placement.longitude).toBeCloseTo(
+      partOfSpirit(
+        chart.houses!.ascendant,
+        sun.longitude,
+        moon.longitude,
+        isDayChart(sun.longitude, chart.houses!.cusps),
+      ),
+      10,
+    );
   });
 });
 

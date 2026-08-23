@@ -41,6 +41,7 @@ const canned = {
   },
   planetaryReturns: [],
   profection: null,
+  firdaria: null,
   engine: { name: "astronomy-engine", version: "2.1.19" },
 } satisfies CyclesData;
 

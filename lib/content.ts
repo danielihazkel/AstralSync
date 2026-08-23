@@ -506,6 +506,9 @@ export function resolveReading(
     south_node: "South Node",
     lilith: "Lilith",
     part_of_fortune: "Part of Fortune",
+    // Rendered as a wheel point only — no point_in_sign entries are authored
+    // for Spirit yet, so the reading deliberately skips it.
+    part_of_spirit: "Part of Spirit",
   };
   const takePoint = (pt: PointPlacement, variant?: NodeVariant): void => {
     const base = `${POINT_LABELS[pt.point]} in ${cap(pt.sign)}`;

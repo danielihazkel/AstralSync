@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { SIGNS } from "@astralsync/astro-core";
+import { SIGNS, type FirdariaLord } from "@astralsync/astro-core";
 import type {
   CyclesData,
   CyclesEntryProse,
@@ -23,10 +23,14 @@ import {
   ANGLE_NAMES,
   ASPECT_NAMES,
   PLANET_NAMES,
+  POINT_NAMES,
   SIGN_NAMES,
   formatDegreeInSign,
 } from "@/components/format";
-import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
+import {
+  PLANET_GLYPH_CHARS,
+  POINT_GLYPH_CHARS,
+} from "@/components/chart/glyphs";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
 import Markdown from "@/components/Markdown";
 import { useTabList } from "@/components/useTabList";
@@ -69,6 +73,26 @@ function Prose({ entry }: { entry?: CyclesEntryProse }) {
       <Markdown md={entry.bodyMd} />
     </div>
   );
+}
+
+function lordName(lord: FirdariaLord): string {
+  return lord === "north_node" || lord === "south_node"
+    ? POINT_NAMES[lord]
+    : PLANET_NAMES[lord];
+}
+
+function lordGlyph(lord: FirdariaLord): string {
+  return lord === "north_node" || lord === "south_node"
+    ? POINT_GLYPH_CHARS[lord]
+    : PLANET_GLYPH_CHARS[lord] + "︎";
+}
+
+/** "Mar 2020 – Mar 2030" for a firdaria period. */
+function firdariaRange(p: { startUtc: string; endUtc: string }): string {
+  const opts = { year: "numeric", month: "short" } as const;
+  return `${new Date(p.startUtc).toLocaleDateString([], opts)} – ${new Date(
+    p.endUtc,
+  ).toLocaleDateString([], opts)}`;
 }
 
 function ordinal(house: number): string {
@@ -254,6 +278,44 @@ export default function CyclesPanel({
             below — traditional practice reads the two together.
           </p>
           <Prose entry={data.prose?.profection} />
+        </section>
+      )}
+
+      {data.firdaria && (
+        <section aria-label="Firdaria">
+          <h3 className={styles.sectionTitle}>
+            Firdaria — {lordName(data.firdaria.major.lord)} period
+            {data.firdaria.sub &&
+              ` · ${lordName(data.firdaria.sub.lord)} sub-period`}
+          </h3>
+          <p className={styles.muted}>
+            The Persian time-lord wheel: a fixed 75-year sequence of planetary
+            periods, its order set once by sect (yours is a{" "}
+            {data.firdaria.isDay ? "day" : "night"} chart
+            {data.firdaria.secondCycle && ", second time around the wheel"}).{" "}
+            {lordName(data.firdaria.major.lord)} rules{" "}
+            {firdariaRange(data.firdaria.major)}
+            {data.firdaria.sub ? (
+              <>
+                ; within it the {lordName(data.firdaria.sub.lord)} sub-period
+                colors {firdariaRange(data.firdaria.sub)}.
+              </>
+            ) : (
+              ". The node periods run undivided — no sub-lords."
+            )}
+          </p>
+          <ul className={styles.aspectList}>
+            {data.firdaria.cycle.map((p) => (
+              <li key={p.lord}>
+                <span className={styles.glyph} aria-hidden="true">
+                  {lordGlyph(p.lord)}
+                </span>
+                {lordName(p.lord)}{" "}
+                <span className={styles.orb}>{firdariaRange(p)}</span>
+                {p.lord === data.firdaria!.major.lord && <strong> · now</strong>}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

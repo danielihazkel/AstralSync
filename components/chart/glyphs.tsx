@@ -28,6 +28,9 @@ export const POINT_GLYPH_CHARS: Record<PointName, string> = {
   south_node: "☋",
   lilith: "⚸",
   part_of_fortune: "⊗",
+  // No standard Unicode glyph exists for Spirit; the circled asterisk is the
+  // customary substitute (a lamp to Fortune's wheel).
+  part_of_spirit: "⊛",
 };
 
 export const SIGN_GLYPH_CHARS: Record<Sign, string> = {

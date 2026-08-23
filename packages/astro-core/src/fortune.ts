@@ -52,3 +52,38 @@ export function partOfFortunePlacement(
     retrograde: false,
   };
 }
+
+/** The Part of Spirit — Fortune's day/night mirror (Asc + Sun − Moon by day):
+ *  what one wills where Fortune is what befalls one. Reflects Fortune across
+ *  the Asc–Desc axis by construction. */
+export function partOfSpirit(
+  ascendant: number,
+  sunLongitude: number,
+  moonLongitude: number,
+  isDay: boolean,
+): number {
+  return partOfFortune(ascendant, sunLongitude, moonLongitude, !isDay);
+}
+
+/** The Part of Spirit as a chart point, mirroring partOfFortunePlacement. */
+export function partOfSpiritPlacement(
+  ascendant: number,
+  sunLongitude: number,
+  moonLongitude: number,
+  cusps: number[],
+): PointPlacement {
+  const longitude = partOfSpirit(
+    ascendant,
+    sunLongitude,
+    moonLongitude,
+    isDayChart(sunLongitude, cusps),
+  );
+  return {
+    point: "part_of_spirit",
+    longitude,
+    sign: signOf(longitude),
+    degreeInSign: norm360(longitude) % 30,
+    house: null,
+    retrograde: false,
+  };
+}

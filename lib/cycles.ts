@@ -6,9 +6,11 @@ import {
   annualProfection,
   astronomyEngineProvider,
   buildChart,
+  currentFirdaria,
   detectAngleAspects,
   detectCrossAspects,
   findAspectHits,
+  isDayChart,
   norm360,
   overlayHouses,
   positionsAt,
@@ -17,6 +19,7 @@ import {
   type AnnualProfection,
   type Aspect,
   type CrossAspect,
+  type CurrentFirdaria,
   type OrbConfig,
   type Placement,
 } from "@astralsync/astro-core";
@@ -104,6 +107,9 @@ export interface CyclesData {
   planetaryReturns: PlanetaryReturnData[];
   /** Whole-sign annual profection; null on a solar chart (no Ascendant). */
   profection: AnnualProfection | null;
+  /** Persian time-lord periods; null on a solar chart (sect needs houses)
+   *  and true when the chart is a day chart. */
+  firdaria: (CurrentFirdaria & { isDay: boolean }) | null;
   engine: { name: string; version: string };
 }
 
@@ -514,6 +520,14 @@ export function computeCycles(
 ): CyclesData | null {
   const solarReturn = computeSolarReturn(natal, at, srLocation);
   if (!solarReturn) return null;
+  const natalUtc = new Date(natal.input.utc);
+  let firdaria: CyclesData["firdaria"] = null;
+  if (natal.houses) {
+    const sunLon = natal.placements.find((p) => p.planet === "sun")!.longitude;
+    const isDay = isDayChart(sunLon, natal.houses.cusps);
+    const current = currentFirdaria(natalUtc, isDay, at);
+    if (current) firdaria = { ...current, isDay };
+  }
   return {
     computedAt: at.toISOString(),
     natal: {
@@ -529,8 +543,9 @@ export function computeCycles(
       computePlanetaryReturn(natal, at, p),
     ),
     profection: natal.bigThree.ascendant
-      ? annualProfection(natal.bigThree.ascendant, new Date(natal.input.utc), at)
+      ? annualProfection(natal.bigThree.ascendant, natalUtc, at)
       : null,
+    firdaria,
     engine: {
       name: astronomyEngineProvider.name,
       version: astronomyEngineProvider.version,

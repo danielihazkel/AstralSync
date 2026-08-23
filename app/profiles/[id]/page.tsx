@@ -13,6 +13,7 @@ import {
   detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
+  partOfSpiritPlacement,
   pointsAt,
   type Planet,
 } from "@astralsync/astro-core";
@@ -97,17 +98,20 @@ export default async function ProfilePage({
     mean: overlayHouses(pointsAt(birthUtc, "mean"), cusps),
     true: overlayHouses(pointsAt(birthUtc, "true"), cusps),
   };
-  // Part of Fortune needs an Ascendant, so solar charts skip it. Identical
-  // in both node variants — the lot doesn't involve the nodes.
+  // The lots need an Ascendant, so solar charts skip them. Identical in both
+  // node variants — Fortune and Spirit don't involve the nodes.
   if (chart.houses && cusps) {
     const sunLon = chart.placements.find((p) => p.planet === "sun")!.longitude;
     const moonLon = chart.placements.find((p) => p.planet === "moon")!.longitude;
-    const fortune = overlayHouses(
-      [partOfFortunePlacement(chart.houses.ascendant, sunLon, moonLon, cusps)],
+    const lots = overlayHouses(
+      [
+        partOfFortunePlacement(chart.houses.ascendant, sunLon, moonLon, cusps),
+        partOfSpiritPlacement(chart.houses.ascendant, sunLon, moonLon, cusps),
+      ],
       cusps,
-    )[0];
-    points.mean.push(fortune);
-    points.true.push(fortune);
+    );
+    points.mean.push(...lots);
+    points.true.push(...lots);
   }
   // Read-time aspect extras, like the minor overlay: aspects to the ASC/MC
   // (houses permitting) and birth-instant applying/separating verdicts for

@@ -605,7 +605,7 @@ export default function ChartWheel({
                   }
                 }}
               />{" "}
-              Points (nodes, Lilith, Fortune)
+              Points (nodes, Lilith, the lots)
             </label>
             )}
             {points && showPoints && (

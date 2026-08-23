@@ -37,7 +37,20 @@ export {
   isDayChart,
   partOfFortune,
   partOfFortunePlacement,
+  partOfSpirit,
+  partOfSpiritPlacement,
 } from "./fortune";
+export {
+  currentFirdaria,
+  firdariaSequence,
+  FIRDARIA_YEARS,
+  FIRDARIA_CYCLE_YEARS,
+} from "./firdaria";
+export type {
+  CurrentFirdaria,
+  FirdariaLord,
+  FirdariaPeriod,
+} from "./firdaria";
 export { annualProfection, TRADITIONAL_RULERS } from "./profections";
 export type { AnnualProfection } from "./profections";
 export { essentialDignity, solarCondition, EXALTATIONS } from "./dignities";

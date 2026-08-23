@@ -8,6 +8,7 @@ import {
   detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
+  partOfSpiritPlacement,
   pointsAt,
 } from "@astralsync/astro-core";
 import { loadContentIndex, resolveReading } from "@/lib/content";
@@ -84,12 +85,15 @@ export default async function PrintReportPage({
   if (chart.houses && cusps) {
     const sunLon = chart.placements.find((p) => p.planet === "sun")!.longitude;
     const moonLon = chart.placements.find((p) => p.planet === "moon")!.longitude;
-    const fortune = overlayHouses(
-      [partOfFortunePlacement(chart.houses.ascendant, sunLon, moonLon, cusps)],
+    const lots = overlayHouses(
+      [
+        partOfFortunePlacement(chart.houses.ascendant, sunLon, moonLon, cusps),
+        partOfSpiritPlacement(chart.houses.ascendant, sunLon, moonLon, cusps),
+      ],
       cusps,
-    )[0];
-    points.mean.push(fortune);
-    points.true.push(fortune);
+    );
+    points.mean.push(...lots);
+    points.true.push(...lots);
   }
   const { profile } = view;
   const numeroInput = toNumeroReadingInput(view.numero);

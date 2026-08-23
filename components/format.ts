@@ -81,6 +81,7 @@ export const POINT_NAMES: Record<PointName, string> = {
   south_node: "South Node",
   lilith: "Lilith",
   part_of_fortune: "Part of Fortune",
+  part_of_spirit: "Part of Spirit",
 };
 
 /** The seven classical planets of the Mazal chart (English chrome). */
