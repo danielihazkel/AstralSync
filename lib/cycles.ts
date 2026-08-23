@@ -2,11 +2,13 @@ import {
   ALL_ASPECTS,
   DEFAULT_TRANSIT_ORBS,
   MAJOR_ASPECTS,
+  PLANET_SCAN_STEP_MS,
   annualProfection,
   astronomyEngineProvider,
   buildChart,
   detectAngleAspects,
   detectCrossAspects,
+  findAspectHits,
   norm360,
   overlayHouses,
   positionsAt,
@@ -415,60 +417,29 @@ const CYCLE_YEARS: Record<SlowPlanet, number> = {
   saturn: 29.457,
 };
 
-/** 10-day sampling: Saturn moves ≤ ~0.13°/day and Jupiter ≤ ~0.24°/day, so
- *  consecutive samples differ by ≤ ~2.4° and no natal-degree crossing can
- *  hide between them. */
-const RETURN_STEP_MS = 10 * DAY_MS;
-
 function planetLonAt(planet: SlowPlanet, t: Date): number {
   return astronomyEngineProvider.eclipticLongitude(planet, t);
 }
 
-/** Refine a bracketed crossing. Astronomy.Search finds ascending roots only,
- *  so a descending crossing (retrograde re-pass) negates the delta. */
-function refineCrossing(
-  planet: SlowPlanet,
-  target: number,
-  from: Date,
-  to: Date,
-  ascending: boolean,
-): Date | null {
-  const found = Astronomy.Search(
-    (t) => {
-      const d = signedDelta(planetLonAt(planet, t.date), target);
-      return ascending ? d : -d;
-    },
-    Astronomy.MakeTime(from),
-    Astronomy.MakeTime(to),
-  );
-  return found ? found.date : null;
-}
-
 /** All instants in [from, to] where the planet crosses `natalLon`, in time
  *  order — ascending and descending passes both count (retrograde loops give
- *  up to three per return). Brackets straddling the ±180° wrap are the far
- *  point of the cycle, not a crossing, and are skipped via the |delta| < 90°
- *  guard. */
+ *  up to three per return). The shared scan layer applies the same |delta|
+ *  < 90° wrap guard this file used to hand-roll; a conjunction (angle 0) to
+ *  the fixed natal longitude is exactly a return crossing. */
 function slowPlanetCrossings(
   planet: SlowPlanet,
   natalLon: number,
   from: Date,
   to: Date,
 ): Date[] {
-  const out: Date[] = [];
-  let prevT = from;
-  let prevD = signedDelta(planetLonAt(planet, prevT), natalLon);
-  while (prevT.getTime() < to.getTime()) {
-    const t = new Date(Math.min(prevT.getTime() + RETURN_STEP_MS, to.getTime()));
-    const d = signedDelta(planetLonAt(planet, t), natalLon);
-    if (Math.abs(prevD) < 90 && Math.abs(d) < 90 && prevD * d < 0) {
-      const found = refineCrossing(planet, natalLon, prevT, t, d > prevD);
-      if (found) out.push(found);
-    }
-    prevT = t;
-    prevD = d;
-  }
-  return out;
+  return findAspectHits(
+    (t) => planetLonAt(planet, t),
+    () => natalLon,
+    [0],
+    from,
+    to,
+    PLANET_SCAN_STEP_MS[planet],
+  ).map((h) => h.utc);
 }
 
 /** Pure: natal chart + instant → the Jupiter/Saturn return picture. Scans
