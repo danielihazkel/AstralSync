@@ -6,6 +6,7 @@ import {
   findIngresses,
   meanObliquity,
   norm360,
+  separation,
   signOf,
   solarCondition,
   TRADITIONAL_RULERS,
@@ -41,6 +42,10 @@ import type { HomeLocation } from "./today";
  *    at the window's midpoint.
  *  - Mercury retrograde: a penalty for Mercury-ruled intents, otherwise a
  *    listed caution.
+ *  - With a profile (natal-aware mode): transiting benefics supporting or
+ *    malefics afflicting the natal luminaries (day-level, 3° orb), and the
+ *    transiting Moon perfecting a contact to a natal luminary inside the
+ *    window. Factors say "your natal …" so mundane and personal never blur.
  * Moon-sign scoring is deliberately display-only — the doctrine is contested.
  */
 
@@ -132,6 +137,17 @@ export interface LunarHit {
   angle: number;
 }
 
+/** The natal side of natal-aware scoring — the luminaries are enough for a
+ *  small, defensible factor set. */
+export interface ElectionalNatal {
+  /** Stable cache key (profile id + snapshot version). */
+  key: string;
+  sunLongitude: number;
+  /** Null when the natal Moon's degree is uncertain (unknown/approx birth
+   *  time) — no personal factor is built on a guess. */
+  moonLongitude: number | null;
+}
+
 export interface LunarDayScan {
   /** Exact lunar aspects across the padded scan window, time-ascending. */
   hits: LunarHit[];
@@ -201,6 +217,100 @@ export function lunarDayScan(
   return scan;
 }
 
+/** Personal transits read tight — the factor claims a specific contact. */
+const NATAL_TRANSIT_ORB = 3;
+
+interface NatalLunarHit {
+  utc: number;
+  target: "sun" | "moon";
+  angle: number;
+}
+
+/** Per-(date, natal) memo like dayScanCache — rescoring an intent or
+ *  location change never re-pays the Moon-to-natal scan. */
+const natalScanCache = new LruMap<string, NatalLunarHit[]>(62);
+
+/** Exact transiting-Moon contacts to the natal luminaries across the same
+ *  padded window lunarDayScan uses (late planetary hours run past civil
+ *  midnight). */
+export function lunarNatalScan(
+  year: number,
+  month1: number,
+  day: number,
+  natal: ElectionalNatal,
+): NatalLunarHit[] {
+  const p = (n: number) => String(n).padStart(2, "0");
+  const key = `${year}-${p(month1)}-${p(day)}|${natal.key}`;
+  const cached = natalScanCache.get(key);
+  if (cached) return cached;
+
+  const eph = astronomyEngineProvider;
+  const dayStart = new Date(year, month1 - 1, day);
+  const dayEnd = new Date(year, month1 - 1, day + 1);
+  const scanFrom = new Date(dayStart.getTime() - 2 * DAY_MS);
+  const scanTo = new Date(dayEnd.getTime() + 2 * DAY_MS);
+  const moonAt = memoizeByMs((t) => eph.eclipticLongitude("moon", t));
+
+  const targets: Array<{ target: "sun" | "moon"; longitude: number }> = [
+    { target: "sun", longitude: natal.sunLongitude },
+  ];
+  if (natal.moonLongitude !== null) {
+    targets.push({ target: "moon", longitude: natal.moonLongitude });
+  }
+
+  const hits: NatalLunarHit[] = [];
+  for (const { target, longitude } of targets) {
+    for (const h of findAspectHits(
+      moonAt,
+      () => longitude,
+      MAJOR_ANGLES,
+      scanFrom,
+      scanTo,
+      HOUR_MS,
+    )) {
+      hits.push({ utc: h.utc.getTime(), target, angle: h.angle });
+    }
+  }
+  hits.sort((a, b) => a.utc - b.utc);
+  natalScanCache.set(key, hits);
+  return hits;
+}
+
+/** Day-level natal factors: transiting benefics supporting or malefics
+ *  afflicting the natal luminaries at noon, within the tight personal orb.
+ *  Only the scored doctrine combinations are emitted — quiet days stay
+ *  quiet. */
+function natalDayFactors(
+  natal: ElectionalNatal,
+  planetLonAt: (planet: Planet, t: Date) => number,
+  noon: Date,
+): ElectionalFactor[] {
+  const targets: Array<{ target: "sun" | "moon"; longitude: number }> = [
+    { target: "sun", longitude: natal.sunLongitude },
+  ];
+  if (natal.moonLongitude !== null) {
+    targets.push({ target: "moon", longitude: natal.moonLongitude });
+  }
+  const factors: ElectionalFactor[] = [];
+  for (const transiter of [...BENEFICS, ...MALEFICS]) {
+    const lon = planetLonAt(transiter, noon);
+    for (const { target, longitude } of targets) {
+      const sep = separation(lon, longitude);
+      const angle = MAJOR_ANGLES.find(
+        (a) => Math.abs(sep - a) <= NATAL_TRANSIT_ORB,
+      );
+      if (angle === undefined) continue;
+      const label = `Transiting ${cap(transiter)} in a ${ASPECT_WORD[angle]} to your natal ${cap(target)}`;
+      if (BENEFICS.has(transiter) && (HARMONIOUS.has(angle) || angle === 0)) {
+        factors.push({ label, score: 1 });
+      } else if (MALEFICS.has(transiter) && (HARD.has(angle) || angle === 0)) {
+        factors.push({ label, score: -1 });
+      }
+    }
+  }
+  return factors;
+}
+
 /** The Moon's applying-aspect factor for a window starting at `startMs`:
  *  the next exact lunar aspect before the Moon's next ingress. */
 function applyingFactor(
@@ -238,8 +348,11 @@ export function scoreDay(opts: {
   day: number;
   location: HomeLocation | null;
   intent: Intent | null;
+  /** Natal-aware mode: personal factors for this chart join the mundane
+   *  ones (each labeled "your natal …"). */
+  natal?: ElectionalNatal | null;
 }): ElectionalDay {
-  const { year, month, day, location, intent } = opts;
+  const { year, month, day, location, intent, natal = null } = opts;
   const eph = astronomyEngineProvider;
   const dayStart = new Date(year, month - 1, day);
   const dayEnd = new Date(year, month - 1, day + 1);
@@ -273,6 +386,11 @@ export function scoreDay(opts: {
     }
     return fn(t);
   };
+
+  // Natal-aware extras: day-level benefic/malefic contacts (shared by every
+  // window) and the Moon's exact hits to the natal luminaries (window-level).
+  const natalFactors = natal ? natalDayFactors(natal, planetLonAt, noon) : [];
+  const natalHits = natal ? lunarNatalScan(year, month, day, natal) : [];
 
   const planetaryDay = location
     ? planetaryDayHours({
@@ -405,6 +523,18 @@ export function scoreDay(opts: {
               : -1,
         });
       }
+    }
+
+    // Personal factors: the day-level contacts apply to every window; a
+    // Moon perfection lands only in the window that contains its instant.
+    factors.push(...natalFactors);
+    for (const h of natalHits) {
+      if (h.utc < span.start || h.utc >= span.end) continue;
+      const harmonious = HARMONIOUS.has(h.angle) || h.angle === 0;
+      factors.push({
+        label: `Moon perfects a ${ASPECT_WORD[h.angle]} to your natal ${cap(h.target)}`,
+        score: harmonious ? 1 : -1,
+      });
     }
 
     if (mercuryRetrograde) {

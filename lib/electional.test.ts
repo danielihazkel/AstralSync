@@ -1,5 +1,12 @@
+import { astronomyEngineProvider, norm360 } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { INTENT_PLANETS, lunarDayScan, scoreDay } from "./electional";
+import {
+  INTENT_PLANETS,
+  lunarDayScan,
+  lunarNatalScan,
+  scoreDay,
+  type ElectionalNatal,
+} from "./electional";
 
 const NYC = {
   label: "New York",
@@ -273,6 +280,91 @@ describe("scoreDay", () => {
         (f) => f.label.includes("Hour ruler") || f.label.includes("rises;"),
       ),
     ).toBe(false);
+  });
+
+  it("adds day-level natal factors for benefic support and malefic affliction", () => {
+    // Build the natal chart around the actual 2024-04-10 noon sky, so the
+    // contacts are exact by construction: natal Sun trine transiting
+    // Jupiter, natal Moon square transiting Saturn.
+    const noon = new Date(2024, 3, 10, 12);
+    const eph = astronomyEngineProvider;
+    const natal: ElectionalNatal = {
+      key: "test-v1",
+      sunLongitude: norm360(eph.eclipticLongitude("jupiter", noon) - 120),
+      moonLongitude: norm360(eph.eclipticLongitude("saturn", noon) - 90),
+    };
+    const day = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: null,
+      natal,
+    });
+    const factors = day.windows[0].factors;
+    const jupiter = factors.find(
+      (f) => f.label === "Transiting Jupiter in a trine to your natal Sun",
+    );
+    expect(jupiter?.score).toBe(1);
+    const saturn = factors.find(
+      (f) => f.label === "Transiting Saturn in a square to your natal Moon",
+    );
+    expect(saturn?.score).toBe(-1);
+
+    // Without a natal chart, no personal factor ever appears.
+    const mundane = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: null,
+    });
+    expect(
+      mundane.windows[0].factors.some((f) => f.label.includes("your natal")),
+    ).toBe(false);
+  });
+
+  it("scores the Moon perfecting a contact to a natal luminary in-window", () => {
+    // Natal Sun placed exactly where the transiting Moon sits at noon: the
+    // conjunction perfects that day, inside the single whole-day window.
+    const noon = new Date(2024, 3, 10, 12);
+    const natal: ElectionalNatal = {
+      key: "test-moonhit-v1",
+      sunLongitude: astronomyEngineProvider.eclipticLongitude("moon", noon),
+      moonLongitude: null,
+    };
+    const day = scoreDay({
+      year: 2024,
+      month: 4,
+      day: 10,
+      location: null,
+      intent: null,
+      natal,
+    });
+    const hit = day.windows[0].factors.find(
+      (f) => f.label === "Moon perfects a conjunction to your natal Sun",
+    );
+    expect(hit?.score).toBe(1);
+    // A null natal Moon never produces "your natal Moon" factors.
+    expect(
+      day.windows
+        .flatMap((w) => w.factors)
+        .some((f) => f.label.endsWith("your natal Moon")),
+    ).toBe(false);
+  });
+
+  it("caches the Moon-to-natal scan per (date, natal key)", () => {
+    const natal: ElectionalNatal = {
+      key: "test-cache-v1",
+      sunLongitude: 100,
+      moonLongitude: 200,
+    };
+    const first = lunarNatalScan(2024, 4, 10, natal);
+    expect(lunarNatalScan(2024, 4, 10, natal)).toBe(first);
+    // A different natal key rescans rather than reusing the wrong chart.
+    expect(
+      lunarNatalScan(2024, 4, 10, { ...natal, key: "other-v2" }),
+    ).not.toBe(first);
   });
 
   it("keeps every intent mapped to a classical planet", () => {

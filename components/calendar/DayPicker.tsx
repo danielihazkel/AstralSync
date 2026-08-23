@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { ElectionalDay, Intent, ScoredWindow } from "@/lib/electional";
+import type {
+  ElectionalDay,
+  ElectionalNatal,
+  Intent,
+  ScoredWindow,
+} from "@/lib/electional";
 import type { HomeLocation } from "@/lib/today";
 import { loadHomeLocation } from "@/lib/homeLocation";
 import { CLASSICAL_PLANET_LABELS, SIGN_NAMES } from "@/components/format";
@@ -22,6 +27,43 @@ export const INTENT_OPTIONS: Array<{ value: Intent; label: string }> = [
   { value: "visibility", label: "Visibility & leadership" },
   { value: "home", label: "Home & family" },
 ];
+
+/** One selectable chart for natal-aware scoring, built from the lean
+ *  profile list (`GET /api/profiles` already ships latest placements). */
+interface ElectionalProfile {
+  id: number;
+  displayName: string;
+  natal: ElectionalNatal;
+}
+
+interface ProfileListEntry {
+  id: number;
+  displayName: string;
+  isSolarChart: boolean;
+  latestVersion: number;
+  placements: Array<{ planet: string; longitude: number }> | null;
+}
+
+function toElectionalProfiles(list: ProfileListEntry[]): ElectionalProfile[] {
+  const out: ElectionalProfile[] = [];
+  for (const p of list) {
+    const sun = p.placements?.find((pl) => pl.planet === "sun");
+    if (!sun) continue;
+    const moon = p.placements?.find((pl) => pl.planet === "moon");
+    out.push({
+      id: p.id,
+      displayName: p.displayName,
+      natal: {
+        key: `${p.id}v${p.latestVersion}`,
+        sunLongitude: sun.longitude,
+        // A solar chart's Moon is a noon estimate — never build a personal
+        // factor on it.
+        moonLongitude: p.isSolarChart ? null : (moon?.longitude ?? null),
+      },
+    });
+  }
+  return out;
+}
 
 function todayStr(): string {
   const d = new Date();
@@ -57,10 +99,28 @@ export default function DayPicker() {
   const [picking, setPicking] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [result, setResult] = useState<ElectionalDay | null>(null);
+  // Natal-aware mode: charts fetched once when online; the selector simply
+  // stays hidden offline — the mundane picker keeps its offline promise.
+  const [profiles, setProfiles] = useState<ElectionalProfile[]>([]);
+  const [profileId, setProfileId] = useState<number | "">("");
 
   useEffect(() => {
     setLocation(loadHomeLocation());
     setLoaded(true);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/profiles");
+        if (!res.ok) return;
+        const body = (await res.json()) as { profiles: ProfileListEntry[] };
+        if (!cancelled) setProfiles(toElectionalProfiles(body.profiles));
+      } catch {
+        // Offline or unreachable: natal-aware mode is simply unavailable.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const recompute = useCallback(async () => {
@@ -75,9 +135,11 @@ export default function DayPicker() {
         day: Number(m[3]),
         location,
         intent: intent === "" ? null : intent,
+        natal:
+          profiles.find((p) => p.id === profileId)?.natal ?? null,
       }),
     );
-  }, [dateStr, intent, location]);
+  }, [dateStr, intent, location, profiles, profileId]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -109,6 +171,26 @@ export default function DayPicker() {
             ))}
           </select>
         </label>
+        {profiles.length > 0 && (
+          <label>
+            For{" "}
+            <select
+              value={profileId}
+              onChange={(e) =>
+                setProfileId(
+                  e.target.value === "" ? "" : Number(e.target.value),
+                )
+              }
+            >
+              <option value="">Anyone (mundane)</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {location ? (
           <span className={styles.muted}>
             Hours for {location.label}{" "}
@@ -191,6 +273,8 @@ export default function DayPicker() {
             “avoid”; the Moon’s applying aspect, the planetary hour and day
             ruler for your intent, and Mercury retrograde do the rest. Moon
             sign is shown but never scored.
+            {profileId !== "" &&
+              " With a chart selected, factors marked “your natal” add that person's transits: benefics supporting or malefics afflicting the natal Sun and Moon, and the Moon perfecting a contact to them inside a window."}
           </p>
         </>
       )}
