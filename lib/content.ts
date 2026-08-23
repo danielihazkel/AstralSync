@@ -5,6 +5,7 @@ import {
   PLANETS,
   detectAngleAspects,
   detectPatterns,
+  essentialDignity,
   partOfFortunePlacement,
   pointsAt,
   signOf,
@@ -57,6 +58,12 @@ export const CONTENT_CATEGORIES = [
   "chart_pattern",
   // Natal retrograde planets, Mercury–Pluto (luminaries never retrograde).
   "natal_retrograde",
+  // Essential dignity states for the classical seven (dignity/<planet>/<state>,
+  // states domicile/exaltation/detriment/fall) — emitted per dignified planet.
+  "dignity",
+  // Relationship-chart sign placements (composite AND Davison — both are the
+  // bond's own chart), authored for Sun/Moon/Venus/Mars.
+  "composite_in_sign",
   // Calculated points in sign: nodes, Lilith, Part of Fortune. Point-keyed
   // (not planet-keyed) on purpose — see astro-core/points.ts.
   "point_in_sign",
@@ -246,6 +253,7 @@ export type ReadingSlot =
   | "aspect"
   | "angle"
   | "retrograde"
+  | "dignity"
   | "house"
   | "point"
   | "life_path"
@@ -474,6 +482,21 @@ export function resolveReading(
         `natal_retrograde/${p.planet}`,
         "retrograde",
         `${cap(p.planet)} retrograde in ${cap(p.sign)}`,
+      );
+    }
+  }
+
+  // Essential dignities — sign-only doctrine, so solar charts keep these
+  // (a noon estimate never moves a planet a whole sign... except the Moon,
+  // whose uncertainty is already flagged; its dignity reads from the same
+  // stored sign the rest of the reading uses).
+  for (const p of chart.placements) {
+    const state = essentialDignity(p.planet, p.sign);
+    if (state) {
+      take(
+        `dignity/${p.planet}/${state}`,
+        "dignity",
+        `${cap(p.planet)} in ${cap(p.sign)} — ${state}`,
       );
     }
   }

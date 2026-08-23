@@ -6,6 +6,7 @@ import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import ChartWheel from "@/components/chart/LazyChartWheel";
 import Markdown from "@/components/Markdown";
 import type { AspectProse } from "./CrossAspectList";
+import RelationshipSignProse from "./RelationshipSignProse";
 import styles from "./synastry.module.css";
 
 /**
@@ -19,11 +20,14 @@ export default function CompositePanel({
   aName,
   bName,
   prose,
+  signProse = {},
 }: {
   composite: CompositeView;
   aName: string;
   bName: string;
   prose: Record<string, AspectProse>;
+  /** composite_in_sign entries for the bond's Sun/Moon/Venus/Mars. */
+  signProse?: Record<string, AspectProse>;
 }) {
   const { chart } = composite;
   const sorted: Aspect[] = [...chart.aspects].sort((x, y) => x.orb - y.orb);
@@ -69,6 +73,12 @@ export default function CompositePanel({
         </tbody>
       </table>
       </div>
+
+      <RelationshipSignProse
+        label="Composite"
+        placements={chart.placements}
+        prose={signProse}
+      />
 
       {sorted.length > 0 && (
         <>

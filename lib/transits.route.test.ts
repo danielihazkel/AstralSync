@@ -56,8 +56,8 @@ describe("GET /api/transits/[id]", () => {
       ...canned,
       crossAspects: [
         { a: "saturn", b: "sun", type: "square", angle: 90, orb: 1.1, applying: true },
-        // No transit entry and no natal fallback for this pair/type combo:
-        // moon-moon square exists in neither library.
+        // Once the unauthored-everywhere case, now authored directly — the
+        // Batch L matrix completion covers every transiter/natal pair.
         { a: "moon", b: "moon", type: "square", angle: 90, orb: 0.5, applying: false },
       ],
     });
@@ -66,7 +66,9 @@ describe("GET /api/transits/[id]", () => {
     expect(body.prose["transit_aspect/saturn/sun/square"].title).toBe(
       "Transiting Saturn square natal Sun",
     );
-    expect(body.prose["transit_aspect/moon/moon/square"]).toBeUndefined();
+    expect(body.prose["transit_aspect/moon/moon/square"].title).toBe(
+      "Transiting Moon square natal Moon",
+    );
   });
 
   it("attaches angle prose, falling back to the natal angle archetype", async () => {

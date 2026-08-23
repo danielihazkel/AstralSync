@@ -24,14 +24,18 @@ const MAJOR_ASPECT_TYPES = ["conjunction", "sextile", "square", "trine", "opposi
  *  same-planet keys are the planet's own return cycle (e.g. the Saturn
  *  return). Fast-mover transits stay on the natal-archetype fallback by
  *  design. */
-const TRANSIT_ASPECT_TRANSITERS: Planet[] = [
+const TRANSIT_ASPECT_TRANSITERS: Planet[] = [...PLANETS];
+const TRANSIT_ASPECT_NATALS: Planet[] = [...PLANETS];
+/** The slow transiters — still the only ones with transit_angle_aspect
+ *  prose (fast movers cross an angle in hours to days; those rows keep the
+ *  natal angle_aspect fallback by design). */
+const TRANSIT_ANGLE_TRANSITERS: Planet[] = [
   "jupiter",
   "saturn",
   "uranus",
   "neptune",
   "pluto",
 ];
-const TRANSIT_ASPECT_NATALS: Planet[] = [...PLANETS];
 
 /**
  * Deliberately unauthored: outer–outer aspects last for decades and are
@@ -97,18 +101,20 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1173 entries", () => {
+  it("contains exactly the 1499 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
-    // + 250 transit aspects (5 transiters x 10 natal targets) + 50 transit
-    // angle aspects (5 transiters x ASC/MC x 5 types) + 12 destiny + 12
-    // soul urge + 105 synastry aspects (21 sorted pairs over 6 planets)
-    // + 60 synastry angle aspects (6 planets x ASC/MC x 5 types) + 12 MC
-    // signs + 5 chart patterns + 8 natal retrogrades + 48 points in sign
-    // + 12 profection years + 12 progressed Sun signs + 12 progressed ASC
-    // signs + 4 return overviews + 1 solar-arc overview.
-    expect(entries).toHaveLength(1173);
+    // + 500 transit aspects (all 10 transiters x 10 natal targets) + 50
+    // transit angle aspects (5 slow transiters x ASC/MC x 5 types) + 12
+    // destiny + 12 soul urge + 105 synastry aspects (21 sorted pairs over
+    // 6 planets) + 60 synastry angle aspects (6 planets x ASC/MC x 5
+    // types) + 12 MC signs + 5 chart patterns + 8 natal retrogrades + 28
+    // dignities (classical seven x four states) + 48 points in sign + 48
+    // composite sign placements (Sun/Moon/Venus/Mars x 12) + 12 profection
+    // years + 12 progressed Sun signs + 12 progressed ASC signs + 4 return
+    // overviews + 1 solar-arc overview.
+    expect(entries).toHaveLength(1499);
   });
 
   it("covers every planet in every sign", () => {
@@ -324,8 +330,8 @@ describe("content library lint", () => {
     );
   });
 
-  it("covers the transit angle-aspect matrix (every transiter, both angles)", () => {
-    for (const transiter of TRANSIT_ASPECT_TRANSITERS) {
+  it("covers the transit angle-aspect matrix (slow transiters, both angles)", () => {
+    for (const transiter of TRANSIT_ANGLE_TRANSITERS) {
       for (const angle of ANGLE_BODIES) {
         for (const type of MAJOR_ASPECT_TYPES) {
           const key = `transit_angle_aspect/${transiter}/${angle}/${type}`;
@@ -336,9 +342,37 @@ describe("content library lint", () => {
     expect(
       entries.filter((e) => e.category === "transit_angle_aspect"),
     ).toHaveLength(
-      TRANSIT_ASPECT_TRANSITERS.length *
+      TRANSIT_ANGLE_TRANSITERS.length *
         ANGLE_BODIES.length *
         MAJOR_ASPECT_TYPES.length,
+    );
+  });
+
+  it("covers the dignity matrix (classical seven, four states)", () => {
+    const CLASSICAL = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"];
+    const STATES = ["domicile", "exaltation", "detriment", "fall"];
+    for (const planet of CLASSICAL) {
+      for (const state of STATES) {
+        expect(entry(`dignity/${planet}/${state}`), `${planet}/${state}`).not.toBeNull();
+      }
+    }
+    expect(entries.filter((e) => e.category === "dignity")).toHaveLength(
+      CLASSICAL.length * STATES.length,
+    );
+  });
+
+  it("covers composite sign placements for the relationship planets", () => {
+    const RELATIONSHIP = ["sun", "moon", "venus", "mars"];
+    for (const planet of RELATIONSHIP) {
+      for (const sign of SIGNS) {
+        expect(
+          entry(`composite_in_sign/${planet}/${sign}`),
+          `${planet}/${sign}`,
+        ).not.toBeNull();
+      }
+    }
+    expect(entries.filter((e) => e.category === "composite_in_sign")).toHaveLength(
+      RELATIONSHIP.length * SIGNS.length,
     );
   });
 

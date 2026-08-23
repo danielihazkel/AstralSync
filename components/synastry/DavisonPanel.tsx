@@ -6,6 +6,7 @@ import { ASPECT_NAMES, PLANET_NAMES } from "@/components/format";
 import ChartWheel from "@/components/chart/LazyChartWheel";
 import Markdown from "@/components/Markdown";
 import type { AspectProse } from "./CrossAspectList";
+import RelationshipSignProse from "./RelationshipSignProse";
 import styles from "./synastry.module.css";
 
 function coord(value: number, positive: string, negative: string): string {
@@ -42,11 +43,14 @@ export default function DavisonPanel({
   aName,
   bName,
   prose,
+  signProse = {},
 }: {
   davison: DavisonView;
   aName: string;
   bName: string;
   prose: Record<string, AspectProse>;
+  /** composite_in_sign entries, re-labeled for the Davison register. */
+  signProse?: Record<string, AspectProse>;
 }) {
   const { chart, midpoint } = davison;
   const sorted: Aspect[] = [...chart.aspects].sort((x, y) => x.orb - y.orb);
@@ -68,6 +72,12 @@ export default function DavisonPanel({
       </p>
 
       <ChartWheel chart={chart} downloadName={`${aName} × ${bName} davison`} />
+
+      <RelationshipSignProse
+        label="Davison"
+        placements={chart.placements}
+        prose={signProse}
+      />
 
       {sorted.length > 0 && (
         <>

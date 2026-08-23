@@ -24,6 +24,10 @@ import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
 import BiWheel from "@/components/synastry/LazyBiWheel";
 import CompositePanel from "@/components/synastry/CompositePanel";
 import DavisonPanel from "@/components/synastry/DavisonPanel";
+import {
+  RELATIONSHIP_SIGN_PLANETS,
+  compositeInSignKey,
+} from "@/components/synastry/RelationshipSignProse";
 import AngleContactList from "@/components/synastry/AngleContactList";
 import CrossAspectList, {
   type AspectProse,
@@ -185,6 +189,20 @@ export default async function SynastryPage({
     const entry = getEntry(index, key);
     if (entry) compositeProse[key] = { title: entry.title, bodyMd: entry.bodyMd };
   }
+  // Relationship-chart sign prose (composite_in_sign) — authored for the
+  // bond's Sun/Moon/Venus/Mars; one map serves both panels, which re-label
+  // the heading for their own register.
+  const signProse: Record<string, AspectProse> = {};
+  for (const chart of [composite.chart, davison.chart]) {
+    for (const planet of RELATIONSHIP_SIGN_PLANETS) {
+      const p = chart.placements.find((pl) => pl.planet === planet);
+      if (!p) continue;
+      const key = compositeInSignKey(planet, p.sign);
+      if (signProse[key]) continue;
+      const entry = getEntry(index, key);
+      if (entry) signProse[key] = { title: entry.title, bodyMd: entry.bodyMd };
+    }
+  }
 
   const eitherSolar = a.isSolarChart || b.isSolarChart;
 
@@ -269,6 +287,7 @@ export default async function SynastryPage({
         aName={a.displayName}
         bName={b.displayName}
         prose={compositeProse}
+        signProse={signProse}
       />
 
       <DavisonPanel
@@ -276,6 +295,7 @@ export default async function SynastryPage({
         aName={a.displayName}
         bName={b.displayName}
         prose={compositeProse}
+        signProse={signProse}
       />
 
       <SynastryReadingPanel

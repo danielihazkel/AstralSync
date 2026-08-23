@@ -42,6 +42,8 @@ become key segments.
 | `mc_sign`            | `mc_sign/<sign>`                 | `mc_sign/leo.md` |
 | `chart_pattern`      | `chart_pattern/<type>`           | `chart_pattern/t_square.md` |
 | `natal_retrograde`   | `natal_retrograde/<planet>`      | `natal_retrograde/mercury.md` |
+| `dignity`            | `dignity/<planet>/<state>`       | `dignity/saturn-domicile.md` → `dignity/saturn/domicile` |
+| `composite_in_sign`  | `composite_in_sign/<planet>/<sign>` | `composite_in_sign/sun-aries.md` |
 | `point_in_sign`      | `point_in_sign/<point>/<sign>`   | `point_in_sign/north_node-aries.md` → `point_in_sign/north_node/aries` |
 | `element_dominance`  | `element_dominance/<element>`    | `element_dominance/fire.md` |
 | `modality_dominance` | `modality_dominance/<modality>`  | `modality_dominance/cardinal.md` |
@@ -59,7 +61,7 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (1173 entries):** `planet_in_sign` ×120
+**English scope (1499 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
 framing), `planet_in_house` ×120, `aspect` ×199 (39 full pairs across all
 five types plus conjunction-only Sun–Mercury and Sun–Venus and
@@ -69,10 +71,12 @@ Uranus–Neptune, Uranus–Pluto, and Neptune–Pluto are deliberately
 unauthored: they last for decades and are cohort-wide, not personal, and
 the lint asserts the exclusion), `angle_aspect` ×100 (all ten planets ×
 ASC/MC × five types — natal archetypes that double as fallback prose for
-the transit and synastry angle surfaces), `transit_aspect` ×250 (transiting
-Jupiter–Pluto over every natal planet across all five types — same-planet
-keys carry the planet's own return-cycle framing; directional keys,
-transiter first — never sorted), `transit_angle_aspect` ×50 (the five slow
+the transit and synastry angle surfaces), `transit_aspect` ×500 (every
+transiter over every natal planet across all five types — same-planet keys
+carry the planet's own return-cycle framing, and the fast movers are
+written to their real durations: Moon contacts in hours, Sun/Mercury/Venus
+in days, Mars in a week or two; directional keys, transiter first — never
+sorted), `transit_angle_aspect` ×50 (the five slow
 transiters × ASC/MC × five types), `synastry_aspect` ×105 (the full
 sorted-pair matrix over Sun/Moon/Mercury/Venus/Mars/Saturn, same-planet
 pairs included, across all five types), `synastry_angle_aspect` ×60 (the
@@ -87,18 +91,25 @@ archetypes rather than a per-pair matrix),
 trine, t-square, grand cross, yod — prose is per-type and planet-generic;
 the pattern's members ride in the section's source line),
 `natal_retrograde` ×8 (Mercury–Pluto; the luminaries never retrograde),
-`point_in_sign` ×48 (north node, south node, Lilith, Part of Fortune × 12
+`dignity` ×28 (the classical seven × domicile/exaltation/detriment/fall —
+rendered under the reading's "Dignities" heading with the actual sign in
+the source line), `point_in_sign` ×48 (north node, south node, Lilith,
+Part of Fortune × 12
 signs; point segments use the `PointName` identifiers from
-`astro-core/points.ts`), `life_path` / `destiny` / `soul_urge` ×12 each
+`astro-core/points.ts`), `composite_in_sign` ×48 (the bond's
+Sun/Moon/Venus/Mars × 12 signs — relationship-voice prose shared by the
+composite and Davison panels, which re-label the heading for their own
+register), `life_path` / `destiny` / `soul_urge` ×12 each
 (1–9, 11, 22, 33), `element_dominance` ×4, and `modality_dominance` ×3.
 The reading renders sign and house sections for all ten planets —
 Jupiter/Saturn with the placements, the outer three under a "Generational
 backdrop" heading, houses for every planet with a placed house — plus the
-eight tightest natal aspects and the four tightest angle aspects (houses
-permitting). Two fallback chains degrade gracefully: the AI period
+eight tightest natal aspects, the four tightest angle aspects (houses
+permitting), and a dignity section per dignified classical planet. Two
+fallback chains degrade gracefully: the AI period
 forecasts, Transits tab, and synastry page prefer `transit_aspect` /
 `synastry_aspect` prose for pairs in play and fall back to the natal
-`aspect` archetypes (fast-mover pairs stay on the fallback by design);
+`aspect` archetypes;
 the angle surfaces likewise prefer `transit_angle_aspect` /
 `synastry_angle_aspect` and fall back to the natal `angle_aspect`
 archetypes, which cover all ten planets so every angle row finds prose.
