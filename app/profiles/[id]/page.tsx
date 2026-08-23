@@ -8,6 +8,7 @@ import {
   astronomyEngineProvider,
   declinationsAt,
   detectAngleAspects,
+  detectAntiscia,
   detectAspects,
   detectDeclinationAspects,
   detectPatterns,
@@ -128,6 +129,8 @@ export default async function ProfilePage({
     rows: declinationRows,
     aspects: detectDeclinationAspects(declinationRows),
   };
+  // Solstitial-axis reflections, same read-time contract (fixed 1° orb).
+  const antisciaContacts = detectAntiscia(chart.placements);
   const speeds = Object.fromEntries(
     PLANETS.map((p) => [p, astronomyEngineProvider.longitudeSpeed(p, birthUtc)]),
   ) as Record<Planet, number>;
@@ -236,6 +239,7 @@ export default async function ProfilePage({
         minorAspects={minorAspects}
         angleAspects={angleAspects}
         declinations={declinations}
+        antisciaContacts={antisciaContacts}
         aspectMotion={aspectMotion}
         versions={versions}
         isLatest={isLatest}

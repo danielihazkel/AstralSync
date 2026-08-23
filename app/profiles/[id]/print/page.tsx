@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   declinationsAt,
   detectAngleAspects,
+  detectAntiscia,
   detectDeclinationAspects,
   detectPatterns,
   overlayHouses,
@@ -17,6 +18,7 @@ import { getProfileName, getProfileView } from "@/lib/snapshots";
 import { toNumeroReadingInput, toWheelChart } from "@/lib/view-types";
 import {
   ANGLE_NAMES,
+  ANTISCIA_NAMES,
   ASPECT_NAMES,
   DECLINATION_ASPECT_NAMES,
   PLANET_NAMES,
@@ -112,6 +114,7 @@ export default async function PrintReportPage({
     declinationRows.filter((d) => d.outOfBounds).map((d) => d.planet),
   );
   const declinationAspects = detectDeclinationAspects(declinationRows);
+  const antisciaContacts = detectAntiscia(chart.placements);
 
   return (
     <main className={styles.report}>
@@ -195,7 +198,8 @@ export default async function PrintReportPage({
 
       {(chart.aspects.length > 0 ||
         angleAspects.length > 0 ||
-        declinationAspects.length > 0) && (
+        declinationAspects.length > 0 ||
+        antisciaContacts.length > 0) && (
         <section className={styles.section} aria-label="Aspects">
           <h2 className={styles.sectionTitle}>Aspects</h2>
           <ul className={styles.aspectList}>
@@ -219,6 +223,13 @@ export default async function PrintReportPage({
               <li key={`dec-${a.a}-${a.b}-${a.type}`}>
                 {PLANET_NAMES[a.a]}{" "}
                 {DECLINATION_ASPECT_NAMES[a.type].toLowerCase()}{" "}
+                {PLANET_NAMES[a.b]}
+                <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
+              </li>
+            ))}
+            {antisciaContacts.map((a) => (
+              <li key={`ant-${a.a}-${a.b}-${a.type}`}>
+                {PLANET_NAMES[a.a]} {ANTISCIA_NAMES[a.type].toLowerCase()}{" "}
                 {PLANET_NAMES[a.b]}
                 <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
               </li>

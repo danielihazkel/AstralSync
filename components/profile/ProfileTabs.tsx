@@ -12,6 +12,7 @@ import type {
 } from "@/lib/view-types";
 import type {
   AngleAspect,
+  AntisciaContact,
   Aspect,
   ChartPattern,
   DeclinationAspect,
@@ -53,6 +54,7 @@ export default function ProfileTabs({
   minorAspects = null,
   angleAspects = null,
   declinations = null,
+  antisciaContacts = null,
   aspectMotion,
   versions,
   isLatest,
@@ -74,6 +76,7 @@ export default function ProfileTabs({
     rows: PlanetDeclination[];
     aspects: DeclinationAspect[];
   } | null;
+  antisciaContacts?: AntisciaContact[] | null;
   aspectMotion?: AspectMotion;
   versions: SnapshotVersionInfo[];
   isLatest: boolean;
@@ -125,6 +128,7 @@ export default function ProfileTabs({
             minorAspects={minorAspects}
             angleAspects={angleAspects}
             declinations={declinations}
+            antisciaContacts={antisciaContacts}
             aspectMotion={aspectMotion}
             downloadName={`${profile.displayName} chart`}
           />

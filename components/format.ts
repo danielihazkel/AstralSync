@@ -1,5 +1,6 @@
 import type {
   AngleBody,
+  AntisciaType,
   AspectType,
   DeclinationAspectType,
   EssentialDignity,
@@ -73,6 +74,12 @@ export const SOLAR_CONDITION_NAMES: Record<SolarCondition, string> = {
 export const DECLINATION_ASPECT_NAMES: Record<DeclinationAspectType, string> = {
   parallel: "Parallel",
   contraparallel: "Contraparallel",
+};
+
+/** Solstitial-axis reflections (read-time, fixed 1° orb). */
+export const ANTISCIA_NAMES: Record<AntisciaType, string> = {
+  antiscia: "Antiscia",
+  contra_antiscia: "Contra-antiscia",
 };
 
 /** Calculated chart points (nodes, Lilith, Fortune) — ephemeral, never stored. */

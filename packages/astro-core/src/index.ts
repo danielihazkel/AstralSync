@@ -60,6 +60,8 @@ export {
   detectDeclinationAspects,
   DECLINATION_ORB,
 } from "./declinations";
+export { antiscionOf, detectAntiscia, ANTISCIA_ORB } from "./antiscia";
+export type { AntisciaContact, AntisciaType } from "./antiscia";
 export type {
   DeclinationAspect,
   DeclinationAspectType,

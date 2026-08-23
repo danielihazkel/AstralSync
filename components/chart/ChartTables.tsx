@@ -1,5 +1,6 @@
 import type {
   AngleAspect,
+  AntisciaContact,
   AspectType,
   DeclinationAspect,
   Placement,
@@ -10,6 +11,7 @@ import type {
 import {
   ANGLE_GLYPH_LABELS,
   ANGLE_NAMES,
+  ANTISCIA_NAMES,
   ASPECT_NAMES,
   DECLINATION_ASPECT_NAMES,
   DIGNITY_NAMES,
@@ -246,6 +248,7 @@ export function AspectTable({
   aspects,
   angleAspects = [],
   declinationAspects = [],
+  antisciaContacts = [],
   motion,
   aPrefix,
   bPrefix,
@@ -257,6 +260,9 @@ export function AspectTable({
   /** Read-time parallels/contraparallels (fixed 1° declination orb),
    *  appended last — never part of the stored aspect list. */
   declinationAspects?: DeclinationAspect[];
+  /** Read-time solstitial-axis reflections (fixed 1° orb), appended after
+   *  the declination rows — never part of the stored aspect list. */
+  antisciaContacts?: AntisciaContact[];
   /** Applying/separating verdicts keyed by motionKey; when present the
    *  table grows a Motion column (rows without an entry render "—"). */
   motion?: AspectMotion;
@@ -329,6 +335,27 @@ export function AspectTable({
                 {PLANET_NAMES[a.a]}
               </td>
               <td>{DECLINATION_ASPECT_NAMES[a.type]}</td>
+              <td>
+                <span className={styles.tableGlyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[a.b] + "︎"}
+                </span>
+                {bPrefix ? `${bPrefix} ` : ""}
+                {PLANET_NAMES[a.b]}
+              </td>
+              <td>{a.orb.toFixed(1)}°</td>
+              {motion && <td>—</td>}
+            </tr>
+          ))}
+          {antisciaContacts.map((a, i) => (
+            <tr key={`ant-${a.a}-${a.b}-${a.type}-${i}`}>
+              <td>
+                <span className={styles.tableGlyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[a.a] + "︎"}
+                </span>
+                {aPrefix ? `${aPrefix} ` : ""}
+                {PLANET_NAMES[a.a]}
+              </td>
+              <td>{ANTISCIA_NAMES[a.type]}</td>
               <td>
                 <span className={styles.tableGlyph} aria-hidden="true">
                   {PLANET_GLYPH_CHARS[a.b] + "︎"}

@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type {
   AngleAspect,
+  AntisciaContact,
   Aspect,
   DeclinationAspect,
   NodeVariant,
@@ -92,6 +93,7 @@ export default function ChartWheel({
   minorAspects = null,
   angleAspects = null,
   declinations = null,
+  antisciaContacts = null,
   aspectMotion,
   downloadName = "chart",
   viewOverride,
@@ -110,6 +112,8 @@ export default function ChartWheel({
     rows: PlanetDeclination[];
     aspects: DeclinationAspect[];
   } | null;
+  /** Read-time antiscia contacts (never stored) — table view only. */
+  antisciaContacts?: AntisciaContact[] | null;
   /** Applying/separating verdicts for the table view (birth-instant speeds,
    *  computed server-side). */
   aspectMotion?: AspectMotion;
@@ -280,6 +284,7 @@ export default function ChartWheel({
               aspects={tableAspects}
               angleAspects={angleAspects ?? []}
               declinationAspects={declinations?.aspects ?? []}
+              antisciaContacts={antisciaContacts ?? []}
               motion={aspectMotion}
             />
           </div>
