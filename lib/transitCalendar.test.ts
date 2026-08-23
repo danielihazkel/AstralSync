@@ -1,6 +1,6 @@
 import { buildChart } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
-import { computeTransitCalendar } from "./transitCalendar";
+import { computeTransitCalendar, scanAspectEvents } from "./transitCalendar";
 import type { WheelChart } from "./view-types";
 
 // The 2024-04-08 golden-fixture instant: natal Sun 19°24' Aries.
@@ -28,6 +28,24 @@ const solar: WheelChart = {
 function range(fromIso: string, toIso: string): [Date, Date] {
   return [new Date(fromIso), new Date(toIso)];
 }
+
+describe("scanAspectEvents", () => {
+  it("matches the full calendar's aspect events over lean placements", () => {
+    // The Today digest passes bare {planet, longitude} rows — the sweep
+    // must agree with what the full calendar reports for the same chart.
+    const [from, to] = range("2025-04-01T00:00:00Z", "2025-04-15T00:00:00Z");
+    const lean = natal.placements.map(({ planet, longitude }) => ({
+      planet,
+      longitude,
+    }));
+    const digest = scanAspectEvents(lean, from, to);
+    const full = computeTransitCalendar(natal, 1, from, to).events.filter(
+      (e) => e.kind === "aspect",
+    );
+    expect(digest).toEqual(full);
+    expect(digest.length).toBeGreaterThan(0);
+  });
+});
 
 describe("computeTransitCalendar", () => {
   it("finds the solar return as a Sun–Sun conjunction near the birthday", () => {

@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { HomeLocation, TodayProfile, TodaySky } from "@/lib/today";
+// Type-only: the value import stays dynamic so the scan engine loads only
+// when the digest is opened.
+import type { CalendarAspectEvent } from "@/lib/transitCalendarCore";
 import {
   ASPECT_NAMES,
   CLASSICAL_PLANET_LABELS,
@@ -12,7 +15,25 @@ import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs"
 import HomeLocationPicker from "@/components/settings/HomeLocationPicker";
 import type { Sign } from "@astralsync/astro-core";
 import { loadHomeLocation } from "@/lib/homeLocation";
+import { buildIcs, type IcsEvent } from "@/lib/ics";
+import { downloadIcs } from "@/components/downloadIcs";
 import styles from "./today.module.css";
+
+interface UpcomingProfile {
+  profileId: number;
+  displayName: string;
+  events: CalendarAspectEvent[];
+}
+
+function upcomingIcsEvents(upcoming: UpcomingProfile[]): IcsEvent[] {
+  return upcoming.flatMap((u) =>
+    u.events.map((e) => ({
+      uid: `upcoming-${u.profileId}-${e.a}-${e.b}-${e.type}-${e.utc}`,
+      summary: `${PLANET_NAMES[e.a]} ${ASPECT_NAMES[e.type].toLowerCase()} natal ${PLANET_NAMES[e.b]} (${u.displayName})${e.retrograde ? " ℞" : ""}`,
+      start: e.utc,
+    })),
+  );
+}
 
 /**
  * The home page's "Today" strip: current Moon, Hebrew date, planetary hour,
@@ -27,6 +48,25 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
   const [location, setLocation] = useState<HomeLocation | null>(null);
   const [picking, setPicking] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // The 7-day digest scans ~90 planet pairs per profile, so it computes
+  // lazily on first expand and is kept for the session.
+  const [upcoming, setUpcoming] = useState<UpcomingProfile[] | null>(null);
+  const upcomingStarted = useRef(false);
+
+  const computeUpcoming = useCallback(async () => {
+    if (upcomingStarted.current) return;
+    upcomingStarted.current = true;
+    const { scanAspectEvents } = await import("@/lib/transitCalendarCore");
+    const from = new Date();
+    const to = new Date(from.getTime() + 7 * 86_400_000);
+    setUpcoming(
+      profiles.map((p) => ({
+        profileId: p.id,
+        displayName: p.displayName,
+        events: scanAspectEvents(p.placements, from, to),
+      })),
+    );
+  }, [profiles]);
 
   useEffect(() => {
     setLocation(loadHomeLocation());
@@ -241,6 +281,67 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
             ))}
           </ul>
         </div>
+      )}
+
+      {profiles.length > 0 && (
+        <details
+          className={styles.transits}
+          onToggle={(e) => {
+            if ((e.target as HTMLDetailsElement).open) void computeUpcoming();
+          }}
+        >
+          <summary className={styles.cardTitle}>Upcoming 7 days</summary>
+          {upcoming === null ? (
+            <p className={styles.muted}>Scanning the week ahead…</p>
+          ) : (
+            <>
+              {upcoming.map((u) => (
+                <div key={u.profileId}>
+                  <p className={styles.who}>{u.displayName}</p>
+                  {u.events.length === 0 ? (
+                    <p className={styles.muted}>
+                      No exact transit this week (the Moon is not scanned
+                      here).
+                    </p>
+                  ) : (
+                    <ul className={styles.transitList}>
+                      {u.events.map((e) => (
+                        <li key={`${e.a}-${e.b}-${e.type}-${e.utc}`}>
+                          {new Date(e.utc).toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                          : {PLANET_NAMES[e.a]}{" "}
+                          {ASPECT_NAMES[e.type].toLowerCase()} natal{" "}
+                          {PLANET_NAMES[e.b]}
+                          {e.retrograde && " ℞"}
+                          {e.pass.of > 1 &&
+                            ` (pass ${e.pass.n} of ${e.pass.of})`}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+              {upcoming.some((u) => u.events.length > 0) && (
+                <button
+                  className={styles.linkButton}
+                  onClick={() =>
+                    downloadIcs(
+                      buildIcs(upcomingIcsEvents(upcoming), {
+                        calName: "AstralSync — upcoming transits",
+                      }),
+                      "astralsync-upcoming",
+                    )
+                  }
+                >
+                  Export .ics
+                </button>
+              )}
+            </>
+          )}
+        </details>
       )}
     </section>
   );
