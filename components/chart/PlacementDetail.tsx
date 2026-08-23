@@ -1,12 +1,15 @@
 "use client";
 
 import type { Planet, PointName, PointPlacement } from "@astralsync/astro-core";
+import type { ChartDignities } from "@/lib/dignityDisplay";
 import type { WheelChart } from "@/lib/view-types";
 import {
   ASPECT_NAMES,
+  DIGNITY_NAMES,
   PLANET_NAMES,
   POINT_NAMES,
   SIGN_NAMES,
+  SOLAR_CONDITION_NAMES,
   formatDegreeInSign,
 } from "@/components/format";
 import UncertaintyBadge from "./UncertaintyBadge";
@@ -24,11 +27,14 @@ export default function PlacementDetail({
   points = [],
   selection,
   pinned,
+  dignities,
 }: {
   chart: WheelChart;
   points?: PointPlacement[];
   selection: Selection;
   pinned: Selection;
+  /** Read-time essential dignity + solar condition per planet. */
+  dignities?: ChartDignities;
 }) {
   if (!selection) {
     return (
@@ -67,6 +73,18 @@ export default function PlacementDetail({
             <>
               <dt>House</dt>
               <dd>{p.house}</dd>
+            </>
+          )}
+          {dignities?.[p.planet]?.dignity && (
+            <>
+              <dt>Dignity</dt>
+              <dd>{DIGNITY_NAMES[dignities[p.planet]!.dignity!]}</dd>
+            </>
+          )}
+          {dignities?.[p.planet]?.solar && (
+            <>
+              <dt>Solar condition</dt>
+              <dd>{SOLAR_CONDITION_NAMES[dignities[p.planet]!.solar!]}</dd>
             </>
           )}
           <dt>Longitude</dt>

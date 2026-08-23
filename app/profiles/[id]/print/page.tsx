@@ -9,6 +9,7 @@ import {
   pointsAt,
 } from "@astralsync/astro-core";
 import { loadContentIndex, resolveReading } from "@/lib/content";
+import { chartDignities, hasAnyDignity } from "@/lib/dignityDisplay";
 import { getProfileName, getProfileView } from "@/lib/snapshots";
 import { toNumeroReadingInput, toWheelChart } from "@/lib/view-types";
 import {
@@ -20,6 +21,7 @@ import {
   formatBirthDate,
   formatDegreeInSign,
 } from "@/components/format";
+import { dignityCellText } from "@/components/chart/ChartTables";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import BigThree from "@/components/profile/BigThree";
 import ChartWheel from "@/components/chart/ChartWheel";
@@ -95,6 +97,8 @@ export default async function PrintReportPage({
     loadContentIndex(),
   );
   const showHouses = !chart.isSolarChart;
+  const dignities = chartDignities(chart.placements);
+  const showDignities = hasAnyDignity(dignities);
 
   return (
     <main className={styles.report}>
@@ -136,6 +140,7 @@ export default async function PrintReportPage({
               <th scope="col">Planet</th>
               <th scope="col">Position</th>
               {showHouses && <th scope="col">House</th>}
+              {showDignities && <th scope="col">Dignity</th>}
             </tr>
           </thead>
           <tbody>
@@ -157,6 +162,9 @@ export default async function PrintReportPage({
                   {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
                 </td>
                 {showHouses && <td>{p.house}</td>}
+                {showDignities && (
+                  <td>{dignityCellText(dignities[p.planet]) ?? "—"}</td>
+                )}
               </tr>
             ))}
           </tbody>

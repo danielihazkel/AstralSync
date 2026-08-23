@@ -9,11 +9,14 @@ import {
   ANGLE_GLYPH_LABELS,
   ANGLE_NAMES,
   ASPECT_NAMES,
+  DIGNITY_NAMES,
   PLANET_NAMES,
   POINT_NAMES,
   SIGN_NAMES,
+  SOLAR_CONDITION_NAMES,
   formatDegreeInSign,
 } from "@/components/format";
+import type { ChartDignities } from "@/lib/dignityDisplay";
 import { motionKey, type AspectMotion } from "@/lib/aspectMotion";
 import { PLANET_GLYPH_CHARS, POINT_GLYPH_CHARS } from "./glyphs";
 import UncertaintyBadge from "./UncertaintyBadge";
@@ -27,6 +30,18 @@ import styles from "./chart.module.css";
  * TransitTables-style; the host owns headings and view switching.
  */
 
+/** "Domicile · Combust" cell text, or null when the row has nothing. */
+export function dignityCellText(
+  d: { dignity: keyof typeof DIGNITY_NAMES | null; solar: keyof typeof SOLAR_CONDITION_NAMES | null } | undefined,
+): string | null {
+  if (!d) return null;
+  const parts = [
+    d.dignity && DIGNITY_NAMES[d.dignity],
+    d.solar && SOLAR_CONDITION_NAMES[d.solar],
+  ].filter((x): x is string => Boolean(x));
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export function PlacementsTable({
   placements,
   points = [],
@@ -35,6 +50,7 @@ export function PlacementsTable({
   houseHeader = "House",
   moonUncertain = false,
   moonReason,
+  dignities,
 }: {
   placements: Placement[];
   points?: PointPlacement[];
@@ -43,6 +59,9 @@ export function PlacementsTable({
   houseHeader?: string;
   moonUncertain?: boolean;
   moonReason?: string;
+  /** Read-time essential dignity + solar condition per planet; when present
+   *  the table grows a Dignity column (points and neutral planets show "—"). */
+  dignities?: ChartDignities;
 }) {
   return (
     <div className="tableWrap">
@@ -52,6 +71,7 @@ export function PlacementsTable({
             <th scope="col">Body</th>
             <th scope="col">{positionHeader}</th>
             {showHouses && <th scope="col">{houseHeader}</th>}
+            {dignities && <th scope="col">Dignity</th>}
           </tr>
         </thead>
         <tbody>
@@ -76,6 +96,7 @@ export function PlacementsTable({
                 )}
               </td>
               {showHouses && <td>{p.house}</td>}
+              {dignities && <td>{dignityCellText(dignities[p.planet]) ?? "—"}</td>}
             </tr>
           ))}
           {points.map((p) => (
@@ -96,6 +117,7 @@ export function PlacementsTable({
                 {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
               </td>
               {showHouses && <td>{p.house}</td>}
+              {dignities && <td>—</td>}
             </tr>
           ))}
         </tbody>

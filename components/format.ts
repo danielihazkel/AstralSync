@@ -1,10 +1,12 @@
 import type {
   AngleBody,
   AspectType,
+  EssentialDignity,
   HouseSystem,
   Planet,
   PointName,
   Sign,
+  SolarCondition,
 } from "@astralsync/astro-core";
 import type { ClassicalPlanet, HebrewMonthKey } from "@astralsync/hebrew-core";
 import type { TzWarning } from "@/lib/tz";
@@ -49,6 +51,21 @@ export const ANGLE_NAMES: Record<AngleBody, string> = {
 export const ANGLE_GLYPH_LABELS: Record<AngleBody, string> = {
   ascendant: "ASC",
   mc: "MC",
+};
+
+/** Essential dignity states (classical seven-planet doctrine). */
+export const DIGNITY_NAMES: Record<EssentialDignity, string> = {
+  domicile: "Domicile",
+  exaltation: "Exaltation",
+  detriment: "Detriment",
+  fall: "Fall",
+};
+
+/** Solar conditions by separation from the Sun. */
+export const SOLAR_CONDITION_NAMES: Record<SolarCondition, string> = {
+  cazimi: "Cazimi",
+  combust: "Combust",
+  under_beams: "Under beams",
 };
 
 /** Calculated chart points (nodes, Lilith, Fortune) — ephemeral, never stored. */

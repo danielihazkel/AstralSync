@@ -9,6 +9,7 @@ import type {
   PointPlacement,
 } from "@astralsync/astro-core";
 import type { AspectMotion } from "@/lib/aspectMotion";
+import { chartDignities, hasAnyDignity } from "@/lib/dignityDisplay";
 import type { WheelChart } from "@/lib/view-types";
 import {
   loadChartSettings,
@@ -144,6 +145,12 @@ export default function ChartWheel({
     () => (points && showPoints ? points[nodeVariant] : []),
     [points, showPoints, nodeVariant],
   );
+  // Read-time classical decoration, pure math over the stored longitudes.
+  // Undefined (column and detail rows absent) when the whole chart is neutral.
+  const dignities = useMemo(() => {
+    const d = chartDignities(chart.placements);
+    return hasAnyDignity(d) ? d : undefined;
+  }, [chart.placements]);
 
   const layout = useMemo(
     () => layoutWheel(chart, undefined, activePoints),
@@ -257,6 +264,7 @@ export default function ChartWheel({
                 chart.uncertainties.find((u) => u.field === "moon_sign")
                   ?.reason
               }
+              dignities={dignities}
             />
             <AspectTable
               aspects={tableAspects}
@@ -649,6 +657,7 @@ export default function ChartWheel({
           points={activePoints}
           selection={selection}
           pinned={pinned}
+          dignities={dignities}
         />
       )}
     </div>
