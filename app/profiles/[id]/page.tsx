@@ -6,8 +6,10 @@ import {
   MINOR_ASPECTS,
   PLANETS,
   astronomyEngineProvider,
+  declinationsAt,
   detectAngleAspects,
   detectAspects,
+  detectDeclinationAspects,
   detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
@@ -115,6 +117,13 @@ export default async function ProfilePage({
   const angleAspects = chart.houses
     ? detectAngleAspects(chart.placements, chart.houses, DEFAULT_ORBS)
     : [];
+  // Declinations + parallels: the north–south dimension, read-time at the
+  // fixed 1° declination orb (out-of-bounds flagged past the obliquity).
+  const declinationRows = declinationsAt(birthUtc);
+  const declinations = {
+    rows: declinationRows,
+    aspects: detectDeclinationAspects(declinationRows),
+  };
   const speeds = Object.fromEntries(
     PLANETS.map((p) => [p, astronomyEngineProvider.longitudeSpeed(p, birthUtc)]),
   ) as Record<Planet, number>;
@@ -222,6 +231,7 @@ export default async function ProfilePage({
         // deliberately not orb-configurable so SSR output stays stable.
         minorAspects={minorAspects}
         angleAspects={angleAspects}
+        declinations={declinations}
         aspectMotion={aspectMotion}
         versions={versions}
         isLatest={isLatest}

@@ -1,7 +1,7 @@
 import * as Astronomy from "astronomy-engine";
 import type { Planet } from "../types";
 import type { EphemerisProvider } from "./interface";
-import { angleDiff, norm360 } from "../angles";
+import { DEG, angleDiff, meanObliquity, norm360 } from "../angles";
 
 const BODY: Record<Planet, Astronomy.Body> = {
   sun: Astronomy.Body.Sun,
@@ -46,5 +46,20 @@ export const astronomyEngineProvider: EphemerisProvider = {
 
   siderealTimeDeg(utc: Date): number {
     return norm360(Astronomy.SiderealTime(utc) * 15);
+  },
+
+  declination(planet: Planet, utc: Date): number {
+    // Ecliptic() already precesses to the true ecliptic of date; rotating its
+    // latitude/longitude back through the (mean) obliquity gives the of-date
+    // equatorial declination. Nutation (±9″) is negligible at the ~1° orbs
+    // declination aspects are read at.
+    const ecl = Astronomy.Ecliptic(Astronomy.GeoVector(BODY[planet], utc, true));
+    const beta = ecl.elat * DEG;
+    const lambda = ecl.elon * DEG;
+    const eps = meanObliquity(utc) * DEG;
+    const sinDec =
+      Math.sin(beta) * Math.cos(eps) +
+      Math.cos(beta) * Math.sin(eps) * Math.sin(lambda);
+    return Math.asin(sinDec) / DEG;
   },
 };

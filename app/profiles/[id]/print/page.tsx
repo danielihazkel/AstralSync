@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  declinationsAt,
   detectAngleAspects,
+  detectDeclinationAspects,
   detectPatterns,
   overlayHouses,
   partOfFortunePlacement,
@@ -15,6 +17,7 @@ import { toNumeroReadingInput, toWheelChart } from "@/lib/view-types";
 import {
   ANGLE_NAMES,
   ASPECT_NAMES,
+  DECLINATION_ASPECT_NAMES,
   PLANET_NAMES,
   SIGN_NAMES,
   TIME_CERTAINTY_LABELS,
@@ -99,6 +102,12 @@ export default async function PrintReportPage({
   const showHouses = !chart.isSolarChart;
   const dignities = chartDignities(chart.placements);
   const showDignities = hasAnyDignity(dignities);
+  // Read-time declinations: OOB tags on placements, parallels in the list.
+  const declinationRows = declinationsAt(birthUtc);
+  const outOfBounds = new Set(
+    declinationRows.filter((d) => d.outOfBounds).map((d) => d.planet),
+  );
+  const declinationAspects = detectDeclinationAspects(declinationRows);
 
   return (
     <main className={styles.report}>
@@ -157,6 +166,15 @@ export default async function PrintReportPage({
                       ℞
                     </span>
                   )}
+                  {outOfBounds.has(p.planet) && (
+                    <span
+                      className={styles.retro}
+                      title="Out of bounds — beyond the Sun's maximum declination"
+                    >
+                      {" "}
+                      OOB
+                    </span>
+                  )}
                 </td>
                 <td>
                   {formatDegreeInSign(p.degreeInSign)} {SIGN_NAMES[p.sign]}
@@ -171,7 +189,9 @@ export default async function PrintReportPage({
         </table>
       </section>
 
-      {(chart.aspects.length > 0 || angleAspects.length > 0) && (
+      {(chart.aspects.length > 0 ||
+        angleAspects.length > 0 ||
+        declinationAspects.length > 0) && (
         <section className={styles.section} aria-label="Aspects">
           <h2 className={styles.sectionTitle}>Aspects</h2>
           <ul className={styles.aspectList}>
@@ -188,6 +208,14 @@ export default async function PrintReportPage({
               <li key={`${a.planet}-${a.target}-${a.type}`}>
                 {PLANET_NAMES[a.planet]} {ASPECT_NAMES[a.type].toLowerCase()}{" "}
                 {ANGLE_NAMES[a.target]}
+                <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
+              </li>
+            ))}
+            {declinationAspects.map((a) => (
+              <li key={`dec-${a.a}-${a.b}-${a.type}`}>
+                {PLANET_NAMES[a.a]}{" "}
+                {DECLINATION_ASPECT_NAMES[a.type].toLowerCase()}{" "}
+                {PLANET_NAMES[a.b]}
                 <span className={styles.orb}> orb {a.orb.toFixed(1)}°</span>
               </li>
             ))}

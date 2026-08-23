@@ -1,6 +1,7 @@
 import type {
   AngleBody,
   AspectType,
+  DeclinationAspectType,
   EssentialDignity,
   HouseSystem,
   Planet,
@@ -66,6 +67,12 @@ export const SOLAR_CONDITION_NAMES: Record<SolarCondition, string> = {
   cazimi: "Cazimi",
   combust: "Combust",
   under_beams: "Under beams",
+};
+
+/** Declination aspects (read-time, fixed 1° orb). */
+export const DECLINATION_ASPECT_NAMES: Record<DeclinationAspectType, string> = {
+  parallel: "Parallel",
+  contraparallel: "Contraparallel",
 };
 
 /** Calculated chart points (nodes, Lilith, Fortune) — ephemeral, never stored. */
@@ -169,6 +176,11 @@ export function formatDegreeInSign(deg: number): string {
     m = 0;
   }
   return `${d}°${String(m).padStart(2, "0")}′`;
+}
+
+/** "23°26′ N" / "5°09′ S" for a signed declination (N positive). */
+export function formatDeclination(dec: number): string {
+  return `${formatDegreeInSign(Math.abs(dec))} ${dec < 0 ? "S" : "N"}`;
 }
 
 const MONTHS = [

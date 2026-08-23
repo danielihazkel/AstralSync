@@ -1,19 +1,23 @@
 import type {
   AngleAspect,
   AspectType,
+  DeclinationAspect,
   Placement,
   Planet,
+  PlanetDeclination,
   PointPlacement,
 } from "@astralsync/astro-core";
 import {
   ANGLE_GLYPH_LABELS,
   ANGLE_NAMES,
   ASPECT_NAMES,
+  DECLINATION_ASPECT_NAMES,
   DIGNITY_NAMES,
   PLANET_NAMES,
   POINT_NAMES,
   SIGN_NAMES,
   SOLAR_CONDITION_NAMES,
+  formatDeclination,
   formatDegreeInSign,
 } from "@/components/format";
 import type { ChartDignities } from "@/lib/dignityDisplay";
@@ -29,6 +33,24 @@ import styles from "./chart.module.css";
  * anyone who prefers text (ChartWheel's Wheel | Table switch). Pure render,
  * TransitTables-style; the host owns headings and view switching.
  */
+
+function declinationCell(d: PlanetDeclination | undefined) {
+  if (!d) return "—";
+  return (
+    <>
+      {formatDeclination(d.declination)}
+      {d.outOfBounds && (
+        <span
+          className={styles.retro}
+          title="Out of bounds — beyond the Sun's maximum declination"
+        >
+          {" "}
+          OOB
+        </span>
+      )}
+    </>
+  );
+}
 
 /** "Domicile · Combust" cell text, or null when the row has nothing. */
 export function dignityCellText(
@@ -51,6 +73,7 @@ export function PlacementsTable({
   moonUncertain = false,
   moonReason,
   dignities,
+  declinations,
 }: {
   placements: Placement[];
   points?: PointPlacement[];
@@ -62,7 +85,13 @@ export function PlacementsTable({
   /** Read-time essential dignity + solar condition per planet; when present
    *  the table grows a Dignity column (points and neutral planets show "—"). */
   dignities?: ChartDignities;
+  /** Read-time declinations per planet; when present the table grows a
+   *  Declination column with an OOB tag past the obliquity (points "—"). */
+  declinations?: PlanetDeclination[];
 }) {
+  const declinationOf = declinations
+    ? new Map(declinations.map((d) => [d.planet, d]))
+    : null;
   return (
     <div className="tableWrap">
       <table className={styles.table} aria-label="Placements">
@@ -72,6 +101,7 @@ export function PlacementsTable({
             <th scope="col">{positionHeader}</th>
             {showHouses && <th scope="col">{houseHeader}</th>}
             {dignities && <th scope="col">Dignity</th>}
+            {declinationOf && <th scope="col">Declination</th>}
           </tr>
         </thead>
         <tbody>
@@ -97,6 +127,9 @@ export function PlacementsTable({
               </td>
               {showHouses && <td>{p.house}</td>}
               {dignities && <td>{dignityCellText(dignities[p.planet]) ?? "—"}</td>}
+              {declinationOf && (
+                <td>{declinationCell(declinationOf.get(p.planet))}</td>
+              )}
             </tr>
           ))}
           {points.map((p) => (
@@ -118,6 +151,7 @@ export function PlacementsTable({
               </td>
               {showHouses && <td>{p.house}</td>}
               {dignities && <td>—</td>}
+              {declinationOf && <td>—</td>}
             </tr>
           ))}
         </tbody>
@@ -211,6 +245,7 @@ function motionCell(motion: AspectMotion, key: string) {
 export function AspectTable({
   aspects,
   angleAspects = [],
+  declinationAspects = [],
   motion,
   aPrefix,
   bPrefix,
@@ -219,6 +254,9 @@ export function AspectTable({
   /** Read-time aspects to the chart's ASC/MC, appended after the planet
    *  pairs (never part of the stored aspect list). */
   angleAspects?: AngleAspect[];
+  /** Read-time parallels/contraparallels (fixed 1° declination orb),
+   *  appended last — never part of the stored aspect list. */
+  declinationAspects?: DeclinationAspect[];
   /** Applying/separating verdicts keyed by motionKey; when present the
    *  table grows a Motion column (rows without an entry render "—"). */
   motion?: AspectMotion;
@@ -279,6 +317,27 @@ export function AspectTable({
               </td>
               <td>{a.orb.toFixed(1)}°</td>
               {motion && motionCell(motion, motionKey(a.planet, a.target, a.type))}
+            </tr>
+          ))}
+          {declinationAspects.map((a, i) => (
+            <tr key={`dec-${a.a}-${a.b}-${a.type}-${i}`}>
+              <td>
+                <span className={styles.tableGlyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[a.a] + "︎"}
+                </span>
+                {aPrefix ? `${aPrefix} ` : ""}
+                {PLANET_NAMES[a.a]}
+              </td>
+              <td>{DECLINATION_ASPECT_NAMES[a.type]}</td>
+              <td>
+                <span className={styles.tableGlyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[a.b] + "︎"}
+                </span>
+                {bPrefix ? `${bPrefix} ` : ""}
+                {PLANET_NAMES[a.b]}
+              </td>
+              <td>{a.orb.toFixed(1)}°</td>
+              {motion && <td>—</td>}
             </tr>
           ))}
         </tbody>

@@ -16,6 +16,8 @@ export interface EphemerisProvider {
    *  retrograde. Finite-difference precision is fine for display purposes
    *  (applying/separating flags), not for root finding. */
   longitudeSpeed(planet: Planet, utc: Date): number;
+  /** Geocentric apparent declination of date, degrees, positive north. */
+  declination(planet: Planet, utc: Date): number;
   /** Greenwich apparent sidereal time, degrees [0, 360). */
   siderealTimeDeg(utc: Date): number;
 }

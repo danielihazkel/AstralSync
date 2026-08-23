@@ -1,6 +1,11 @@
 "use client";
 
-import type { Planet, PointName, PointPlacement } from "@astralsync/astro-core";
+import type {
+  Planet,
+  PlanetDeclination,
+  PointName,
+  PointPlacement,
+} from "@astralsync/astro-core";
 import type { ChartDignities } from "@/lib/dignityDisplay";
 import type { WheelChart } from "@/lib/view-types";
 import {
@@ -10,6 +15,7 @@ import {
   POINT_NAMES,
   SIGN_NAMES,
   SOLAR_CONDITION_NAMES,
+  formatDeclination,
   formatDegreeInSign,
 } from "@/components/format";
 import UncertaintyBadge from "./UncertaintyBadge";
@@ -28,6 +34,7 @@ export default function PlacementDetail({
   selection,
   pinned,
   dignities,
+  declinations,
 }: {
   chart: WheelChart;
   points?: PointPlacement[];
@@ -35,6 +42,8 @@ export default function PlacementDetail({
   pinned: Selection;
   /** Read-time essential dignity + solar condition per planet. */
   dignities?: ChartDignities;
+  /** Read-time declinations per planet (OOB noted). */
+  declinations?: PlanetDeclination[];
 }) {
   if (!selection) {
     return (
@@ -87,6 +96,19 @@ export default function PlacementDetail({
               <dd>{SOLAR_CONDITION_NAMES[dignities[p.planet]!.solar!]}</dd>
             </>
           )}
+          {(() => {
+            const dec = declinations?.find((d) => d.planet === p.planet);
+            if (!dec) return null;
+            return (
+              <>
+                <dt>Declination</dt>
+                <dd>
+                  {formatDeclination(dec.declination)}
+                  {dec.outOfBounds && " · out of bounds"}
+                </dd>
+              </>
+            );
+          })()}
           <dt>Longitude</dt>
           <dd>{p.longitude.toFixed(2)}°</dd>
         </dl>

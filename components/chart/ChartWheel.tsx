@@ -4,8 +4,10 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type {
   AngleAspect,
   Aspect,
+  DeclinationAspect,
   NodeVariant,
   Planet,
+  PlanetDeclination,
   PointPlacement,
 } from "@astralsync/astro-core";
 import type { AspectMotion } from "@/lib/aspectMotion";
@@ -89,6 +91,7 @@ export default function ChartWheel({
   points = null,
   minorAspects = null,
   angleAspects = null,
+  declinations = null,
   aspectMotion,
   downloadName = "chart",
   viewOverride,
@@ -101,6 +104,12 @@ export default function ChartWheel({
   /** Read-time aspects to the ASC/MC (never stored) — table view only; the
    *  wheel's chord layout stays planet-to-planet. */
   angleAspects?: AngleAspect[] | null;
+  /** Read-time declinations + parallels (never stored) — table view and
+   *  detail card; the wheel itself stays a longitude instrument. */
+  declinations?: {
+    rows: PlanetDeclination[];
+    aspects: DeclinationAspect[];
+  } | null;
   /** Applying/separating verdicts for the table view (birth-instant speeds,
    *  computed server-side). */
   aspectMotion?: AspectMotion;
@@ -265,10 +274,12 @@ export default function ChartWheel({
                   ?.reason
               }
               dignities={dignities}
+              declinations={declinations?.rows}
             />
             <AspectTable
               aspects={tableAspects}
               angleAspects={angleAspects ?? []}
+              declinationAspects={declinations?.aspects ?? []}
               motion={aspectMotion}
             />
           </div>
@@ -658,6 +669,7 @@ export default function ChartWheel({
           selection={selection}
           pinned={pinned}
           dignities={dignities}
+          declinations={declinations?.rows}
         />
       )}
     </div>
