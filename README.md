@@ -237,7 +237,7 @@ content has moved on since.
 app/                  Next.js App Router pages + API routes (incl. app/sw.js/route.ts,
                       the service worker route, and /profiles/[id]/print)
 components/           React components (wizard, chart wheel, panels, Today dashboard)
-content/en/           English interpretation library (1172 Markdown entries)
+content/en/           English interpretation library (1173 Markdown entries)
 content/he/           Hebrew interpretation library (62 Markdown entries)
 lib/                  App services: snapshots, timezone, content, forecasts, LLM, PWA
 packages/astro-core/  Framework-free chart engine (ephemeris, houses, aspects,

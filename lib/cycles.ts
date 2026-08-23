@@ -146,6 +146,8 @@ export interface CyclesProse {
   lunarReturn?: CyclesEntryProse;
   jupiterReturn?: CyclesEntryProse;
   saturnReturn?: CyclesEntryProse;
+  /** solar_arc/overview */
+  solarArc?: CyclesEntryProse;
 }
 
 /** Pure: natal chart + instant → progressed placements and natal contacts. */

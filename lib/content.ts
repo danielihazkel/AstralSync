@@ -80,6 +80,9 @@ export const CONTENT_CATEGORIES = [
   "progressed_sun_sign",
   "progressed_asc_sign",
   "return_overview",
+  // Single overview for the solar-arc directions section (contacts reuse
+  // the natal `aspect` archetypes' doctrine; no per-pair matrix).
+  "solar_arc",
   "element_dominance",
   "modality_dominance",
   "life_path",

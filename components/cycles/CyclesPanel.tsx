@@ -341,6 +341,7 @@ export default function CyclesPanel({
           listed at a fixed 1° orb (the directions convention; orb settings
           don&rsquo;t apply here).
         </p>
+        <Prose entry={data.prose?.solarArc} />
 
         <TransitPositionsTable
           placements={solarArc.placements}

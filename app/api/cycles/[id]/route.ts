@@ -80,6 +80,7 @@ export async function GET(
   if (progressedAsc) {
     prose.progressedAsc = resolve(`progressed_asc_sign/${progressedAsc}`);
   }
+  prose.solarArc = resolve("solar_arc/overview");
   prose.solarReturn = resolve("return_overview/solar");
   if (view.lunarReturn) prose.lunarReturn = resolve("return_overview/lunar");
   for (const r of view.planetaryReturns) {

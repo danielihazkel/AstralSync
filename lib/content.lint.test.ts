@@ -97,7 +97,7 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1172 entries", () => {
+  it("contains exactly the 1173 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
@@ -107,8 +107,8 @@ describe("content library lint", () => {
     // + 60 synastry angle aspects (6 planets x ASC/MC x 5 types) + 12 MC
     // signs + 5 chart patterns + 8 natal retrogrades + 48 points in sign
     // + 12 profection years + 12 progressed Sun signs + 12 progressed ASC
-    // signs + 4 return overviews.
-    expect(entries).toHaveLength(1172);
+    // signs + 4 return overviews + 1 solar-arc overview.
+    expect(entries).toHaveLength(1173);
   });
 
   it("covers every planet in every sign", () => {
@@ -242,6 +242,8 @@ describe("content library lint", () => {
     expect(entries.filter((e) => e.category === "progressed_sun_sign")).toHaveLength(12);
     expect(entries.filter((e) => e.category === "progressed_asc_sign")).toHaveLength(12);
     expect(entries.filter((e) => e.category === "return_overview")).toHaveLength(4);
+    expect(entry("solar_arc/overview")).not.toBeNull();
+    expect(entries.filter((e) => e.category === "solar_arc")).toHaveLength(1);
   });
 
   it("covers every element dominance", () => {

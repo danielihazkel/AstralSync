@@ -63,10 +63,12 @@ describe("GET /api/cycles/[id]", () => {
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     // The route decorates the view with per-section prose from the real
     // library. The canned view has no profection, progressed placements, or
-    // planetary returns, so only the solar/lunar overviews resolve.
+    // planetary returns, so only the fixed overviews (solar arc, solar and
+    // lunar returns) resolve.
     expect(await res.json()).toEqual({
       ...canned,
       prose: {
+        solarArc: { title: "Solar arc directions", bodyMd: expect.any(String) },
         solarReturn: { title: "The solar return", bodyMd: expect.any(String) },
         lunarReturn: { title: "The lunar return", bodyMd: expect.any(String) },
       },
