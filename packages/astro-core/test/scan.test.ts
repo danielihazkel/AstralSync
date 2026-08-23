@@ -98,6 +98,23 @@ describe("findLongitudeCrossings", () => {
     expect(months).toEqual(["2025-5", "2025-9", "2026-2"]);
   });
 
+  it("keeps a crossing that lands exactly on a sample instant", () => {
+    // A linear 1°/hour motion through the target at exactly the second
+    // sample: the strict sign-change bracket sees (−1)·0 and 0·(+1), never a
+    // negative product, so the exact-sample branch must claim the hit.
+    const t0 = utc(2024, 1, 1).getTime();
+    const hits = findLongitudeCrossings(
+      (t) => 100 + (t.getTime() - t0) / 3_600_000 - 2, // crosses 100 at +2h
+      [100],
+      new Date(t0),
+      new Date(t0 + 6 * 3_600_000),
+      3_600_000,
+    );
+    expect(hits).toHaveLength(1);
+    expect(hits[0].utc.getTime()).toBe(t0 + 2 * 3_600_000);
+    expect(hits[0].ascending).toBe(true);
+  });
+
   it("evaluates valueAt once per sample, not once per target", () => {
     // Perf regression pin: the ephemeris evaluation is the dominant cost of
     // every scan, so it must be shared across targets. A constant value far

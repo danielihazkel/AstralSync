@@ -68,10 +68,17 @@ export function findLongitudeCrossings(
     for (let i = 0; i < targets.length; i++) {
       const d0 = prevD[i];
       const d1 = d[i];
-      if (Math.abs(d0) < 90 && Math.abs(d1) < 90 && d0 * d1 < 0) {
+      if (Math.abs(d0) >= 90 || Math.abs(d1) >= 90) continue;
+      if (d0 * d1 < 0) {
         const deltaAt = (x: Date) => angleDiff(valueAt(x), targets[i]);
         const found = refine(deltaAt, prevT, t, d1 > d0);
         if (found) out.push({ utc: found, target: targets[i], ascending: d1 > d0 });
+      } else if (d1 === 0 && d0 !== 0) {
+        // The sample landed exactly on the crossing — there is no sign
+        // change to bracket, and the strict product test would drop a real
+        // hit. The sample instant IS the crossing (the next pair starts at
+        // zero, so it can't double-count).
+        out.push({ utc: t, target: targets[i], ascending: d0 < 0 });
       }
     }
     prevT = t;
