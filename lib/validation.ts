@@ -309,10 +309,17 @@ const SEARCH_ASPECTS = [
   "square",
   "trine",
   "opposition",
+  // Minors: a perfection search has no orb, so they are as well-defined as
+  // majors; the UI offers them behind the minor-aspect opt-in.
+  "semisextile",
+  "semisquare",
+  "quintile",
+  "sesquiquadrate",
+  "quincunx",
 ] as const satisfies readonly AspectType[];
 
 /** GET /api/transits/[id]/search query: one (transiting planet, major
- *  aspect, natal target) triple and how many exact hits to return. `from`
+ *  or minor aspect, natal target) triple and how many exact hits to return. `from`
  *  pins the search start (defaults to now); the scan itself is clamped to
  *  the ephemeris' 1700–2200 validity window. */
 export const transitSearchQuerySchema = z.object({

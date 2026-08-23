@@ -1,5 +1,5 @@
 import {
-  MAJOR_ASPECTS,
+  ALL_ASPECTS,
   PLANET_SCAN_STEP_MS,
   astronomyEngineProvider,
   findAspectHits,
@@ -12,8 +12,8 @@ import { prisma } from "./db";
 import type { StoredChart, WheelChart } from "./view-types";
 
 /**
- * "When is my next X?" — the next N instants a transiting planet perfects a
- * major aspect to one natal point, scanned fresh on every read and never
+ * "When is my next X?" — the next N instants a transiting planet perfects an
+ * aspect (major or minor) to one natal point, scanned fresh on every read and never
  * persisted (the PRD §9 stance shared with lib/transitCalendar.ts). Where
  * the calendar sweeps every contact in a bounded range, this walks an
  * open-ended horizon for a single (planet, aspect, target) triple — which is
@@ -107,7 +107,9 @@ export function computeAspectSearch(
     targetLon = placement.longitude;
   }
 
-  const angle = MAJOR_ASPECTS.find((d) => d.type === aspect)!.angle;
+  // A perfection scan has no orb, so minors cost the same as majors here —
+  // the exact angle is all that matters.
+  const angle = ALL_ASPECTS.find((d) => d.type === aspect)!.angle;
   const lonAt = (t: Date) => eph.eclipticLongitude(planet, t);
   const from = new Date(
     Math.max(params.from.getTime(), SCAN_FLOOR.getTime()),

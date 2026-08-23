@@ -61,6 +61,27 @@ describe("computeAspectSearch", () => {
     }
   });
 
+  it("searches minor aspects at their exact angle", () => {
+    const from = new Date(Date.UTC(2026, 7, 13));
+    const result = computeAspectSearch(NATAL, 1, {
+      planet: "sun",
+      target: "sun",
+      aspect: "quincunx",
+      count: 2,
+      from,
+    })!;
+    expect(result.hits).toHaveLength(2);
+    // The transiting Sun sits 150° from its natal degree twice a year, so
+    // consecutive hits are well under a year apart.
+    const gap =
+      (new Date(result.hits[1].utc).getTime() -
+        new Date(result.hits[0].utc).getTime()) /
+      DAY_MS;
+    expect(gap).toBeGreaterThan(30);
+    expect(gap).toBeLessThan(365);
+    expect(result.aspect).toBe("quincunx");
+  });
+
   it("returns time-ascending hits with retrograde passes tagged", () => {
     // Six Mercury conjunctions span ~2 years and at least one Rx loop, so
     // some hit lands mid-retrograde.

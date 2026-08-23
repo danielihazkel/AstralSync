@@ -80,7 +80,7 @@ describe("GET /api/transits/[id]/search", () => {
   it("rejects an unknown planet or aspect with 400 invalid_query", async () => {
     for (const q of [
       "planet=vulcan&target=sun&aspect=square",
-      "planet=saturn&target=sun&aspect=quincunx",
+      "planet=saturn&target=sun&aspect=novile",
       "planet=saturn&target=sun&aspect=square&count=99",
     ]) {
       const res = await GET(request(`/api/transits/1/search?${q}`), params("1"));
@@ -88,6 +88,18 @@ describe("GET /api/transits/[id]/search", () => {
       expect((await res.json()).error).toBe("invalid_query");
     }
     expect(mockSearch).not.toHaveBeenCalled();
+  });
+
+  it("accepts a minor aspect", async () => {
+    const res = await GET(
+      request("/api/transits/1/search?planet=saturn&target=sun&aspect=quincunx"),
+      params("1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockSearch).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ aspect: "quincunx" }),
+    );
   });
 
   it("rejects a non-numeric id with 400 invalid_id", async () => {

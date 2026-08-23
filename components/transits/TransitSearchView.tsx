@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 // Type-only import: lib/aspectSearch value-imports prisma and the ephemeris
 // (same constraint transitIcsEvents notes for lib/transitCalendar).
 import type {
@@ -8,6 +8,7 @@ import type {
   SearchTarget,
 } from "@/lib/aspectSearch";
 import type { AspectType, Planet } from "@astralsync/astro-core";
+import { loadChartSettings } from "@/lib/chartSettings";
 import type { WheelChart } from "@/lib/view-types";
 import {
   ANGLE_NAMES,
@@ -42,6 +43,16 @@ const SEARCH_ASPECTS: AspectType[] = [
   "opposition",
 ];
 
+/** Offered only behind the chart-settings minor-aspect opt-in — a
+ *  perfection search has no orb, so minors are as well-defined as majors. */
+const MINOR_SEARCH_ASPECTS: AspectType[] = [
+  "semisextile",
+  "semisquare",
+  "quintile",
+  "sesquiquadrate",
+  "quincunx",
+];
+
 const ANGLE_TARGETS = ["ascendant", "mc"] as const;
 
 type State =
@@ -70,7 +81,8 @@ function searchIcsEvents(data: AspectSearchData): IcsEvent[] {
 
 /**
  * The Transits tab's "Search" view: "when is my next X?" — pick a transiting
- * planet, a major aspect and a natal point, get the next few exact dates.
+ * planet, an aspect and a natal point, get the next few exact dates. Minor
+ * aspects join the picker behind the chart-settings opt-in.
  * Unlike the calendar sweep, the transiting Moon is allowed: a single pair
  * is cheap, and monthly lunar contacts are exactly what the calendar
  * excludes. Each retrograde re-pass is its own dated hit (℞-tagged) rather
@@ -88,6 +100,11 @@ export default function TransitSearchView({
   const [aspect, setAspect] = useState<AspectType>("conjunction");
   const [target, setTarget] = useState<SearchTarget>("sun");
   const [state, setState] = useState<State>({ kind: "idle" });
+  // Settings load after mount (localStorage is unavailable during SSR).
+  const [showMinors, setShowMinors] = useState(false);
+  useEffect(() => {
+    setShowMinors(loadChartSettings().showMinorAspects);
+  }, []);
 
   const hasAngles = chart.houses !== null;
 
@@ -140,6 +157,12 @@ export default function TransitSearchView({
                 {ASPECT_NAMES[a]}
               </option>
             ))}
+            {showMinors &&
+              MINOR_SEARCH_ASPECTS.map((a) => (
+                <option key={a} value={a}>
+                  {ASPECT_NAMES[a]}
+                </option>
+              ))}
           </select>
         </label>
         <label>
