@@ -37,6 +37,7 @@ const canned = {
     returnUtc: "2026-07-30T02:11:45.000Z",
     nextReturnUtc: "2026-08-26T09:54:02.000Z",
     chart: {} as CyclesData["solarReturn"]["chart"],
+    relocated: false,
   },
   planetaryReturns: [],
   profection: null,
@@ -78,6 +79,7 @@ describe("GET /api/cycles/[id]", () => {
       undefined,
       { orbs: undefined, includeMinors: false },
       undefined,
+      undefined,
     );
   });
 
@@ -92,6 +94,7 @@ describe("GET /api/cycles/[id]", () => {
       undefined,
       { orbs: undefined, includeMinors: false },
       { latitude: 32.08, longitude: 34.78 },
+      undefined,
     );
 
     const half = await GET(request("/api/cycles/1?srLat=32.08"), params("1"));
@@ -103,6 +106,25 @@ describe("GET /api/cycles/[id]", () => {
       params("1"),
     );
     expect(outOfRange.status).toBe(400);
+  });
+
+  it("passes a lunar-return relocation through and rejects half a pair", async () => {
+    const res = await GET(
+      request("/api/cycles/1?lrLat=-33.87&lrLng=151.21"),
+      params("1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockView).toHaveBeenCalledWith(
+      1,
+      undefined,
+      { orbs: undefined, includeMinors: false },
+      undefined,
+      { latitude: -33.87, longitude: 151.21 },
+    );
+
+    const half = await GET(request("/api/cycles/1?lrLng=151.21"), params("1"));
+    expect(half.status).toBe(400);
+    expect((await half.json()).error).toBe("invalid_query");
   });
 
   it("attaches profection, progressed-sign, and return prose when inputs exist", async () => {
@@ -164,6 +186,7 @@ describe("GET /api/cycles/[id]", () => {
       1,
       new Date("2026-08-13T12:00:00Z"),
       { orbs: undefined, includeMinors: false },
+      undefined,
       undefined,
     );
   });

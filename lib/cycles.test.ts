@@ -245,7 +245,33 @@ describe("computeLunarReturn", () => {
     const lr = computeLunarReturn(NATAL, at)!;
     expect(lr.chart.houses).not.toBeNull();
     expect(lr.chart.input.latitude).toBe(51.48);
+    expect(lr.relocated).toBe(false);
     expect(computeLunarReturn(NATAL, at)).toEqual(lr);
+  });
+
+  it("relocates only the houses, never the instant or planets", () => {
+    const birth = computeLunarReturn(NATAL, at)!;
+    // Sydney vs the Greenwich-latitude birth location: far enough that the
+    // Ascendant cannot coincide.
+    const home = computeLunarReturn(NATAL, at, {
+      latitude: -33.87,
+      longitude: 151.21,
+    })!;
+    expect(birth.relocated).toBe(false);
+    expect(home.relocated).toBe(true);
+    expect(home.returnUtc).toBe(birth.returnUtc);
+    expect(home.nextReturnUtc).toBe(birth.nextReturnUtc);
+    for (const p of home.chart.placements) {
+      const bp = birth.chart.placements.find((x) => x.planet === p.planet)!;
+      expect(p.longitude).toBe(bp.longitude);
+    }
+    expect(home.chart.input.latitude).toBe(-33.87);
+    expect(
+      separation(
+        home.chart.houses!.ascendant,
+        birth.chart.houses!.ascendant,
+      ),
+    ).toBeGreaterThan(1);
   });
 });
 

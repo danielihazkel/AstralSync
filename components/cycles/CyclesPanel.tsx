@@ -53,6 +53,7 @@ type State =
 
 const PROGRESSION_VIEWS = ["biwheel", "wheel"] as const;
 const SR_VIEWS = ["birth", "home"] as const;
+const LR_VIEWS = ["birth", "home"] as const;
 
 /** "15°32′ Scorpio" for an ecliptic longitude (progressed ASC/MC line). */
 function anglePosition(longitude: number): string {
@@ -114,6 +115,14 @@ export default function CyclesPanel({
     onSelect: (i) => setSrView(SR_VIEWS[i]),
     idBase: "solar-return-view",
   });
+  // Lunar return relocation — same Birth | Home pattern as the solar return.
+  const [lrView, setLrView] = useState<(typeof LR_VIEWS)[number]>("birth");
+  const lrTabs = useTabList({
+    count: LR_VIEWS.length,
+    selected: LR_VIEWS.indexOf(lrView),
+    onSelect: (i) => setLrView(LR_VIEWS[i]),
+    idBase: "lunar-return-view",
+  });
 
   useEffect(() => {
     setOrbs(loadOrbSettings());
@@ -127,17 +136,21 @@ export default function CyclesPanel({
       return;
     }
     setState({ kind: "loading" });
-    // Relocate the solar return when the Home view is active and a home
-    // location exists — a whole-payload refetch, same cost model as an orb
-    // change (only the SR chart differs server-side).
+    // Relocate a return when its Home view is active and a home location
+    // exists — a whole-payload refetch, same cost model as an orb change
+    // (only the relocated chart differs server-side).
     const orbPart = orbQuery(orbs);
     const srPart =
       srView === "home" && homeLoc
         ? `${orbPart ? "&" : "?"}srLat=${homeLoc.lat}&srLng=${homeLoc.lng}`
         : "";
+    const lrPart =
+      lrView === "home" && homeLoc
+        ? `${orbPart || srPart ? "&" : "?"}lrLat=${homeLoc.lat}&lrLng=${homeLoc.lng}`
+        : "";
     let res: Response;
     try {
-      res = await fetch(`/api/cycles/${profileId}${orbPart}${srPart}`);
+      res = await fetch(`/api/cycles/${profileId}${orbPart}${srPart}${lrPart}`);
     } catch {
       // sw.js never intercepts /api/*, so a network failure rejects cleanly.
       setState({ kind: "offline" });
@@ -148,7 +161,7 @@ export default function CyclesPanel({
       return;
     }
     setState({ kind: "data", data: await res.json() });
-  }, [profileId, orbs, srView, homeLoc]);
+  }, [profileId, orbs, srView, lrView, homeLoc]);
 
   useEffect(() => {
     void load();
@@ -395,18 +408,53 @@ export default function CyclesPanel({
       {lunarReturn && (
         <section aria-label="Lunar return">
           <h3 className={styles.sectionTitle}>Lunar return</h3>
-          <p className={styles.muted}>
-            The chart for the month: cast for the moment the Moon last
-            returned to its natal position (
-            {new Date(lunarReturn.returnUtc).toLocaleString()}), at the birth
-            location. Returns recur every ~27.3 days — this chart colors the
-            lunar month until{" "}
-            {new Date(lunarReturn.nextReturnUtc).toLocaleDateString()}.
-            {(data.natal.isSolarChart || data.natal.moonUncertain) &&
-              " The natal Moon position is uncertain (birth time), so the return moment is approximate."}
-          </p>
-          <Prose entry={data.prose?.lunarReturn} />
-          <ChartWheel chart={lunarReturn.chart} downloadName="lunar return" />
+          <div
+            className={styles.viewSwitch}
+            role="tablist"
+            aria-label="Lunar return location"
+          >
+            <button {...lrTabs.getTabProps(0)}>Birth location</button>
+            <button {...lrTabs.getTabProps(1)}>Home location</button>
+          </div>
+          <div
+            {...lrTabs.getPanelProps(LR_VIEWS.indexOf(lrView))}
+            className={styles.tabPanel}
+          >
+            <p className={styles.muted}>
+              The chart for the month: cast for the moment the Moon last
+              returned to its natal position (
+              {new Date(lunarReturn.returnUtc).toLocaleString()}),{" "}
+              {lunarReturn.relocated && homeLoc
+                ? `relocated to ${homeLoc.label} — same moment, different horizon: the planets hold their degrees while the houses and Ascendant shift.`
+                : "at the birth location."}{" "}
+              Returns recur every ~27.3 days — this chart colors the lunar
+              month until{" "}
+              {new Date(lunarReturn.nextReturnUtc).toLocaleDateString()}.
+              {(data.natal.isSolarChart || data.natal.moonUncertain) &&
+                " The natal Moon position is uncertain (birth time), so the return moment is approximate."}
+            </p>
+            {lrView === "home" && !homeLoc ? (
+              <>
+                <p className={styles.muted}>
+                  No home location set — pick the city you live in to cast
+                  the return there. It is remembered in this browser (the
+                  same setting the calendar uses), never stored server-side.
+                </p>
+                <HomeLocationPicker
+                  onPick={(loc) => setHomeLoc(loc)}
+                  onCancel={() => setLrView("birth")}
+                />
+              </>
+            ) : (
+              <>
+                <Prose entry={data.prose?.lunarReturn} />
+                <ChartWheel
+                  chart={lunarReturn.chart}
+                  downloadName={`lunar return${lunarReturn.relocated ? " relocated" : ""}`}
+                />
+              </>
+            )}
+          </div>
         </section>
       )}
 

@@ -155,16 +155,21 @@ export const transitQuerySchema = z.object({
 
 export type TransitQuery = z.infer<typeof transitQuerySchema>;
 
-/** GET /api/cycles/[id] query: the transit query plus an optional solar
- *  return relocation — both coordinates or neither. Cycles-only; the
- *  transits route keeps the base schema. */
+/** GET /api/cycles/[id] query: the transit query plus optional solar and
+ *  lunar return relocations — each pair both coordinates or neither.
+ *  Cycles-only; the transits route keeps the base schema. */
 export const cyclesQuerySchema = transitQuerySchema
   .extend({
     srLat: z.coerce.number().min(-90).max(90).optional(),
     srLng: z.coerce.number().min(-180).max(180).optional(),
+    lrLat: z.coerce.number().min(-90).max(90).optional(),
+    lrLng: z.coerce.number().min(-180).max(180).optional(),
   })
   .refine((v) => (v.srLat === undefined) === (v.srLng === undefined), {
     message: "srLat and srLng must be provided together",
+  })
+  .refine((v) => (v.lrLat === undefined) === (v.lrLng === undefined), {
+    message: "lrLat and lrLng must be provided together",
   });
 
 export type CyclesQuery = z.infer<typeof cyclesQuerySchema>;

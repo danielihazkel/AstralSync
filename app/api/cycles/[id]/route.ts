@@ -38,17 +38,22 @@ export async function GET(
     );
   }
   const at = parsed.data.at ? new Date(parsed.data.at) : undefined;
-  // Optional solar-return relocation (Birth | Home toggle) — the schema
-  // guarantees the pair arrives together.
+  // Optional solar/lunar return relocations (Birth | Home toggles) — the
+  // schema guarantees each pair arrives together.
   const srLocation =
     parsed.data.srLat !== undefined && parsed.data.srLng !== undefined
       ? { latitude: parsed.data.srLat, longitude: parsed.data.srLng }
+      : undefined;
+  const lrLocation =
+    parsed.data.lrLat !== undefined && parsed.data.lrLng !== undefined
+      ? { latitude: parsed.data.lrLat, longitude: parsed.data.lrLng }
       : undefined;
   const view = await getCyclesView(
     id,
     at,
     transitOptionsFromQuery(parsed.data),
     srLocation,
+    lrLocation,
   );
   if (!view) {
     return NextResponse.json(
