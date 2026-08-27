@@ -63,7 +63,7 @@ export default function MazalPanel({
     setGenError(
       result.status === 502 || result.errorCode === "llm_unavailable"
         ? "The language model isn't reachable right now. Your chart and readings are unaffected — try again once it's running."
-        : "Could not generate the reading.",
+        : `Could not generate the reading${result.status ? ` (HTTP ${result.status})` : ""}.`,
     );
   }
   if (hebrew === null || reading === null) {

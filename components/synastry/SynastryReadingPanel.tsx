@@ -58,7 +58,7 @@ export default function SynastryReadingPanel({
     setError(
       result.status === 502 || result.errorCode === "llm_unavailable"
         ? "The language model isn't reachable right now — try again once it's running."
-        : "Could not generate the reading.",
+        : `Could not generate the reading${result.status ? ` (HTTP ${result.status})` : ""}.`,
     );
   }
 
