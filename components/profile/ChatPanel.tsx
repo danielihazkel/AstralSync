@@ -3,11 +3,17 @@
 import { useState } from "react";
 import Markdown from "@/components/Markdown";
 import { useStreamedGeneration } from "@/components/useStreamedGeneration";
+import { localNoonIso, todayLocalDate } from "@/components/journal/journalDate";
 import styles from "./profile.module.css";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+/** The journal note body for one Q&A exchange. */
+export function chatExchangeToNote(question: string, answer: string): string {
+  return `**Asked:** ${question.trim()}\n\n${answer.trim()}`;
 }
 
 /** Mirrors lib/chat.ts CHAT_MAX_TURNS (client hint; the server enforces). */
@@ -22,7 +28,39 @@ export default function ChatPanel({ profileId }: { profileId: number }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Indices (into `messages`) of assistant turns saved to the journal, and
+  // the one currently saving.
+  const [saved, setSaved] = useState<Set<number>>(() => new Set());
+  const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const { busy, streamText, generate, reset } = useStreamedGeneration();
+
+  // The chat itself is ephemeral; this is the one bridge to persistence —
+  // the exchange becomes a journal note for today, tagged "chat", with the
+  // usual sky snapshot.
+  async function saveToJournal(index: number) {
+    const answer = messages[index];
+    const question = messages[index - 1];
+    if (!answer || answer.role !== "assistant" || question?.role !== "user") return;
+    setSavingIndex(index);
+    setError(null);
+    const today = todayLocalDate();
+    const res = await fetch(`/api/profiles/${profileId}/journal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entryDate: today,
+        bodyMd: chatExchangeToNote(question.content, answer.content).slice(0, 10_000),
+        at: localNoonIso(today),
+        tags: ["chat"],
+      }),
+    }).catch(() => null);
+    setSavingIndex(null);
+    if (res?.ok) {
+      setSaved((s) => new Set(s).add(index));
+    } else {
+      setError("Could not save that answer to the journal.");
+    }
+  }
 
   const turnsUsed = messages.filter((m) => m.role === "user").length;
   const limitReached = turnsUsed >= MAX_TURNS;
@@ -67,9 +105,10 @@ export default function ChatPanel({ profileId }: { profileId: number }) {
     <section className={styles.chat} aria-label="Ask about your chart">
       <h4 className={styles.sectionTitle}>Ask about your chart</h4>
       <p className={styles.hint}>
-        Follow-up questions about this reading — nothing is stored, and the
-        conversation ends when you leave the page ({MAX_TURNS - turnsUsed} of{" "}
-        {MAX_TURNS} questions left).
+        Follow-up questions about this reading — nothing is stored unless you
+        save an answer to the journal, and the conversation ends when you
+        leave the page ({MAX_TURNS - turnsUsed} of {MAX_TURNS} questions
+        left).
       </p>
 
       {messages.length > 0 && (
@@ -82,7 +121,21 @@ export default function ChatPanel({ profileId }: { profileId: number }) {
               {m.role === "user" ? (
                 <p>{m.content}</p>
               ) : (
-                <Markdown md={m.content} />
+                <>
+                  <Markdown md={m.content} />
+                  <button
+                    type="button"
+                    className={styles.saveToJournal}
+                    onClick={() => void saveToJournal(i)}
+                    disabled={saved.has(i) || savingIndex !== null}
+                  >
+                    {saved.has(i)
+                      ? "Saved to journal"
+                      : savingIndex === i
+                        ? "Saving…"
+                        : "Save to journal"}
+                  </button>
+                </>
               )}
             </li>
           ))}

@@ -63,6 +63,8 @@ const astroSnapshotSchema = z.object({
   engine: z.string().max(32),
   engineVersion: z.string().max(16),
   contentVersion: z.string().max(16),
+  /** Version-change note; absent in pre-feature exports. */
+  note: z.string().max(400).nullish(),
   createdAt: isoDate,
 });
 
@@ -168,6 +170,27 @@ export const profileExportSchema = z
   });
 
 export type ProfileExport = z.infer<typeof profileExportSchema>;
+
+/** The Settings "Export all" shape: a list of single-profile exports plus,
+ *  optionally, the browser settings bundle (applied client-side — the
+ *  server never stores preferences). */
+export const profileBundleSchema = z.object({
+  exportVersion: z.literal(1),
+  bundle: z.literal(true),
+  profiles: z.array(profileExportSchema).max(500),
+  settings: z.unknown().optional(),
+});
+
+export type ProfileBundle = z.infer<typeof profileBundleSchema>;
+
+/** True when a parsed JSON body is the bundle shape (vs. one profile). */
+export function isBundle(body: unknown): boolean {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    (body as { bundle?: unknown }).bundle === true
+  );
+}
 
 /** Remap the exported readings' snapshot FKs to the newly created ids. */
 export function remapReadingRows(
@@ -276,6 +299,7 @@ export async function importProfile(data: ProfileExport): Promise<number> {
           engine: s.engine,
           engineVersion: s.engineVersion,
           contentVersion: s.contentVersion,
+          note: s.note ?? null,
           createdAt: new Date(s.createdAt),
         },
       });

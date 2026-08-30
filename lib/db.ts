@@ -1,4 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import {
+  shouldFilter,
+  shouldFilterViaProfile,
+  withLiveFilter,
+  withLiveProfileFilter,
+} from "./softDelete";
 
 // Snapshots are write-once (PRD §6): editing birth data creates a new version
 // row, never an UPDATE. This client-level guard makes the rule structural —
@@ -28,7 +34,19 @@ function buildClient() {
               `${model} is write-once: ${operation} is forbidden; create a new snapshot version instead`,
             );
           }
-          return query(args);
+          // Soft delete (lib/softDelete.ts): profiles and journal entries in
+          // the Trash are invisible to every ordinary query — only a caller
+          // that names `deletedAt` itself (the Trash service) sees them.
+          type Args = { where?: Record<string, unknown> } & Record<string, unknown>;
+          let next = args as Args;
+          if (shouldFilter(model, operation)) next = withLiveFilter(next);
+          // Snapshots and notes of a trashed profile are hidden too, via the
+          // relation, so the ephemeral reads that query them by profileId
+          // 404 like the profile view does.
+          if (shouldFilterViaProfile(model, operation)) {
+            next = withLiveProfileFilter(next);
+          }
+          return query(next as typeof args);
         },
       },
     },

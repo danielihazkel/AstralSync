@@ -9,6 +9,7 @@ import {
   LlmUnavailableError,
 } from "@/lib/llm";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
+import { archiveReading } from "@/lib/trash";
 import {
   toNumeroDerivation,
   toStoredHebrewGematria,
@@ -158,23 +159,10 @@ export async function DELETE(
   if (!view) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
-  try {
-    await prisma.reading.delete({
-      where: {
-        astroSnapshotId_generator: {
-          astroSnapshotId: view.astro.snapshotId,
-          generator: "hebrew_llm",
-        },
-      },
-    });
-  } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
-    ) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-    throw e;
+  // Into the Trash (undoable) rather than gone — see the natal route.
+  const archiveId = await archiveReading(view.astro.snapshotId, "hebrew_llm");
+  if (archiveId === null) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
-  return NextResponse.json({ deleted: true });
+  return NextResponse.json({ deleted: true, archiveId });
 }

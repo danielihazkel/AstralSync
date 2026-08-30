@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { ThemeScript } from "@/components/theme/ThemeScript";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { UndoToast } from "@/components/undo/UndoToast";
 import { THEME_COLOR } from "@/lib/pwa/manifest";
 import "./globals.css";
 
@@ -39,6 +40,7 @@ export default function RootLayout({
           </nav>
         </header>
         {children}
+        <UndoToast />
       </body>
     </html>
   );

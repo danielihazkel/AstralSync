@@ -13,10 +13,25 @@ function item(overrides: Partial<ProfileListItem> & { id: number }): ProfileList
     sunSign: null,
     isSolarChart: false,
     latestVersion: 1,
+    isPrimary: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
 }
+
+describe("sortProfiles — primary first", () => {
+  it("pins the primary profile to the top under every sort", () => {
+    const list = [
+      item({ id: 1, displayName: "Zed", birthDate: "1990-01-01" }),
+      item({ id: 2, displayName: "Amy", birthDate: "2001-01-01", isPrimary: true }),
+      item({ id: 3, displayName: "Bob", birthDate: "1980-01-01" }),
+    ];
+    for (const sort of ["created", "name", "birth_date"] as const) {
+      expect(sortProfiles(list, sort)[0].id).toBe(2);
+    }
+    expect(sortProfiles(list, "birth_date").map((p) => p.id)).toEqual([2, 3, 1]);
+  });
+});
 
 const profiles: ProfileListItem[] = [
   item({ id: 1, displayName: "Dana", birthDate: "1990-05-01", createdAt: "2026-01-01T00:00:00.000Z" }),

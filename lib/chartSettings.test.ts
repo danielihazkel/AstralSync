@@ -29,7 +29,21 @@ describe("sanitizeChartSettings", () => {
       nodeVariant: "mean",
       showMinorAspects: true,
       chartView: "table",
+      defaultHouseSystem: "placidus",
     });
+  });
+
+  it("accepts only the three house systems as a new-profile default", () => {
+    expect(
+      sanitizeChartSettings({ defaultHouseSystem: "whole_sign" })
+        .defaultHouseSystem,
+    ).toBe("whole_sign");
+    expect(
+      sanitizeChartSettings({ defaultHouseSystem: "equal" }).defaultHouseSystem,
+    ).toBe("equal");
+    expect(
+      sanitizeChartSettings({ defaultHouseSystem: "koch" }).defaultHouseSystem,
+    ).toBe("placidus");
   });
 
   it("reads only 'table' as a non-default chart view", () => {

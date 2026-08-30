@@ -20,8 +20,12 @@ import {
 } from "@/lib/chartSettings";
 import { loadHomeLocation } from "@/lib/homeLocation";
 import type { HomeLocation } from "@/lib/today";
+import type { HouseSystem } from "@astralsync/astro-core";
+import { HOUSE_SYSTEM_NAMES } from "@/components/format";
 import OrbSettingsControl from "./OrbSettingsControl";
 import HomeLocationPicker from "./HomeLocationPicker";
+import DataPanel from "./DataPanel";
+import TrashPanel from "./TrashPanel";
 import styles from "./settings.module.css";
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -190,15 +194,45 @@ export default function SettingsPanel() {
                 <option value="table">Table</option>
               </select>
             </label>
+            <label className={styles.field}>
+              House system for new profiles:{" "}
+              <select
+                value={chart.defaultHouseSystem}
+                onChange={(e) =>
+                  changeChart({
+                    defaultHouseSystem: e.target.value as HouseSystem,
+                  })
+                }
+              >
+                {(Object.keys(HOUSE_SYSTEM_NAMES) as HouseSystem[]).map((h) => (
+                  <option key={h} value={h}>
+                    {HOUSE_SYSTEM_NAMES[h]}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         )}
+        <p className={styles.note}>
+          The house system is otherwise a per-profile choice: the wizard
+          starts from this default, and a profile&rsquo;s Details tab can
+          switch it later (which recomputes a new chart version).
+        </p>
+      </section>
+
+      <section className={styles.section} id="data">
+        <h2 className={styles.sectionTitle}>Your data</h2>
+        <DataPanel />
+      </section>
+
+      <section className={styles.section} id="trash">
+        <h2 className={styles.sectionTitle}>Trash</h2>
+        <TrashPanel />
       </section>
 
       <p className={styles.note}>
-        All settings are stored in this browser only — they travel with
-        neither profiles nor exports. The house system is a per-profile
-        choice: change it in a profile&rsquo;s Details tab, which recomputes
-        the chart snapshot.
+        Preferences are stored in this browser only — use &ldquo;Export
+        settings&rdquo; above to carry them to another device.
       </p>
     </div>
   );

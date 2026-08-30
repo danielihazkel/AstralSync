@@ -74,6 +74,11 @@ export default function ProfileList({ profiles }: { profiles: ProfileListItem[] 
                   {p.sunSign ? ` · ${SIGN_NAMES[p.sunSign as Sign]} Sun` : ""}
                 </span>
                 <span className={cardStyles.tags}>
+                  {p.isPrimary && (
+                    <span className={cardStyles.tag} title="Your chart">
+                      ★ Mine
+                    </span>
+                  )}
                   {p.isSolarChart && (
                     <span className={cardStyles.tag}>Solar chart</span>
                   )}

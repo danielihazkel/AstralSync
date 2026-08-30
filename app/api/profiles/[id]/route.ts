@@ -4,9 +4,10 @@ import {
   deleteProfile,
   editProfile,
   getProfileView,
+  setPrimaryProfile,
   UnknownCityError,
 } from "@/lib/snapshots";
-import { profileInputSchema } from "@/lib/validation";
+import { profileInputSchema, profilePatchSchema } from "@/lib/validation";
 
 function parseId(raw: string): number | null {
   const id = Number(raw);
@@ -87,7 +88,39 @@ export async function PUT(
   }
 }
 
-/** Hard delete (PRD §4.6): profile, all snapshot versions, all readings. */
+/**
+ * Installation-level flags: `{ isPrimary }` marks this profile as "me" (any
+ * other primary is cleared) or clears it. Never recomputes or versions.
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const id = parseId((await params).id);
+  if (id === null) {
+    return NextResponse.json({ error: "invalid_id" }, { status: 400 });
+  }
+  const parsed = profilePatchSchema.safeParse(
+    await req.json().catch(() => null),
+  );
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_input", issues: parsed.error.issues },
+      { status: 400 },
+    );
+  }
+  const ok = await setPrimaryProfile(id, parsed.data.isPrimary);
+  if (!ok) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+  return NextResponse.json({ id, isPrimary: parsed.data.isPrimary });
+}
+
+/**
+ * Delete (PRD §4.6) — into the Trash. The profile, its versions, readings
+ * and notes stay restorable from Settings → Trash until purged there;
+ * `restorable: true` tells the client to offer Undo.
+ */
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -100,5 +133,5 @@ export async function DELETE(
   if (!deleted) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
-  return NextResponse.json({ deleted: true });
+  return NextResponse.json({ deleted: true, restorable: true });
 }

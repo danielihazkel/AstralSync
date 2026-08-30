@@ -6,13 +6,20 @@ import styles from "./synastry.module.css";
 
 /** Pick two profiles to compare — the entry point to /synastry on the
  *  profile list. A small client island like DeleteProfileButton; the list
- *  itself stays server-rendered. */
+ *  itself stays server-rendered. `defaultA` (the primary profile) prefills
+ *  the first slot so "me vs. X" is one click. */
 export default function PairPicker({
   profiles,
+  defaultA = null,
 }: {
   profiles: { id: number; displayName: string }[];
+  defaultA?: number | null;
 }) {
-  const [a, setA] = useState("");
+  const [a, setA] = useState(
+    defaultA !== null && profiles.some((p) => p.id === defaultA)
+      ? String(defaultA)
+      : "",
+  );
   const [b, setB] = useState("");
   const ready = a !== "" && b !== "" && a !== b;
 

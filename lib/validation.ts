@@ -137,6 +137,23 @@ export const profileInputSchema = profileInputBase
 
 export type ProfileInput = z.infer<typeof profileInputSchema>;
 
+/** PATCH /api/profiles/[id] body: installation-level flags that never touch
+ *  the chart (no recompute, no new version). Only the primary flag so far. */
+export const profilePatchSchema = z.object({
+  isPrimary: z.boolean(),
+});
+
+export type ProfilePatch = z.infer<typeof profilePatchSchema>;
+
+/** POST /api/trash body: restore or purge one trashed item. */
+export const trashActionSchema = z.object({
+  action: z.enum(["restore", "purge"]),
+  kind: z.enum(["profile", "journal", "reading"]),
+  id: z.number().int().positive(),
+});
+
+export type TrashAction = z.infer<typeof trashActionSchema>;
+
 /** Orb query param: degrees, clamped to the settings UI's 0–12 range. */
 const orbParam = z.coerce.number().min(0).max(12);
 

@@ -123,6 +123,7 @@ export default async function SynastryPage({
               id: p.id,
               displayName: p.displayName,
             }))}
+            defaultA={profiles.find((p) => p.isPrimary)?.id ?? null}
           />
         ) : (
           <p className={styles.muted}>

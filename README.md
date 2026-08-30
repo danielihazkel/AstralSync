@@ -161,7 +161,21 @@ light / auto, no flash on reload), **aspect orbs** (luminary / planet /
 minor-aspect orbs plus the minor-aspect opt-in), **home location** (powers
 planetary hours and the electional picker — birth cities are never assumed),
 and **chart display** (points on/off, true vs. mean nodes, minor overlay,
-wheel vs. table default).
+wheel vs. table default, and the house system new profiles start with).
+
+Two more sections live there. **Your data** exports every profile in one
+bundle (optionally with this browser's settings), imports a single export
+or a bundle, and moves settings alone between devices. **Trash** holds
+every deleted profile, deleted journal note, and discarded AI reading until
+you restore it or delete it for good — the Undo toast that appears after a
+delete is the same restore, offered for thirty seconds.
+
+### Your chart
+
+One profile can be marked as *mine* from its Details tab. It leads the Today
+strip (other charts fold into a collapsed group), sits first in the profile
+list, and is preselected in the synastry picker and the electional day
+picker.
 
 ### Aspect & orb settings
 
@@ -174,7 +188,8 @@ cached prose stays consistent. Natal snapshots always use the standard orbs.
 
 Chart data is **write-once**. Editing birth data (or switching house system)
 creates a new snapshot version; old versions stay readable forever via the
-version history on the Details tab (`?version=N`). Renaming a profile or its
+version history on the Details tab (`?version=N`), each annotated with what
+changed ("House system: Placidus → Whole Sign"). Renaming a profile or its
 city label is presentational and does not recompute anything. Everything
 time-based (transits, cycles, synastry, Today, forecasts) is recomputed from
 the stored snapshots on every read and never persisted — only generated AI
@@ -186,9 +201,10 @@ prose is cached.
 - **Print / PDF** — Details tab → Printable report renders the chart,
   placements, reading, and numerology as one page in an ink-friendly palette;
   your browser's "Save as PDF" is the export engine.
-- **Delete** — Details tab → inline-confirmed **hard delete**; the profile and
-  all snapshots/readings are removed at the database level. Export first if
-  you want a record.
+- **Delete** — Details tab (or the profile list) → inline-confirmed delete
+  into the **Trash**; the profile and all snapshots/readings/notes come back
+  on Undo or from Settings → Trash. "Delete forever" there is the database
+  level hard delete.
 
 ### AI synthesis (optional)
 

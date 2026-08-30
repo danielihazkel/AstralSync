@@ -5,6 +5,7 @@ import { getProfileView } from "@/lib/snapshots";
 import { resolveReading } from "@/lib/content";
 import { buildReadingPrompt, llmClientFromEnv, LlmUnavailableError } from "@/lib/llm";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
+import { archiveReading } from "@/lib/trash";
 import {
   toNumeroDerivation,
   toNumeroReadingInput,
@@ -125,7 +126,8 @@ export async function POST(
  * Discard a stored AI reading (`?version=N`, defaulting to the latest
  * snapshot). The freed unique slot lets POST generate a fresh one — the only
  * sanctioned way to replace a bad generation, since readings are otherwise
- * write-once per snapshot.
+ * write-once per snapshot. The text moves to the Trash (`archiveId`), so
+ * the discard is undoable until purged.
  */
 export async function DELETE(
   req: NextRequest,
@@ -144,23 +146,9 @@ export async function DELETE(
   if (!view) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
-  try {
-    await prisma.reading.delete({
-      where: {
-        astroSnapshotId_generator: {
-          astroSnapshotId: view.astro.snapshotId,
-          generator: "llm",
-        },
-      },
-    });
-  } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
-    ) {
-      return NextResponse.json({ error: "not_found" }, { status: 404 });
-    }
-    throw e;
+  const archiveId = await archiveReading(view.astro.snapshotId, "llm");
+  if (archiveId === null) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
-  return NextResponse.json({ deleted: true });
+  return NextResponse.json({ deleted: true, archiveId });
 }

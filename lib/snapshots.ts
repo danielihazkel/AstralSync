@@ -27,6 +27,8 @@ import {
   type ReadingGenerator,
 } from "@prisma/client";
 import { prisma } from "./db";
+import { describeSnapshotChange, type SnapshotNoteInput } from "./snapshotNote";
+import { softDeleteProfile } from "./trash";
 import { resolveBirthMoment, timezoneFor, type TzWarning } from "./tz";
 import { toProfileBirthData, type ProfileInput } from "./validation";
 import { CONTENT_VERSION } from "./versions";
@@ -362,6 +364,53 @@ function computationChanged(
   );
 }
 
+/** The stored side of the version note (see lib/snapshotNote.ts). */
+function noteInputFromRow(
+  p: Profile & { birthCity?: GeoCity | null },
+  houseSystem: HouseSystem,
+): SnapshotNoteInput {
+  return {
+    birthDate: dateOnly(p.birthDate),
+    birthTime: p.birthTime,
+    timeCertainty: p.timeCertainty,
+    birthLat: p.birthLat,
+    birthLng: p.birthLng,
+    placeLabel: p.birthCity ? cityLabel(p.birthCity) : null,
+    tzIana: p.tzIana,
+    overrideOffsetMinutes: p.offsetOverridden ? p.utcOffsetMinutes : null,
+    fullBirthName: p.fullBirthName,
+    hebrewBirthName: p.hebrewBirthName,
+    houseSystem,
+  };
+}
+
+/** The submitted side of the version note. */
+function noteInputFromInput(
+  input: ProfileInput,
+  tz: string,
+  city: GeoCity | null,
+): SnapshotNoteInput {
+  return {
+    birthDate: input.birthDate,
+    birthTime: input.birthTime ?? null,
+    timeCertainty: input.timeCertainty,
+    birthLat: input.birthLat,
+    birthLng: input.birthLng,
+    placeLabel: city ? cityLabel(city) : null,
+    tzIana: tz,
+    overrideOffsetMinutes: input.offsetOverridden
+      ? (input.utcOffsetMinutes as number)
+      : null,
+    fullBirthName: input.fullBirthName ?? null,
+    hebrewBirthName: input.hebrewBirthName ?? null,
+    houseSystem: input.houseSystem,
+  };
+}
+
+function cityLabel(c: GeoCity): string {
+  return [c.name, c.admin1, c.countryCode].filter(Boolean).join(", ");
+}
+
 export interface ProfileView {
   profile: ReturnType<typeof serializeProfile>;
   astro: ReturnType<typeof serializeAstro>;
@@ -394,6 +443,7 @@ function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
     tzIana: p.tzIana,
     utcOffsetMinutes: p.utcOffsetMinutes,
     offsetOverridden: p.offsetOverridden,
+    isPrimary: p.isPrimary,
     createdAt: p.createdAt,
   };
 }
@@ -413,6 +463,7 @@ function serializeAstro(s: AstroSnapshot & { readings?: Reading[] }) {
     engine: s.engine,
     engineVersion: s.engineVersion,
     contentVersion: s.contentVersion,
+    note: s.note,
     createdAt: s.createdAt,
     /** Stored LLM synthesis for this snapshot, if one was ever generated. */
     llmReading: llm
@@ -508,7 +559,10 @@ export async function editProfile(
   id: number,
   input: ProfileInput,
 ): Promise<ProfileView | null> {
-  const existing = await prisma.profile.findUnique({ where: { id } });
+  const existing = await prisma.profile.findUnique({
+    where: { id },
+    include: { birthCity: true },
+  });
   if (!existing) return null;
   await assertCityExists(input.birthCityGeonameId);
   const tz = resolvedTz(input);
@@ -533,6 +587,20 @@ export async function editProfile(
   const astro = computeAstro(d, input.houseSystem);
   const numero = computeNumero(d);
   const hebrew = computeHebrew(d);
+  // The version note compares the stored state with the edit; a missing
+  // previous snapshot (legacy rows) gets no note rather than a bogus diff.
+  const newCity =
+    input.birthCityGeonameId == null
+      ? null
+      : await prisma.geoCity.findUnique({
+          where: { geonameId: input.birthCityGeonameId },
+        });
+  const note = latestAstro
+    ? describeSnapshotChange(
+        noteInputFromRow(existing, latestAstro.houseSystem),
+        noteInputFromInput(input, tz, newCity),
+      )
+    : null;
 
   await prisma.$transaction(async (tx) => {
     const latest = await tx.astroSnapshot.findFirst({
@@ -553,7 +621,7 @@ export async function editProfile(
       hebrew,
       input.houseSystem,
     );
-    await tx.astroSnapshot.create({ data: astroRow });
+    await tx.astroSnapshot.create({ data: { ...astroRow, note } });
     await tx.numeroSnapshot.create({ data: numeroRow });
     await tx.hebrewSnapshot.create({ data: hebrewRow });
   });
@@ -685,9 +753,10 @@ export async function getProfileName(id: number): Promise<string | null> {
   return profile?.displayName ?? null;
 }
 
+/** Live profiles in creation order, the primary one (if any) first. */
 export async function listProfiles() {
   const profiles = await prisma.profile.findMany({
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
     include: { astroSnapshots: { orderBy: { version: "desc" }, take: 1 } },
   });
   return profiles.map((p) => {
@@ -700,6 +769,7 @@ export async function listProfiles() {
       sunSign: latest?.sunSign ?? null,
       isSolarChart: latest?.isSolarChart ?? false,
       latestVersion: latest?.version ?? 0,
+      isPrimary: p.isPrimary,
       createdAt: p.createdAt,
       // Lean natal placements for the home page's Today dashboard.
       placements:
@@ -719,9 +789,36 @@ export async function listSnapshotVersions(profileId: number) {
       createdAt: true,
       houseSystem: true,
       isSolarChart: true,
+      note: true,
     },
   });
   return versions;
+}
+
+/**
+ * Mark a profile as the primary chart ("me") — or clear it. At most one
+ * profile is primary, enforced here by clearing every flag in the same
+ * transaction. False when the profile doesn't exist (maps to 404).
+ */
+export async function setPrimaryProfile(
+  id: number,
+  isPrimary: boolean,
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const exists = await tx.profile.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!exists) return false;
+    if (isPrimary) {
+      await tx.profile.updateMany({
+        where: { isPrimary: true, NOT: { id } },
+        data: { isPrimary: false },
+      });
+    }
+    await tx.profile.update({ where: { id }, data: { isPrimary } });
+    return true;
+  });
 }
 
 /** Full data export (PRD §4.6): every snapshot version, every reading. */
@@ -747,6 +844,10 @@ export async function exportProfile(id: number) {
     hebrewSnapshots,
     journalEntries,
     birthCity,
+    // Device/installation state, not chart data: the primary flag is
+    // re-chosen after import and a live profile is never in the trash.
+    isPrimary: _isPrimary,
+    deletedAt: _deletedAt,
     ...columns
   } = profile;
   return {
@@ -767,18 +868,34 @@ export async function exportProfile(id: number) {
   };
 }
 
-/** Hard delete (PRD §4.6). Snapshots and readings go via DB cascade. */
-export async function deleteProfile(id: number): Promise<boolean> {
-  try {
-    await prisma.profile.delete({ where: { id } });
-    return true;
-  } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2025"
-    ) {
-      return false;
-    }
-    throw e;
+export type ProfileExport = NonNullable<Awaited<ReturnType<typeof exportProfile>>>;
+
+/** Every live profile's export in one bundle (the Settings "Export all"
+ *  button); each element is exactly the single-profile export shape, so the
+ *  importer restores them one by one. */
+export async function exportAllProfiles() {
+  const ids = await prisma.profile.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  const profiles: ProfileExport[] = [];
+  for (const { id } of ids) {
+    const data = await exportProfile(id);
+    if (data) profiles.push(data);
   }
+  return {
+    exportVersion: 1 as const,
+    bundle: true as const,
+    exportedAt: new Date().toISOString(),
+    profiles,
+  };
+}
+
+/**
+ * Delete a profile (PRD §4.6) — into the Trash: the row is flagged, not
+ * removed, so the action is undoable from Settings → Trash. Purging from
+ * the Trash is the hard delete that cascades through snapshots and readings.
+ */
+export async function deleteProfile(id: number): Promise<boolean> {
+  return softDeleteProfile(id);
 }

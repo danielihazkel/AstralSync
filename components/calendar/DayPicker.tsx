@@ -33,6 +33,8 @@ export const INTENT_OPTIONS: Array<{ value: Intent; label: string }> = [
 interface ElectionalProfile {
   id: number;
   displayName: string;
+  /** The primary ("my") chart is preselected once the list loads. */
+  isPrimary: boolean;
   natal: ElectionalNatal;
 }
 
@@ -41,6 +43,7 @@ interface ProfileListEntry {
   displayName: string;
   isSolarChart: boolean;
   latestVersion: number;
+  isPrimary?: boolean;
   placements: Array<{ planet: string; longitude: number }> | null;
 }
 
@@ -53,6 +56,7 @@ function toElectionalProfiles(list: ProfileListEntry[]): ElectionalProfile[] {
     out.push({
       id: p.id,
       displayName: p.displayName,
+      isPrimary: p.isPrimary === true,
       natal: {
         key: `${p.id}v${p.latestVersion}`,
         sunLongitude: sun.longitude,
@@ -113,7 +117,11 @@ export default function DayPicker() {
         const res = await fetch("/api/profiles");
         if (!res.ok) return;
         const body = (await res.json()) as { profiles: ProfileListEntry[] };
-        if (!cancelled) setProfiles(toElectionalProfiles(body.profiles));
+        if (cancelled) return;
+        const list = toElectionalProfiles(body.profiles);
+        setProfiles(list);
+        const primary = list.find((p) => p.isPrimary);
+        if (primary) setProfileId((cur) => (cur === "" ? primary.id : cur));
       } catch {
         // Offline or unreachable: natal-aware mode is simply unavailable.
       }

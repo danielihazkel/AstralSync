@@ -1,10 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import type { HouseSystem } from "@astralsync/astro-core";
+import { loadChartSettings } from "@/lib/chartSettings";
 import { profileInputSchema } from "@/lib/validation";
-import { TIME_CERTAINTY_LABELS, formatBirthDate, formatOffset } from "@/components/format";
+import {
+  HOUSE_SYSTEM_NAMES,
+  TIME_CERTAINTY_LABELS,
+  formatBirthDate,
+  formatOffset,
+} from "@/components/format";
 import CitySearch from "./CitySearch";
 import OffsetReview from "./OffsetReview";
 import { detectScript, type WizardDraft, type WizardInitial } from "./types";
@@ -129,7 +135,17 @@ export default function OnboardingWizard({
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const houseSystem: HouseSystem = initial?.houseSystem ?? "placidus";
+  // Edit mode carries the profile's own system; a new profile starts from
+  // the per-browser default (read after mount — localStorage is client-only
+  // and the server render must match).
+  const [houseSystem, setHouseSystem] = useState<HouseSystem>(
+    initial?.houseSystem ?? "placidus",
+  );
+  useEffect(() => {
+    if (mode === "create" && !initial?.houseSystem) {
+      setHouseSystem(loadChartSettings().defaultHouseSystem);
+    }
+  }, [mode, initial?.houseSystem]);
 
   const patch = (p: Partial<WizardDraft>) => {
     dispatch({ kind: "patch", patch: p });
@@ -443,6 +459,27 @@ export default function OnboardingWizard({
                 )}
               </dd>
             </dl>
+            {draft.timeCertainty !== "unknown" && (
+              <div role="radiogroup" aria-label="House system">
+                <p className={styles.hint}>House system</p>
+                {(Object.keys(HOUSE_SYSTEM_NAMES) as HouseSystem[]).map((h) => (
+                  <label key={h} className={styles.radioRow}>
+                    <input
+                      type="radio"
+                      name="houseSystem"
+                      checked={houseSystem === h}
+                      onChange={() => setHouseSystem(h)}
+                    />
+                    {HOUSE_SYSTEM_NAMES[h]}
+                  </label>
+                ))}
+                <p className={styles.hint}>
+                  Placidus falls back to Whole Sign at extreme latitudes. The
+                  default for new profiles is set in Settings; a profile can
+                  switch later from its Details tab.
+                </p>
+              </div>
+            )}
             {mode === "edit" && (
               <p className={styles.hint}>
                 Changing birth data creates a new chart version — earlier

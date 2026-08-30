@@ -98,6 +98,14 @@ model Profile {
   tzIana             String        @map("tz_iana") @db.VarChar(64)
   utcOffsetMinutes   Int           @map("utc_offset_minutes")
   offsetOverridden   Boolean       @default(false) @map("offset_overridden")
+  /// At most one profile is primary ("me"): it leads the Today strip and is
+  /// preselected wherever a chart is picked. Enforced in lib/snapshots.ts
+  /// (clear-then-set in one transaction), not by a DB constraint.
+  isPrimary          Boolean       @default(false) @map("is_primary")
+  /// Soft delete: set when the user deletes the profile, cleared on restore
+  /// from the Trash. The Prisma client (lib/db.ts) hides trashed rows from
+  /// every ordinary read; a hard delete (purge) still cascades.
+  deletedAt          DateTime?     @map("deleted_at")
   createdAt          DateTime      @default(now()) @map("created_at")
 
   astroSnapshots  AstroSnapshot[]
@@ -128,8 +136,12 @@ model AstroSnapshot {
   engine         String      @db.VarChar(32)
   engineVersion  String      @map("engine_version") @db.VarChar(16)
   contentVersion String      @map("content_version") @db.VarChar(16)
+  /// What changed versus the previous version ("House system: Placidus →
+  /// Whole Sign"), derived at edit time; null for v1 and pre-feature rows.
+  note           String?     @db.VarChar(400)
   createdAt      DateTime    @default(now()) @map("created_at")
   readings       Reading[]
+  readingArchive ReadingArchive[]
 
   @@unique([profileId, version])
   @@map("astro_snapshot")
@@ -206,6 +218,27 @@ model Reading {
   @@map("reading")
 }
 
+// A discarded AI reading, kept so "Discard" is undoable: the Reading row
+// (and its unique slot) is gone, the text lives here until restored from the
+// Trash or purged. Restoring recreates the Reading — 409 if the slot has
+// been regenerated meanwhile.
+model ReadingArchive {
+  id               Int              @id @default(autoincrement())
+  astroSnapshotId  Int              @map("astro_snapshot_id")
+  astroSnapshot    AstroSnapshot    @relation(fields: [astroSnapshotId], references: [id], onDelete: Cascade)
+  numeroSnapshotId Int?             @map("numero_snapshot_id")
+  bodyMd           String           @map("body_md") @db.Text
+  generator        ReadingGenerator
+  modelName        String?          @map("model_name") @db.VarChar(64)
+  contentVersion   String?          @map("content_version") @db.VarChar(16)
+  /// The original Reading.createdAt.
+  createdAt        DateTime         @map("created_at")
+  discardedAt      DateTime         @default(now()) @map("discarded_at")
+
+  @@index([astroSnapshotId])
+  @@map("reading_archive")
+}
+
 // AI period forecasts: manual generate, cached per profile+mode+kind+period.
 // NOT write-once — discard frees the slot for regeneration, like Reading.
 // The western daily forecast doubles as the Transits-tab AI reading.
@@ -254,6 +287,9 @@ model JournalEntry {
   /// EntrySky JSON captured at create (recomputed only when entryDate is
   /// edited); null for pre-feature entries or when no snapshot existed.
   skyJson   Json?    @map("sky_json")
+  /// Soft delete, same contract as Profile.deletedAt (hidden by lib/db.ts,
+  /// restorable from the Trash).
+  deletedAt DateTime? @map("deleted_at")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

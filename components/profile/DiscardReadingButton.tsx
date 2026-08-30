@@ -2,12 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { announceUndo, restoreFromTrash } from "@/components/undo/undoBus";
 import styles from "@/components/profiles/DeleteProfileButton.module.css";
 
 /**
  * Discard a stored AI reading with inline confirmation. Readings are
  * generated once per snapshot; discarding is the only way to replace a bad
- * generation — the generate button reappears after the refresh.
+ * generation — the generate button reappears after the refresh. The text
+ * goes to the Trash, so a discard is undoable until a new reading fills
+ * the slot.
  */
 export default function DiscardReadingButton({ endpoint }: { endpoint: string }) {
   const router = useRouter();
@@ -24,6 +27,18 @@ export default function DiscardReadingButton({ endpoint }: { endpoint: string })
       setBusy(false);
       setError("Discard failed — is the server running?");
       return;
+    }
+    if (res.ok) {
+      const body = (await res.json().catch(() => null)) as {
+        archiveId?: number;
+      } | null;
+      if (typeof body?.archiveId === "number") {
+        const archiveId = body.archiveId;
+        announceUndo({
+          message: "Reading moved to the Trash.",
+          restore: () => restoreFromTrash("reading", archiveId),
+        });
+      }
     }
     router.refresh();
   }
@@ -46,8 +61,8 @@ export default function DiscardReadingButton({ endpoint }: { endpoint: string })
         <span className={styles.error}>{error}</span>
       ) : (
         <span className={styles.prompt}>
-          Discard this reading? The text is removed permanently, but a new one
-          can be generated.
+          Discard this reading? It moves to the Trash and a new one can be
+          generated.
         </span>
       )}
       <button className={styles.confirm} onClick={handleDiscard} disabled={busy}>

@@ -2,12 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { announceUndo, restoreFromTrash } from "@/components/undo/undoBus";
 import styles from "./DeleteProfileButton.module.css";
 
 /**
- * Hard delete with inline confirmation (PRD §4.6 — cascade removes every
- * snapshot version and reading). Inline confirm instead of window.confirm so
- * the flow stays keyboard-accessible and styleable.
+ * Delete with inline confirmation (PRD §4.6). The profile moves to the
+ * Trash — every snapshot version, reading and note goes with it and comes
+ * back on Undo (offered by the toast for a while, then from Settings →
+ * Trash). Inline confirm instead of window.confirm so the flow stays
+ * keyboard-accessible and styleable.
  */
 export default function DeleteProfileButton({
   profileId,
@@ -34,6 +37,12 @@ export default function DeleteProfileButton({
       setError("Delete failed — is the server running?");
       return;
     }
+    if (res.ok) {
+      announceUndo({
+        message: `Moved “${displayName}” to the Trash.`,
+        restore: () => restoreFromTrash("profile", profileId),
+      });
+    }
     if (redirectTo) {
       router.push(redirectTo);
     }
@@ -58,11 +67,11 @@ export default function DeleteProfileButton({
         <span className={styles.error}>{error}</span>
       ) : (
         <span className={styles.prompt}>
-          Delete “{displayName}” and all its chart versions?
+          Move “{displayName}” and all its chart versions to the Trash?
         </span>
       )}
       <button className={styles.confirm} onClick={handleDelete} disabled={busy}>
-        {busy ? "Deleting…" : "Delete forever"}
+        {busy ? "Deleting…" : "Delete"}
       </button>
       <button
         className={styles.cancel}

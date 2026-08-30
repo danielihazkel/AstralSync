@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JournalEntryView } from "@/lib/journal";
 import type { TransitData } from "@/lib/transits";
@@ -17,6 +18,7 @@ import {
   type JournalMood,
 } from "@/lib/journalMeta";
 import { MOOD_LABELS } from "./moodLabels";
+import { announceUndo, restoreFromTrash } from "@/components/undo/undoBus";
 import { useTabList } from "@/components/useTabList";
 import InsightsView from "./InsightsView";
 import Markdown from "@/components/Markdown";
@@ -70,7 +72,12 @@ export default function JournalPanel({
   isLatest: boolean;
 }) {
   const [view, setView] = useState<"notes" | "insights">("notes");
-  const [date, setDate] = useState(todayLocalDate);
+  // `?date=YYYY-MM-DD` deep-links a day (the Transits calendar's "write a
+  // note" links); otherwise today.
+  const searchParams = useSearchParams();
+  const [date, setDate] = useState(() =>
+    clampJournalDate(searchParams.get("date") ?? "", todayLocalDate()),
+  );
   const [sky, setSky] = useState<SkyState>({ kind: "loading" });
   const [entries, setEntries] = useState<EntriesState>({ kind: "loading" });
   // The add form's draft; editing state lives per-row in EntryRow.
@@ -608,7 +615,14 @@ function EntryRow({
         `/api/profiles/${profileId}/journal/${entry.id}`,
         { method: "DELETE" },
       );
-      if (res.ok) await onChanged();
+      if (res.ok) {
+        announceUndo({
+          message: `Note from ${formatBirthDate(entry.entryDate)} moved to the Trash.`,
+          restore: () => restoreFromTrash("journal", entry.id),
+          onRestored: () => void onChanged(),
+        });
+        await onChanged();
+      }
     } catch {
       setConfirmingDelete(false);
     } finally {

@@ -43,7 +43,15 @@ function upcomingIcsEvents(upcoming: UpcomingProfile[]): IcsEvent[] {
  * hour needs a "home location", picked once and kept in localStorage — birth
  * cities are never assumed.
  */
-export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] }) {
+export default function TodayDashboard({
+  profiles,
+  primaryId = null,
+}: {
+  profiles: TodayProfile[];
+  /** The primary ("my") chart leads each per-profile list; the rest fold
+   *  into a collapsed "other charts" group so the strip stays short. */
+  primaryId?: number | null;
+}) {
   const [sky, setSky] = useState<TodaySky | null>(null);
   const [location, setLocation] = useState<HomeLocation | null>(null);
   const [picking, setPicking] = useState(false);
@@ -108,6 +116,58 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
 
   const moonGlyph = SIGN_GLYPH_CHARS[sky.moon.sign];
   const mazalSign = SIGN_GLYPH_CHARS[sky.hebrew.mazal.sign as Sign] ?? "";
+  // Fold only when a primary exists and there is something to fold.
+  const splitByPrimary = <T extends { profileId: number }>(items: T[]) => {
+    if (primaryId === null) return { lead: items, rest: [] as T[] };
+    const lead = items.filter((i) => i.profileId === primaryId);
+    if (lead.length === 0) return { lead: items, rest: [] as T[] };
+    return { lead, rest: items.filter((i) => i.profileId !== primaryId) };
+  };
+  const transitGroups = splitByPrimary(sky.transits);
+  const upcomingGroups = upcoming ? splitByPrimary(upcoming) : null;
+
+  const transitItems = (items: typeof sky.transits) =>
+    items.map((t) => (
+      <li key={t.profileId}>
+        <span className={styles.who}>{t.displayName}:</span>{" "}
+        {t.aspects.map((a, i) => (
+          <span key={`${a.a}-${a.b}-${a.type}`}>
+            {i > 0 && ", "}
+            {PLANET_NAMES[a.a]} {ASPECT_NAMES[a.type].toLowerCase()} natal{" "}
+            {PLANET_NAMES[a.b]}
+            <span className={styles.orb}> ({a.orb.toFixed(1)}°)</span>
+          </span>
+        ))}
+      </li>
+    ));
+
+  const upcomingItems = (items: UpcomingProfile[]) =>
+    items.map((u) => (
+      <div key={u.profileId}>
+        <p className={styles.who}>{u.displayName}</p>
+        {u.events.length === 0 ? (
+          <p className={styles.muted}>
+            No exact transit this week (the Moon is not scanned here).
+          </p>
+        ) : (
+          <ul className={styles.transitList}>
+            {u.events.map((e) => (
+              <li key={`${e.a}-${e.b}-${e.type}-${e.utc}`}>
+                {new Date(e.utc).toLocaleDateString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                })}
+                : {PLANET_NAMES[e.a]} {ASPECT_NAMES[e.type].toLowerCase()}{" "}
+                natal {PLANET_NAMES[e.b]}
+                {e.retrograde && " ℞"}
+                {e.pass.of > 1 && ` (pass ${e.pass.n} of ${e.pass.of})`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    ));
 
   return (
     <section className={styles.strip} aria-label="Today">
@@ -265,21 +325,17 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
       {sky.transits.length > 0 && (
         <div className={styles.transits} aria-label="Notable transits">
           <h3 className={styles.cardTitle}>In the sky for your charts</h3>
-          <ul className={styles.transitList}>
-            {sky.transits.map((t) => (
-              <li key={t.profileId}>
-                <span className={styles.who}>{t.displayName}:</span>{" "}
-                {t.aspects.map((a, i) => (
-                  <span key={`${a.a}-${a.b}-${a.type}`}>
-                    {i > 0 && ", "}
-                    {PLANET_NAMES[a.a]} {ASPECT_NAMES[a.type].toLowerCase()}{" "}
-                    natal {PLANET_NAMES[a.b]}
-                    <span className={styles.orb}> ({a.orb.toFixed(1)}°)</span>
-                  </span>
-                ))}
-              </li>
-            ))}
-          </ul>
+          <ul className={styles.transitList}>{transitItems(transitGroups.lead)}</ul>
+          {transitGroups.rest.length > 0 && (
+            <details>
+              <summary className={styles.muted}>
+                Other charts ({transitGroups.rest.length})
+              </summary>
+              <ul className={styles.transitList}>
+                {transitItems(transitGroups.rest)}
+              </ul>
+            </details>
+          )}
         </div>
       )}
 
@@ -291,39 +347,19 @@ export default function TodayDashboard({ profiles }: { profiles: TodayProfile[] 
           }}
         >
           <summary className={styles.cardTitle}>Upcoming 7 days</summary>
-          {upcoming === null ? (
+          {upcoming === null || upcomingGroups === null ? (
             <p className={styles.muted}>Scanning the week ahead…</p>
           ) : (
             <>
-              {upcoming.map((u) => (
-                <div key={u.profileId}>
-                  <p className={styles.who}>{u.displayName}</p>
-                  {u.events.length === 0 ? (
-                    <p className={styles.muted}>
-                      No exact transit this week (the Moon is not scanned
-                      here).
-                    </p>
-                  ) : (
-                    <ul className={styles.transitList}>
-                      {u.events.map((e) => (
-                        <li key={`${e.a}-${e.b}-${e.type}-${e.utc}`}>
-                          {new Date(e.utc).toLocaleDateString(undefined, {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                          : {PLANET_NAMES[e.a]}{" "}
-                          {ASPECT_NAMES[e.type].toLowerCase()} natal{" "}
-                          {PLANET_NAMES[e.b]}
-                          {e.retrograde && " ℞"}
-                          {e.pass.of > 1 &&
-                            ` (pass ${e.pass.n} of ${e.pass.of})`}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))}
+              {upcomingItems(upcomingGroups.lead)}
+              {upcomingGroups.rest.length > 0 && (
+                <details>
+                  <summary className={styles.muted}>
+                    Other charts ({upcomingGroups.rest.length})
+                  </summary>
+                  {upcomingItems(upcomingGroups.rest)}
+                </details>
+              )}
               {upcoming.some((u) => u.events.length > 0) && (
                 <button
                   className={styles.linkButton}

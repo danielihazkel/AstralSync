@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { SIGNS } from "@astralsync/astro-core";
 import type {
@@ -120,6 +121,10 @@ export default function TransitCalendarView({
   const [year, setYear] = useState(now.getFullYear());
   const [month0, setMonth0] = useState(now.getMonth());
   const [state, setState] = useState<State>({ kind: "loading" });
+  // Journal note counts per civil date for the month — the calendar's
+  // link back to "what I wrote that day". Best effort: a failed fetch just
+  // shows no note markers.
+  const [noteCounts, setNoteCounts] = useState<Map<string, number>>(new Map());
 
   const load = useCallback(async () => {
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -143,6 +148,23 @@ export default function TransitCalendarView({
       return;
     }
     setState({ kind: "data", data: await res.json() });
+    try {
+      const notes = await fetch(
+        `/api/profiles/${profileId}/journal?from=${from}&to=${to}`,
+      );
+      if (notes.ok) {
+        const body = (await notes.json()) as {
+          entries: Array<{ entryDate: string }>;
+        };
+        const counts = new Map<string, number>();
+        for (const e of body.entries) {
+          counts.set(e.entryDate, (counts.get(e.entryDate) ?? 0) + 1);
+        }
+        setNoteCounts(counts);
+      }
+    } catch {
+      // Markers are optional.
+    }
   }, [profileId, year, month0]);
 
   useEffect(() => {
@@ -227,12 +249,31 @@ export default function TransitCalendarView({
         </div>
       )}
 
-      {state.kind === "data" && <MonthEvents data={state.data} />}
+      {state.kind === "data" && (
+        <MonthEvents
+          data={state.data}
+          profileId={profileId}
+          noteCounts={noteCounts}
+        />
+      )}
     </div>
   );
 }
 
-function MonthEvents({ data }: { data: TransitCalendarData }) {
+/** Deep link into the Journal tab for one civil date. */
+function journalHref(profileId: number, day: string): string {
+  return `/profiles/${profileId}?tab=journal&date=${day}`;
+}
+
+function MonthEvents({
+  data,
+  profileId,
+  noteCounts,
+}: {
+  data: TransitCalendarData;
+  profileId: number;
+  noteCounts: Map<string, number>;
+}) {
   if (data.events.length === 0) {
     return (
       <p className={styles.muted}>
@@ -265,7 +306,20 @@ function MonthEvents({ data }: { data: TransitCalendarData }) {
               weekday: "short",
               month: "short",
               day: "numeric",
-            })}
+            })}{" "}
+            <Link
+              href={journalHref(profileId, day)}
+              className={styles.orb}
+              title={
+                noteCounts.has(day)
+                  ? "Open this day's journal notes"
+                  : "Write a journal note about this day"
+              }
+            >
+              {noteCounts.has(day)
+                ? `✎ ${noteCounts.get(day)} ${noteCounts.get(day) === 1 ? "note" : "notes"}`
+                : "✎ note"}
+            </Link>
           </h4>
           <ul className={styles.aspectList}>
             {events.map((e, i) => (

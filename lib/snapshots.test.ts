@@ -295,6 +295,8 @@ describe("profileRowToBirthData (lazy backfill input)", () => {
     tzIana: "Europe/Berlin",
     utcOffsetMinutes: 120,
     offsetOverridden: false,
+    isPrimary: false,
+    deletedAt: null,
     createdAt: new Date(),
   };
 

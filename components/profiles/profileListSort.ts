@@ -7,6 +7,8 @@ export interface ProfileListItem {
   sunSign: string | null;
   isSolarChart: boolean;
   latestVersion: number;
+  /** The one chart marked "mine" — pinned to the top of every sort. */
+  isPrimary: boolean;
   createdAt: string;
 }
 
@@ -28,12 +30,14 @@ export function filterProfiles(
   return profiles.filter((p) => p.displayName.toLowerCase().includes(q));
 }
 
-/** Stable sort with id as the final tie-break. Never mutates the input. */
+/** Stable sort with id as the final tie-break; the primary profile always
+ *  comes first. Never mutates the input. */
 export function sortProfiles(
   profiles: ProfileListItem[],
   sort: ProfileSortKey,
 ): ProfileListItem[] {
   const compare = (a: ProfileListItem, b: ProfileListItem): number => {
+    if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
     switch (sort) {
       case "created":
         // Oldest first — the pre-sort default order of listProfiles().

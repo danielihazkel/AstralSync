@@ -80,6 +80,70 @@
   line-height: 1.5;
 }
 
+.danger {
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  padding: 0.2rem 0.6rem;
+}
+
+.danger:disabled {
+  opacity: 0.5;
+}
+
+.danger:not(:disabled):hover {
+  background: rgba(201, 106, 106, 0.12);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+/* Trash list rows. */
+.trashGroup {
+  margin: 0.8rem 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--heading);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trashList {
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.trashRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.trashLabel {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.trashActions {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
 /* Settings-page layout: one card per preference group. */
 .sections {
   display: grid;

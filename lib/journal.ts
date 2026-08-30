@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { CrossAspect, Placement } from "@astralsync/astro-core";
 import { prisma } from "./db";
+import { softDeleteJournalEntry } from "./trash";
 import type { JournalMood } from "./journalMeta";
 import type { TimelineEntryData } from "./journalTimeline";
 import { getTransitView, type TransitData } from "./transits";
@@ -218,6 +219,9 @@ export async function updateJournalEntry(
  *  for the full view. */
 export async function listAllJournalEntries(): Promise<TimelineEntryData[]> {
   const rows = await prisma.journalEntry.findMany({
+    // The client extension hides trashed entries; entries whose whole
+    // profile is in the Trash need the relation filter.
+    where: { profile: { deletedAt: null } },
     orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
     include: { profile: { select: { id: true, displayName: true } } },
   });
@@ -232,13 +236,11 @@ export async function listAllJournalEntries(): Promise<TimelineEntryData[]> {
   }));
 }
 
-/** False when no entry with that id belongs to the profile (maps to 404). */
+/** Move an entry to the Trash (undoable from Settings → Trash). False when
+ *  no live entry with that id belongs to the profile (maps to 404). */
 export async function deleteJournalEntry(
   profileId: number,
   entryId: number,
 ): Promise<boolean> {
-  const { count } = await prisma.journalEntry.deleteMany({
-    where: { id: entryId, profileId },
-  });
-  return count > 0;
+  return softDeleteJournalEntry(profileId, entryId);
 }

@@ -10,7 +10,10 @@ import styles from "./page.module.css";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  // listProfiles() puts the primary profile first, so every consumer below
+  // inherits "me first" for free.
   const profiles = await listProfiles();
+  const primaryId = profiles.find((p) => p.isPrimary)?.id ?? null;
 
   return (
     <main>
@@ -28,6 +31,7 @@ export default async function Home() {
             displayName: p.displayName,
             placements: p.placements!,
           }))}
+        primaryId={primaryId}
       />
 
       {profiles.length === 0 ? (
@@ -55,6 +59,7 @@ export default async function Home() {
             id: p.id,
             displayName: p.displayName,
           }))}
+          defaultA={primaryId}
         />
       )}
 
