@@ -51,7 +51,7 @@ describe("parseSettingsBundle", () => {
     const parsed = parseSettingsBundle({
       settingsVersion: 1,
       theme: "sepia",
-      chart: { defaultHouseSystem: "koch" },
+      chart: { defaultHouseSystem: "topocentric" },
     })!;
     expect(parsed.theme).toBe("dark");
     expect(parsed.chart!.defaultHouseSystem).toBe("placidus");

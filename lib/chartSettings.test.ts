@@ -33,16 +33,21 @@ describe("sanitizeChartSettings", () => {
     });
   });
 
-  it("accepts only the three house systems as a new-profile default", () => {
+  it("accepts only known house systems as a new-profile default", () => {
     expect(
       sanitizeChartSettings({ defaultHouseSystem: "whole_sign" })
         .defaultHouseSystem,
     ).toBe("whole_sign");
     expect(
-      sanitizeChartSettings({ defaultHouseSystem: "equal" }).defaultHouseSystem,
-    ).toBe("equal");
-    expect(
       sanitizeChartSettings({ defaultHouseSystem: "koch" }).defaultHouseSystem,
+    ).toBe("koch");
+    expect(
+      sanitizeChartSettings({ defaultHouseSystem: "alcabitius" })
+        .defaultHouseSystem,
+    ).toBe("alcabitius");
+    expect(
+      sanitizeChartSettings({ defaultHouseSystem: "topocentric" })
+        .defaultHouseSystem,
     ).toBe("placidus");
   });
 

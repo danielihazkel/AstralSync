@@ -530,8 +530,12 @@ export function resolveReading(
     lilith: "Lilith",
     part_of_fortune: "Part of Fortune",
     // Rendered as a wheel point only — no point_in_sign entries are authored
-    // for Spirit yet, so the reading deliberately skips it.
+    // for Spirit yet, so the reading deliberately skips it. The Vertex and
+    // East Point are angles, not points with sign delineations — they never
+    // enter the reading.
     part_of_spirit: "Part of Spirit",
+    vertex: "Vertex",
+    east_point: "East Point",
   };
   const takePoint = (pt: PointPlacement, variant?: NodeVariant): void => {
     const base = `${POINT_LABELS[pt.point]} in ${cap(pt.sign)}`;

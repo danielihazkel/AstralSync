@@ -2,15 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  astronomyEngineProvider,
   declinationsAt,
   detectAngleAspects,
   detectAntiscia,
   detectDeclinationAspects,
   detectPatterns,
+  eastPoint,
+  meanObliquity,
+  norm360,
   overlayHouses,
   partOfFortunePlacement,
   partOfSpiritPlacement,
   pointsAt,
+  signOf,
+  vertex,
 } from "@astralsync/astro-core";
 import { loadContentIndex, resolveReading } from "@/lib/content";
 import { chartDignities, hasAnyDignity } from "@/lib/dignityDisplay";
@@ -98,6 +104,22 @@ export default async function PrintReportPage({
     );
     points.mean.push(...lots);
     points.true.push(...lots);
+    // Vertex and East Point, same read-time contract as the profile page.
+    const eps = meanObliquity(birthUtc);
+    const ramc = norm360(
+      astronomyEngineProvider.siderealTimeDeg(birthUtc) + chart.input.longitude,
+    );
+    const vxLon = vertex(ramc, chart.input.latitude, eps);
+    const epLon = eastPoint(ramc, eps);
+    const extraAngles = overlayHouses(
+      [
+        { point: "vertex" as const, longitude: vxLon, sign: signOf(vxLon), degreeInSign: norm360(vxLon) % 30, house: null, retrograde: false },
+        { point: "east_point" as const, longitude: epLon, sign: signOf(epLon), degreeInSign: norm360(epLon) % 30, house: null, retrograde: false },
+      ],
+      cusps,
+    );
+    points.mean.push(...extraAngles);
+    points.true.push(...extraAngles);
   }
   const { profile } = view;
   const numeroInput = toNumeroReadingInput(view.numero);

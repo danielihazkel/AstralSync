@@ -12,10 +12,15 @@ import {
   detectAspects,
   detectDeclinationAspects,
   detectPatterns,
+  eastPoint,
+  meanObliquity,
+  norm360,
   overlayHouses,
   partOfFortunePlacement,
   partOfSpiritPlacement,
   pointsAt,
+  signOf,
+  vertex,
   type Planet,
 } from "@astralsync/astro-core";
 import { buildAspectMotion } from "@/lib/aspectMotion";
@@ -114,6 +119,23 @@ export default async function ProfilePage({
     );
     points.mean.push(...lots);
     points.true.push(...lots);
+    // The Vertex and East Point — the "third angles" — join the points ring
+    // (read-time like the lots; they need the birth time and place).
+    const eps = meanObliquity(birthUtc);
+    const ramc = norm360(
+      astronomyEngineProvider.siderealTimeDeg(birthUtc) + chart.input.longitude,
+    );
+    const vxLon = vertex(ramc, chart.input.latitude, eps);
+    const epLon = eastPoint(ramc, eps);
+    const extraAngles = overlayHouses(
+      [
+        { point: "vertex" as const, longitude: vxLon, sign: signOf(vxLon), degreeInSign: norm360(vxLon) % 30, house: null, retrograde: false },
+        { point: "east_point" as const, longitude: epLon, sign: signOf(epLon), degreeInSign: norm360(epLon) % 30, house: null, retrograde: false },
+      ],
+      cusps,
+    );
+    points.mean.push(...extraAngles);
+    points.true.push(...extraAngles);
   }
   // Read-time aspect extras, like the minor overlay: aspects to the ASC/MC
   // (houses permitting) and birth-instant applying/separating verdicts for

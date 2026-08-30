@@ -26,6 +26,11 @@ enum HouseSystem {
   placidus
   whole_sign
   equal
+  porphyry
+  koch
+  regiomontanus
+  campanus
+  alcabitius
 }
 
 enum NumeroSystem {

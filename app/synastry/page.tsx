@@ -147,7 +147,8 @@ export default async function SynastryPage({
   if (!query.success) notFound();
   const view = await getSynastryView(query.data.a, query.data.b);
   if (!view) notFound();
-  const { a, b, aspects, angleContacts, composite, davison } = view;
+  const { a, b, aspects, angleContacts, vertexContacts, composite, davison } =
+    view;
 
   // The pair's stored AI reading (order-insensitive slot) + staleness.
   const storedReading = await getSynastryReading(query.data.a, query.data.b);
@@ -275,6 +276,50 @@ export default async function SynastryPage({
             contacts={angleContacts.bOnA}
             prose={angleProse}
           />
+        </section>
+      )}
+
+      {(vertexContacts.aOnB.length > 0 || vertexContacts.bOnA.length > 0) && (
+        <section aria-label="Vertex contacts">
+          <h2 className={styles.sectionTitle}>Vertex contacts</h2>
+          <p className={styles.muted}>
+            Planets on the other person&rsquo;s Vertex axis — where the
+            ecliptic crosses the prime vertical in the west, the point the
+            tradition gives to fated encounters. A conjunction sits on the
+            Vertex itself, an opposition on the Anti-Vertex (6° orb).
+          </p>
+          {(
+            [
+              [a.displayName, b.displayName, vertexContacts.aOnB],
+              [b.displayName, a.displayName, vertexContacts.bOnA],
+            ] as const
+          ).map(
+            ([ownerName, hostName, contacts]) =>
+              contacts.length > 0 && (
+                <div key={ownerName}>
+                  <h4 className={styles.groupTitle}>
+                    {ownerName}&rsquo;s planets on {hostName}&rsquo;s Vertex
+                  </h4>
+                  <ul className={styles.aspectList}>
+                    {contacts.map((c) => (
+                      <li key={`${c.planet}-${c.type}`}>
+                        <span className={styles.glyph} aria-hidden="true">
+                          {PLANET_GLYPH_CHARS[c.planet] + "︎"}
+                        </span>
+                        {PLANET_NAMES[c.planet]}{" "}
+                        {c.type === "conjunction"
+                          ? "conjunct the Vertex"
+                          : "on the Anti-Vertex"}
+                        <span className={styles.orb}>
+                          {" "}
+                          orb {c.orb.toFixed(1)}°
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ),
+          )}
         </section>
       )}
 

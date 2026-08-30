@@ -35,7 +35,16 @@ export const SHOW_MINOR_ASPECTS_KEY = "chart.showMinorAspects";
 export const CHART_VIEW_KEY = "chart.view";
 export const DEFAULT_HOUSE_SYSTEM_KEY = "chart.houseSystem";
 
-const HOUSE_SYSTEMS: readonly HouseSystem[] = ["placidus", "whole_sign", "equal"];
+const HOUSE_SYSTEMS: readonly HouseSystem[] = [
+  "placidus",
+  "whole_sign",
+  "equal",
+  "porphyry",
+  "koch",
+  "regiomontanus",
+  "campanus",
+  "alcabitius",
+];
 
 /** Pure: raw stored strings → valid settings (unknown values → defaults). */
 export function sanitizeChartSettings(raw: {

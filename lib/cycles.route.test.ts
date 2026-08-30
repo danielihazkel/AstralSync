@@ -35,6 +35,7 @@ const canned = {
     placements: [],
     crossAspects: [],
   },
+  zodiacalReleasing: null,
   solarArc: {
     arcDegrees: 36.4,
     placements: [],

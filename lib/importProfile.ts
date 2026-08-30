@@ -53,7 +53,16 @@ const birthCitySchema = z.object({
 const astroSnapshotSchema = z.object({
   id: z.number().int(),
   version: z.number().int().positive(),
-  houseSystem: z.enum(["placidus", "whole_sign", "equal"]),
+  houseSystem: z.enum([
+    "placidus",
+    "whole_sign",
+    "equal",
+    "porphyry",
+    "koch",
+    "regiomontanus",
+    "campanus",
+    "alcabitius",
+  ]),
   isSolarChart: z.boolean(),
   sunSign: z.string().max(12),
   moonSign: z.string().max(12),

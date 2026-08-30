@@ -19,10 +19,22 @@ export {
   placidusHouses,
   wholeSignHouses,
   equalHouses,
+  porphyryHouses,
+  kochHouses,
+  regiomontanusHouses,
+  campanusHouses,
+  alcabitiusHouses,
+  vertex,
+  eastPoint,
   houseOf,
   computeHouses,
   PlacidusDegenerateError,
 } from "./houses";
+export {
+  zodiacalReleasing,
+  ZR_SIGN_YEARS,
+} from "./zodiacalReleasing";
+export type { ZodiacalReleasing, ZrPeriod } from "./zodiacalReleasing";
 export {
   norm360,
   angleDiff,

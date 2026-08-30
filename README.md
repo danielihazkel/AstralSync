@@ -91,8 +91,8 @@ picker.
 
 - **Chart** — an interactive SVG wheel: houses, signs, planetary glyphs,
   aspect chords, retrograde markers, plus the calculated points (lunar nodes
-  true/mean, Lilith, Part of Fortune) and an optional dashed overlay of tight
-  minor aspects. Detected **chart patterns** (stelliums, grand trines,
+  true/mean, Lilith, the Parts of Fortune and Spirit, the Vertex and East
+  Point) and an optional dashed overlay of tight minor aspects. Detected **chart patterns** (stelliums, grand trines,
   t-squares, grand crosses, yods) are listed under the wheel, followed by a
   **Shape & balance** card: the Jones chart shape (bundle, bowl, bucket,
   locomotive, seesaw, splay, splash), hemisphere emphasis, missing or weak
@@ -119,7 +119,9 @@ picker.
   a **Graph** view draws each contact's in-orb window across the month
   (entry → exact → exit, retrograde passes tagged) as a timeline per natal
   planet.
-- **Cycles** — the annual profection (year lord), secondary progressions
+- **Cycles** — the annual profection (year lord), **zodiacal releasing**
+  from the Lots of Fortune and Spirit (general and sub-periods at 360-day
+  years, loosing of the bond, peak periods), secondary progressions
   (against the natal wheel or as a standalone progressed chart with
   progressed houses, plus the progressed lunation phase and its next
   turning points), tertiary progressions (a day per lunar month), the
@@ -177,6 +179,9 @@ minor-aspect orbs plus the minor-aspect opt-in), **home location** (powers
 planetary hours and the electional picker — birth cities are never assumed),
 and **chart display** (points on/off, true vs. mean nodes, minor overlay,
 wheel vs. table default, and the house system new profiles start with).
+Eight house systems are supported — Placidus, Whole Sign, Equal, Porphyry,
+Koch, Regiomontanus, Campanus, Alcabitius — with an automatic Whole Sign
+fallback where a quadrant system degenerates at extreme latitude.
 
 Two more sections live there. **Your data** exports every profile in one
 bundle (optionally with this browser's settings), imports a single export

@@ -13,8 +13,11 @@ import {
   isDayChart,
   norm360,
   overlayHouses,
+  partOfFortune,
+  partOfSpirit,
   positionsAt,
   signOf,
+  zodiacalReleasing,
   type AngleAspect,
   type AnnualProfection,
   type Aspect,
@@ -22,6 +25,7 @@ import {
   type CurrentFirdaria,
   type OrbConfig,
   type Placement,
+  type ZodiacalReleasing,
 } from "@astralsync/astro-core";
 import * as Astronomy from "astronomy-engine";
 import { prisma } from "./db";
@@ -127,6 +131,12 @@ export interface CyclesData {
   /** Persian time-lord periods; null on a solar chart (sect needs houses)
    *  and true when the chart is a day chart. */
   firdaria: (CurrentFirdaria & { isDay: boolean }) | null;
+  /** Zodiacal releasing from the lots of Fortune and Spirit; null on a
+   *  solar chart (the lots need an Ascendant). */
+  zodiacalReleasing: {
+    fortune: ZodiacalReleasing;
+    spirit: ZodiacalReleasing;
+  } | null;
   engine: { name: string; version: string };
 }
 
@@ -631,11 +641,26 @@ export function computeCycles(
   if (!solarReturn) return null;
   const natalUtc = new Date(natal.input.utc);
   let firdaria: CyclesData["firdaria"] = null;
+  let releasing: CyclesData["zodiacalReleasing"] = null;
   if (natal.houses) {
     const sunLon = natal.placements.find((p) => p.planet === "sun")!.longitude;
+    const moonLon = natal.placements.find((p) => p.planet === "moon")!.longitude;
     const isDay = isDayChart(sunLon, natal.houses.cusps);
     const current = currentFirdaria(natalUtc, isDay, at);
     if (current) firdaria = { ...current, isDay };
+    const asc = natal.houses.ascendant;
+    releasing = {
+      fortune: zodiacalReleasing(
+        signOf(partOfFortune(asc, sunLon, moonLon, isDay)),
+        natalUtc,
+        at,
+      ),
+      spirit: zodiacalReleasing(
+        signOf(partOfSpirit(asc, sunLon, moonLon, isDay)),
+        natalUtc,
+        at,
+      ),
+    };
   }
   return {
     computedAt: at.toISOString(),
@@ -656,6 +681,7 @@ export function computeCycles(
       ? annualProfection(natal.bigThree.ascendant, natalUtc, at)
       : null,
     firdaria,
+    zodiacalReleasing: releasing,
     engine: {
       name: astronomyEngineProvider.name,
       version: astronomyEngineProvider.version,

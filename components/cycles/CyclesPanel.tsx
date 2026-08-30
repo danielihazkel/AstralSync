@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { SIGNS, type FirdariaLord } from "@astralsync/astro-core";
+import {
+  SIGNS,
+  type FirdariaLord,
+  type ZrPeriod,
+} from "@astralsync/astro-core";
 import type {
   CyclesData,
   CyclesEntryProse,
@@ -58,6 +62,46 @@ type State =
 const PROGRESSION_VIEWS = ["biwheel", "wheel"] as const;
 const SR_VIEWS = ["birth", "home"] as const;
 const LR_VIEWS = ["birth", "home"] as const;
+const ZR_VIEWS = ["fortune", "spirit"] as const;
+
+/** "Mar 2020 – Mar 2030" (yearly) or "3 Mar – 30 Apr 2026" (monthly). */
+function zrRange(p: ZrPeriod, monthly: boolean): string {
+  const opts = monthly
+    ? ({ year: "numeric", month: "short", day: "numeric" } as const)
+    : ({ year: "numeric", month: "short" } as const);
+  return `${new Date(p.startUtc).toLocaleDateString([], opts)} – ${new Date(
+    p.endUtc,
+  ).toLocaleDateString([], opts)}`;
+}
+
+function ZrPeriodList({
+  periods,
+  currentStart,
+  monthly,
+}: {
+  periods: ZrPeriod[];
+  currentStart: string;
+  monthly: boolean;
+}) {
+  return (
+    <ul className={styles.aspectList}>
+      {periods.map((p) => (
+        <li key={p.startUtc}>
+          {SIGN_NAMES[p.sign]}{" "}
+          <span className={styles.orb}>
+            ({PLANET_NAMES[p.lord]}) {zrRange(p, monthly)}
+          </span>
+          {p.angular === "10th" && <strong> · peak</strong>}
+          {p.angular !== null && p.angular !== "10th" && (
+            <span className={styles.orb}> · {p.angular} from the lot</span>
+          )}
+          {p.loosedBond && <em> · loosing of the bond</em>}
+          {p.startUtc === currentStart && <strong> · now</strong>}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** "15°32′ Scorpio" for an ecliptic longitude (progressed ASC/MC line). */
 function anglePosition(longitude: number): string {
@@ -138,6 +182,14 @@ export default function CyclesPanel({
     selected: SR_VIEWS.indexOf(srView),
     onSelect: (i) => setSrView(SR_VIEWS[i]),
     idBase: "solar-return-view",
+  });
+  // Zodiacal releasing lot: Fortune (events) | Spirit (actions).
+  const [zrView, setZrView] = useState<(typeof ZR_VIEWS)[number]>("fortune");
+  const zrTabs = useTabList({
+    count: ZR_VIEWS.length,
+    selected: ZR_VIEWS.indexOf(zrView),
+    onSelect: (i) => setZrView(ZR_VIEWS[i]),
+    idBase: "zr-view",
   });
   // Lunar return relocation — same Birth | Home pattern as the solar return.
   const [lrView, setLrView] = useState<(typeof LR_VIEWS)[number]>("birth");
@@ -318,6 +370,81 @@ export default function CyclesPanel({
           </ul>
         </section>
       )}
+
+      {data.zodiacalReleasing &&
+        (() => {
+          const zr = data.zodiacalReleasing[zrView];
+          return (
+            <section aria-label="Zodiacal releasing">
+              <h3 className={styles.sectionTitle}>
+                Zodiacal releasing —{" "}
+                {zr.current
+                  ? `${SIGN_NAMES[zr.current.l1.sign]} period`
+                  : "before birth"}
+              </h3>
+              <div
+                className={styles.viewSwitch}
+                role="tablist"
+                aria-label="Releasing lot"
+              >
+                <button {...zrTabs.getTabProps(0)}>From Fortune</button>
+                <button {...zrTabs.getTabProps(1)}>From Spirit</button>
+              </div>
+              <div
+                {...zrTabs.getPanelProps(ZR_VIEWS.indexOf(zrView))}
+                className={styles.tabPanel}
+              >
+                <p className={styles.muted}>
+                  The Hellenistic time-lord procedure released from the Lot
+                  of {zrView === "fortune" ? "Fortune (circumstances, the body, what befalls you)" : "Spirit (action, career, what you set in motion)"}
+                  , in {SIGN_NAMES[zr.lotSign]}. Each sign rules a period of
+                  its planetary years (360-day years, 30-day months — other
+                  software may differ by days); periods in signs angular to
+                  the lot are active, the 10th sign the peak.
+                </p>
+                {zr.current && (
+                  <>
+                    <p className={styles.muted}>
+                      <strong>
+                        {SIGN_NAMES[zr.current.l1.sign]} general period
+                      </strong>{" "}
+                      ({PLANET_NAMES[zr.current.l1.lord]} as lord),{" "}
+                      {zrRange(zr.current.l1, false)} · within it the{" "}
+                      <strong>{SIGN_NAMES[zr.current.l2.sign]}</strong>{" "}
+                      sub-period, {zrRange(zr.current.l2, true)}
+                      {zr.current.l2.angular === "10th" &&
+                        " — a peak period"}
+                      {zr.current.l2.loosedBond &&
+                        " — begun by a loosing of the bond"}
+                      .
+                    </p>
+                    <details>
+                      <summary className={styles.muted}>
+                        General periods since birth ({zr.l1.length})
+                      </summary>
+                      <ZrPeriodList
+                        periods={zr.l1}
+                        currentStart={zr.current.l1.startUtc}
+                        monthly={false}
+                      />
+                    </details>
+                    <details>
+                      <summary className={styles.muted}>
+                        Sub-periods of the current general period (
+                        {zr.l2.length})
+                      </summary>
+                      <ZrPeriodList
+                        periods={zr.l2}
+                        currentStart={zr.current.l2.startUtc}
+                        monthly
+                      />
+                    </details>
+                  </>
+                )}
+              </div>
+            </section>
+          );
+        })()}
 
       <section aria-label="Secondary progressions">
         <h3 className={styles.sectionTitle}>

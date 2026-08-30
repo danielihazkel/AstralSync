@@ -8,7 +8,16 @@ import { HOUSE_SYSTEM_NAMES } from "@/components/format";
 import { profileToInput } from "./profileToInput";
 import styles from "./profile.module.css";
 
-const SYSTEMS: HouseSystem[] = ["placidus", "whole_sign", "equal"];
+const SYSTEMS: HouseSystem[] = [
+  "placidus",
+  "whole_sign",
+  "equal",
+  "porphyry",
+  "koch",
+  "regiomontanus",
+  "campanus",
+  "alcabitius",
+];
 
 /**
  * Changing the house system recomputes once and writes a new snapshot

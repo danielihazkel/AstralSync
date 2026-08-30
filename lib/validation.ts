@@ -48,7 +48,18 @@ export const profileInputBase = z
     tzIana: z.string().min(1).max(64).optional(),
     utcOffsetMinutes: z.number().int().min(-16 * 60).max(16 * 60).optional(),
     offsetOverridden: z.boolean().default(false),
-    houseSystem: z.enum(["placidus", "whole_sign", "equal"]).default("placidus"),
+    houseSystem: z
+      .enum([
+        "placidus",
+        "whole_sign",
+        "equal",
+        "porphyry",
+        "koch",
+        "regiomontanus",
+        "campanus",
+        "alcabitius",
+      ])
+      .default("placidus"),
   });
 
 export const profileInputSchema = profileInputBase

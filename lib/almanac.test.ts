@@ -62,3 +62,19 @@ describe("computeAlmanacDay", () => {
     expect(() => computeAlmanacDay("2024-04-31")).toThrow();
   });
 });
+
+describe("lunar mansion", () => {
+  it("attaches the noon Moon's mansion, consistent with the mansion table", async () => {
+    const { lunarMansion } = await import("./lunarMansions");
+    const { astronomyEngineProvider } = await import("@astralsync/astro-core");
+    const day = computeAlmanacDay("2024-04-08");
+    expect(day.mansion.index).toBeGreaterThanOrEqual(1);
+    expect(day.mansion.index).toBeLessThanOrEqual(28);
+    expect(day.mansion.name.length).toBeGreaterThan(0);
+    // Same instant convention as the phase: machine-local noon.
+    const noon = new Date(2024, 3, 8, 12);
+    expect(day.mansion).toEqual(
+      lunarMansion(astronomyEngineProvider.eclipticLongitude("moon", noon)),
+    );
+  });
+});

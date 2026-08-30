@@ -20,6 +20,7 @@ import {
 } from "@astralsync/hebrew-core";
 import { memoizeByMs } from "./ephemerisMemo";
 import { LruMap } from "./lruCache";
+import { lunarMansion } from "./lunarMansions";
 import { isWaxing } from "./moonPhase";
 import type { HomeLocation } from "./today";
 
@@ -369,7 +370,9 @@ export function scoreDay(opts: {
   // Day-level conditions, read once at local noon like the Mercury flag:
   // the phase and a planet's solar separation drift far slower than a day.
   const sunNoonLon = eph.eclipticLongitude("sun", noon);
-  const moonWaxing = isWaxing(sunNoonLon, eph.eclipticLongitude("moon", noon));
+  const moonNoonLon = eph.eclipticLongitude("moon", noon);
+  const moonWaxing = isWaxing(sunNoonLon, moonNoonLon);
+  const mansion = lunarMansion(moonNoonLon);
   const intentSolar =
     intentPlanet && intentPlanet !== "sun"
       ? solarCondition(eph.eclipticLongitude(intentPlanet, noon), sunNoonLon)
@@ -462,6 +465,21 @@ export function scoreDay(opts: {
               },
         );
       }
+    }
+
+    // Lunar mansion (Picatrix tradition, day-level like the phase): the
+    // fortunate mansions help, the unfortunate ones count against; the
+    // mixed ones are informational only.
+    if (intentPlanet) {
+      factors.push({
+        label: `Moon in mansion ${mansion.index}, ${mansion.name} (${mansion.nature})`,
+        score:
+          mansion.nature === "fortunate"
+            ? 1
+            : mansion.nature === "unfortunate"
+              ? -1
+              : 0,
+      });
     }
 
     if (intentSolar && intentPlanet) {

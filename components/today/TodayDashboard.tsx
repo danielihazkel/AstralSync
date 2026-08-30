@@ -184,6 +184,9 @@ export default function TodayDashboard({
             {sky.moon.phaseName} · {Math.round(sky.moon.illumination * 100)}% lit
           </p>
           <p className={styles.muted}>
+            Mansion {sky.moon.mansion.index} · {sky.moon.mansion.name}
+          </p>
+          <p className={styles.muted}>
             {sky.moon.nextQuarter.name} on{" "}
             {new Date(sky.moon.nextQuarter.atUtc).toLocaleDateString(undefined, {
               month: "short",

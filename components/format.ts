@@ -89,6 +89,8 @@ export const POINT_NAMES: Record<PointName, string> = {
   lilith: "Lilith",
   part_of_fortune: "Part of Fortune",
   part_of_spirit: "Part of Spirit",
+  vertex: "Vertex",
+  east_point: "East Point",
 };
 
 /** The seven classical planets of the Mazal chart (English chrome). */
@@ -155,6 +157,11 @@ export const HOUSE_SYSTEM_NAMES: Record<HouseSystem, string> = {
   placidus: "Placidus",
   whole_sign: "Whole Sign",
   equal: "Equal House",
+  porphyry: "Porphyry",
+  koch: "Koch",
+  regiomontanus: "Regiomontanus",
+  campanus: "Campanus",
+  alcabitius: "Alcabitius",
 };
 
 export const TZ_WARNING_COPY: Record<TzWarning, string> = {

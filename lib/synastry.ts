@@ -1,16 +1,21 @@
 import {
   DEFAULT_ORBS,
+  astronomyEngineProvider,
   buildChart,
   circularMidpoint,
   compositeChart,
   detectAngleAspects,
   detectCrossAspects,
+  meanObliquity,
   norm360,
   overlayHouses,
+  separation,
+  vertex,
   type AngleAspect,
   type Aspect,
   type CrossAspect,
   type Placement,
+  type Planet,
   type TimeCertainty,
 } from "@astralsync/astro-core";
 import { getEntry, natalAspectKey, type ContentEntry, type ContentIndex } from "./content";
@@ -49,6 +54,57 @@ export interface SynastryAngleContacts {
   bOnA: AngleAspect[];
 }
 
+/** One planet on the other chart's Vertex axis — the classic "fated
+ *  encounter" synastry contact. Conjunction = on the Vertex itself,
+ *  opposition = on the Anti-Vertex. */
+export interface VertexContact {
+  planet: Planet;
+  type: "conjunction" | "opposition";
+  orb: number;
+}
+
+export interface SynastryVertexContacts {
+  /** The host's Vertex longitude, for display; null on a solar side. */
+  aVertex: number | null;
+  bVertex: number | null;
+  /** A's planets on B's Vertex axis, sorted by orb. */
+  aOnB: VertexContact[];
+  /** B's planets on A's Vertex axis, sorted by orb. */
+  bOnA: VertexContact[];
+}
+
+/** The Vertex of a timed chart, from its stored input. Null on solar. */
+function chartVertex(chart: WheelChart): number | null {
+  if (!chart.houses) return null;
+  const utc = new Date(chart.input.utc);
+  const eps = meanObliquity(utc);
+  const ramc = norm360(
+    astronomyEngineProvider.siderealTimeDeg(utc) + chart.input.longitude,
+  );
+  return vertex(ramc, chart.input.latitude, eps);
+}
+
+/** Conjunctions/oppositions of `placements` to a Vertex axis at natal orbs. */
+function vertexContactsTo(
+  placements: Placement[],
+  vertexLon: number | null,
+): VertexContact[] {
+  if (vertexLon === null) return [];
+  const out: VertexContact[] = [];
+  // The Vertex is an angle: the non-luminary orb for every planet, the
+  // angleAspects.ts convention.
+  const limit = DEFAULT_ORBS.default;
+  for (const p of placements) {
+    const sep = separation(p.longitude, vertexLon);
+    if (sep <= limit) {
+      out.push({ planet: p.planet, type: "conjunction", orb: sep });
+    } else if (180 - sep <= limit) {
+      out.push({ planet: p.planet, type: "opposition", orb: 180 - sep });
+    }
+  }
+  return out.sort((x, y) => x.orb - y.orb);
+}
+
 export interface SynastryData {
   a: SynastrySide;
   b: SynastrySide;
@@ -56,6 +112,8 @@ export interface SynastryData {
    *  inner wheel); sorted by orb ascending (tightest first). */
   aspects: CrossAspect[];
   angleContacts: SynastryAngleContacts;
+  /** Planets on the other chart's Vertex axis. */
+  vertexContacts: SynastryVertexContacts;
   /** Midpoint composite — the relationship's own chart. */
   composite: CompositeView;
   /** Davison chart — the real sky at the pair's time/space midpoint. */
@@ -224,11 +282,19 @@ export function computeSynastry(
       ? byOrb(detectAngleAspects(b.chart.placements, a.chart.houses, DEFAULT_ORBS))
       : [],
   };
+  const aVertex = chartVertex(a.chart);
+  const bVertex = chartVertex(b.chart);
   return {
     a: toSide(a, b.chart),
     b: toSide(b, a.chart),
     aspects,
     angleContacts,
+    vertexContacts: {
+      aVertex,
+      bVertex,
+      aOnB: vertexContactsTo(a.chart.placements, bVertex),
+      bOnA: vertexContactsTo(b.chart.placements, aVertex),
+    },
     composite: computeComposite(a.chart, b.chart),
     davison: computeDavison(a.chart, b.chart),
   };

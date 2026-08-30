@@ -31,6 +31,10 @@ export const POINT_GLYPH_CHARS: Record<PointName, string> = {
   // No standard Unicode glyph exists for Spirit; the circled asterisk is the
   // customary substitute (a lamp to Fortune's wheel).
   part_of_spirit: "⊛",
+  // Vertex and East Point likewise have no Unicode glyphs; the customary
+  // two-letter abbreviations stand in.
+  vertex: "Vx",
+  east_point: "EP",
 };
 
 export const SIGN_GLYPH_CHARS: Record<Sign, string> = {

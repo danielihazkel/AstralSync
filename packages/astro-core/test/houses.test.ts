@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  ascendant,
+  eastPoint,
+  vertex,
   angleDiff,
   buildChart,
   equalHouses,
@@ -71,5 +74,146 @@ describe("house systems", () => {
     expect(houseOf(10, cusps)).toBe(1);
     expect(houseOf(25, cusps)).toBe(2);
     expect(houseOf(349, cusps)).toBe(12);
+  });
+});
+
+describe("quadrant house systems (Batch O)", () => {
+  const base = {
+    utc: new Date(Date.UTC(1990, 5, 15, 14, 30, 0)),
+    latitude: 40.7,
+    longitude: -74.0,
+  };
+  const systems = [
+    "porphyry",
+    "koch",
+    "regiomontanus",
+    "campanus",
+    "alcabitius",
+  ] as const;
+
+  for (const system of systems) {
+    it(`${system}: angles anchored, cusps ordered, opposites exact`, () => {
+      const chart = buildChart({ ...base, houseSystem: system });
+      const h = chart.houses!;
+      expect(h.system).toBe(system);
+      expect(h.fallbackApplied).toBe(false);
+      expect(Math.abs(angleDiff(h.cusps[0], h.ascendant))).toBeLessThan(1e-6);
+      expect(Math.abs(angleDiff(h.cusps[9], h.mc))).toBeLessThan(1e-6);
+      let total = 0;
+      for (let i = 0; i < 12; i++) {
+        const gap = norm360(h.cusps[(i + 1) % 12] - h.cusps[i]);
+        expect(gap).toBeGreaterThan(0);
+        total += gap;
+      }
+      expect(total).toBeCloseTo(360, 6);
+      for (let i = 0; i < 6; i++) {
+        expect(
+          Math.abs(angleDiff(h.cusps[i + 6], h.cusps[i] + 180)),
+        ).toBeLessThan(1e-6);
+      }
+    });
+  }
+
+  it("every quadrant system agrees at the equator (AD vanishes)", () => {
+    const reference = buildChart({
+      ...base,
+      latitude: 0,
+      houseSystem: "placidus",
+    }).houses!;
+    for (const system of ["koch", "regiomontanus", "campanus", "alcabitius"] as const) {
+      const h = buildChart({ ...base, latitude: 0, houseSystem: system }).houses!;
+      for (let i = 0; i < 12; i++) {
+        expect
+          .soft(Math.abs(angleDiff(h.cusps[i], reference.cusps[i])))
+          .toBeLessThan(1e-6);
+      }
+    }
+  });
+
+  it("porphyry trisects the ecliptic quadrants exactly", () => {
+    const h = buildChart({ ...base, houseSystem: "porphyry" }).houses!;
+    const upper = norm360(h.ascendant - h.mc);
+    expect(Math.abs(angleDiff(h.cusps[10], h.mc + upper / 3))).toBeLessThan(1e-9);
+    expect(
+      Math.abs(angleDiff(h.cusps[1], h.ascendant + (180 - upper) / 3)),
+    ).toBeLessThan(1e-9);
+  });
+
+  it("koch falls back to Whole Sign when the MC degree is circumpolar", () => {
+    const chart = buildChart({ ...base, latitude: 78, houseSystem: "koch" });
+    expect(chart.houses!.system).toBe("whole_sign");
+    expect(chart.houses!.fallbackApplied).toBe(true);
+  });
+
+  it("alcabitius stays defined at high latitude (the rising degree is never circumpolar)", () => {
+    const chart = buildChart({
+      ...base,
+      latitude: 78,
+      houseSystem: "alcabitius",
+    });
+    const h = chart.houses!;
+    expect(h.system).toBe("alcabitius");
+    expect(h.fallbackApplied).toBe(false);
+    let total = 0;
+    for (let i = 0; i < 12; i++) {
+      total += norm360(h.cusps[(i + 1) % 12] - h.cusps[i]);
+    }
+    expect(total).toBeCloseTo(360, 6);
+  });
+
+  it("porphyry never falls back", () => {
+    const chart = buildChart({ ...base, latitude: 78, houseSystem: "porphyry" });
+    expect(chart.houses!.system).toBe("porphyry");
+    expect(chart.houses!.fallbackApplied).toBe(false);
+  });
+});
+
+describe("vertex and east point", () => {
+  // Mid-latitude test instant; RAMC arbitrary.
+  const eps = 23.4368;
+
+  it("the vertex lies on the prime vertical, west of the meridian", () => {
+    for (const [ramc, lat] of [
+      [123.4, 51.48],
+      [10, 40.7],
+      [300, -35],
+      [222, -10],
+    ] as const) {
+      const vx = vertex(ramc, lat, eps);
+      // Equatorial direction of the ecliptic point at longitude vx.
+      const l = vx * (Math.PI / 180);
+      const e = eps * (Math.PI / 180);
+      const dir = {
+        x: Math.cos(l),
+        y: Math.sin(l) * Math.cos(e),
+        z: Math.sin(l) * Math.sin(e),
+      };
+      // Prime vertical plane normal: zenith × east point.
+      const r = ramc * (Math.PI / 180);
+      const f = lat * (Math.PI / 180);
+      const zenith = {
+        x: Math.cos(f) * Math.cos(r),
+        y: Math.cos(f) * Math.sin(r),
+        z: Math.sin(f),
+      };
+      const east = { x: -Math.sin(r), y: Math.cos(r), z: 0 };
+      const n = {
+        x: zenith.y * east.z - zenith.z * east.y,
+        y: zenith.z * east.x - zenith.x * east.z,
+        z: zenith.x * east.y - zenith.y * east.x,
+      };
+      const dot = n.x * dir.x + n.y * dir.y + n.z * dir.z;
+      expect(Math.abs(dot)).toBeLessThan(1e-9);
+      // Western half: the point's projection on the east direction is negative.
+      const eastness = east.x * dir.x + east.y * dir.y + east.z * dir.z;
+      expect(eastness).toBeLessThan(0);
+    }
+  });
+
+  it("the east point is the equatorial ascendant", () => {
+    const ramc = 123.4;
+    expect(
+      Math.abs(angleDiff(eastPoint(ramc, eps), ascendant(ramc, 0, eps))),
+    ).toBeLessThan(1e-9);
   });
 });

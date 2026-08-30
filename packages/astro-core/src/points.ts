@@ -20,7 +20,9 @@ export type PointName =
   | "south_node"
   | "lilith"
   | "part_of_fortune"
-  | "part_of_spirit";
+  | "part_of_spirit"
+  | "vertex"
+  | "east_point";
 export type NodeVariant = "mean" | "true";
 
 export interface PointPlacement {

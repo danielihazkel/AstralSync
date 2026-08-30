@@ -1,4 +1,12 @@
-export type HouseSystem = "placidus" | "whole_sign" | "equal";
+export type HouseSystem =
+  | "placidus"
+  | "whole_sign"
+  | "equal"
+  | "porphyry"
+  | "koch"
+  | "regiomontanus"
+  | "campanus"
+  | "alcabitius";
 export type TimeCertainty = "exact" | "approx" | "unknown";
 
 export type Planet =

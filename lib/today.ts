@@ -19,6 +19,7 @@ import {
   type PlanetaryHourResult,
 } from "@astralsync/hebrew-core";
 import * as Astronomy from "astronomy-engine";
+import { lunarMansion, type LunarMansion } from "./lunarMansions";
 import { moonPhaseName } from "./moonPhase";
 
 /**
@@ -74,6 +75,8 @@ export interface TodaySky {
     /** Non-null while the Moon is void of course (no further exact major
      *  aspect before it leaves its sign). */
     voidOfCourse: MoonVoidOfCourse | null;
+    /** The lunar mansion (manzil) holding the Moon. */
+    mansion: LunarMansion;
   };
   /** Planets flipping direction within the next week. */
   stations: StationAlert[];
@@ -334,6 +337,7 @@ export function computeToday(
         atUtc: quarter.time.date.toISOString(),
       },
       voidOfCourse: computeVoidOfCourse(now),
+      mansion: lunarMansion(moonPlacement.longitude),
     },
     stations: computeStations(now),
     eclipses: upcomingEclipses(now, 35),

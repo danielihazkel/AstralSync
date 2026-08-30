@@ -8,6 +8,7 @@ import {
   type Planet,
   type Sign,
 } from "@astralsync/astro-core";
+import { lunarMansion, type LunarMansion } from "./lunarMansions";
 import { moonPhaseFromLongitudes } from "./moonPhase";
 import { computeMoonMonthCached, type MoonDayCell } from "./skyCalendar";
 
@@ -31,6 +32,8 @@ export interface AlmanacDay {
   /** Phase name at local noon ("Waxing Gibbous" — illumination alone cannot
    *  tell waxing from waning). */
   phaseName: string;
+  /** The lunar mansion holding the noon Moon. */
+  mansion: LunarMansion;
   /** Planet-to-planet aspects perfecting this day, Moon excluded (lunar
    *  aspects are the void-of-course story). */
   mundane: Array<{ a: Planet; b: Planet; angle: number; utc: string }>;
@@ -73,13 +76,15 @@ export function computeAlmanacDay(dateStr: string): AlmanacDay {
     planets: NON_MOON,
   }).map((h) => ({ a: h.a, b: h.b, angle: h.angle, utc: h.utc.toISOString() }));
 
+  const moonNoonLon = astronomyEngineProvider.eclipticLongitude("moon", noon);
   return {
     date: dateStr,
     moon,
     phaseName: moonPhaseFromLongitudes(
       astronomyEngineProvider.eclipticLongitude("sun", noon),
-      astronomyEngineProvider.eclipticLongitude("moon", noon),
+      moonNoonLon,
     ),
+    mansion: lunarMansion(moonNoonLon),
     mundane,
     ingresses,
     stations,

@@ -31,6 +31,11 @@ const HOUSE_SYSTEM_LABEL: Record<HouseSystem, string> = {
   placidus: "Placidus",
   whole_sign: "Whole Sign",
   equal: "Equal House",
+  porphyry: "Porphyry",
+  koch: "Koch",
+  regiomontanus: "Regiomontanus",
+  campanus: "Campanus",
+  alcabitius: "Alcabitius",
 };
 
 const CERTAINTY_LABEL = {

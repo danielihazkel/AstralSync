@@ -163,7 +163,10 @@ export default function AlmanacPanel({ date }: { date: string }) {
               </span>{" "}
               Moon in {SIGN_NAMES[almanac.moon.signAtNoon]} at noon ·{" "}
               {almanac.phaseName},{" "}
-              {Math.round(almanac.moon.illumination * 100)}% illuminated.
+              {Math.round(almanac.moon.illumination * 100)}% illuminated ·
+              mansion {almanac.mansion.index}, {almanac.mansion.name} (
+              {almanac.mansion.meaning}) — the tradition gives it to{" "}
+              {almanac.mansion.goodFor}.
             </p>
             <ul className={styles.eventList}>
               {almanac.moon.quarter && (
