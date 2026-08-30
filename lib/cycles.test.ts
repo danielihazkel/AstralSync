@@ -1,6 +1,7 @@
 import { buildChart, separation } from "@astralsync/astro-core";
 import { describe, expect, it } from "vitest";
 import {
+  computeTertiaryProgressions,
   computeCycles,
   computeLunarReturn,
   computePlanetaryReturn,
@@ -389,5 +390,48 @@ describe("computeCycles", () => {
   it("is deterministic for a fixed instant", () => {
     const at = new Date(Date.UTC(2026, 7, 13));
     expect(computeCycles(NATAL, 1, at)).toEqual(computeCycles(NATAL, 1, at));
+  });
+});
+
+describe("computeTertiaryProgressions", () => {
+  it("advances one day per tropical month and reads natal contacts", () => {
+    const at = new Date(Date.UTC(2026, 7, 13));
+    const t = computeTertiaryProgressions(NATAL, at);
+    const natalUtc = new Date(NATAL.input.utc);
+    const ageDays = (at.getTime() - natalUtc.getTime()) / 86_400_000;
+    expect(t.ageMonths).toBeCloseTo(ageDays / 27.321582, 3);
+    const offsetDays =
+      (Date.parse(t.progressedUtc) - natalUtc.getTime()) / 86_400_000;
+    expect(offsetDays).toBeCloseTo(t.ageMonths, 6);
+    expect(t.placements).toHaveLength(10);
+    // Sorted by orb, never wider than the default transit orbs.
+    for (let i = 1; i < t.crossAspects.length; i++) {
+      expect(t.crossAspects[i].orb).toBeGreaterThanOrEqual(t.crossAspects[i - 1].orb);
+    }
+    for (const c of t.crossAspects) expect(c.orb).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("computeProgressedLunation", () => {
+  it("names the phase and maps the turning points back to real time", () => {
+    const natalUtc = new Date(NATAL.input.utc);
+    const at = new Date(Date.UTC(2026, 7, 13));
+    const prog = computeProgressions(NATAL, at);
+    const l = prog.lunation;
+    expect(l.phaseDeg).toBeGreaterThanOrEqual(0);
+    expect(l.phaseDeg).toBeLessThan(360);
+    expect(l.waxing).toBe(l.phaseDeg < 180);
+    // Turning points are ordered and span decades, not days: the last New
+    // Moon precedes now, the next Full/New follow, ~15/30 years apart.
+    const last = Date.parse(l.lastNewMoonUtc);
+    const nextNew = Date.parse(l.nextNewMoonUtc);
+    const nextFull = Date.parse(l.nextFullMoonUtc);
+    expect(last).toBeLessThanOrEqual(at.getTime());
+    expect(nextNew).toBeGreaterThan(at.getTime());
+    expect(nextFull).toBeGreaterThan(at.getTime());
+    const years = (nextNew - last) / (365.2425 * 86_400_000);
+    expect(years).toBeGreaterThan(28);
+    expect(years).toBeLessThan(31);
+    expect(last).toBeGreaterThan(natalUtc.getTime() - 31 * 365.25 * 86_400_000);
   });
 });

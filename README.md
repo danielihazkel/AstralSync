@@ -93,9 +93,12 @@ picker.
   aspect chords, retrograde markers, plus the calculated points (lunar nodes
   true/mean, Lilith, Part of Fortune) and an optional dashed overlay of tight
   minor aspects. Detected **chart patterns** (stelliums, grand trines,
-  t-squares, grand crosses, yods) are listed under the wheel. A **Wheel |
-  Table** switch renders the same data as accessible placement and aspect
-  tables. The wheel downloads as SVG or PNG — and shares directly on devices
+  t-squares, grand crosses, yods) are listed under the wheel, followed by a
+  **Shape & balance** card: the Jones chart shape (bundle, bowl, bucket,
+  locomotive, seesaw, splay, splash), hemisphere emphasis, missing or weak
+  elements and modalities, the dispositor tree (final dispositor, mutual
+  receptions) and a house-rulers table. A **Wheel | Table** switch renders
+  the same data as accessible placement and aspect tables. The wheel downloads as SVG or PNG — and shares directly on devices
   where the Web Share API accepts files.
 - **Reading** — interpretation assembled from the in-repo content library:
   all ten planets in sign and house (the outer planets grouped as the
@@ -112,10 +115,15 @@ picker.
 - **Transits** — live positions against the natal chart with per-aspect
   prose, a transit bi-wheel, and adjustable orbs (see settings below); a
   **Calendar** view lists exact perfection dates, ingresses, stations, and
-  eclipses over any range up to three months, exportable as an `.ics` file.
+  eclipses over any range up to three months, exportable as an `.ics` file;
+  a **Graph** view draws each contact's in-orb window across the month
+  (entry → exact → exit, retrograde passes tagged) as a timeline per natal
+  planet.
 - **Cycles** — the annual profection (year lord), secondary progressions
   (against the natal wheel or as a standalone progressed chart with
-  progressed houses), the current lunar and solar return charts, and
+  progressed houses, plus the progressed lunation phase and its next
+  turning points), tertiary progressions (a day per lunar month), the
+  current lunar and solar return charts, and
   **Jupiter & Saturn returns** (last/next exact dates, retrograde multi-pass
   notes, the return chart).
 - **Forecast** — cached AI readings for the day / week / month, in a Western
@@ -153,6 +161,13 @@ to `/calendar/[date]`, a full almanac page (mundane aspects, ingresses,
 stations, planetary hours, electional windows). Months, days, and electional
 windows all export as `.ics` files with stable UIDs, so re-imports update
 instead of duplicating.
+
+### Ephemeris
+
+`/ephemeris` is a monthly table of 0h UT positions for the ten planets and
+the true North Node, with ingresses and stations marked on their days —
+computed in the browser like the Sky Calendar, so it works offline — and
+downloadable as CSV for cross-checking against a published ephemeris.
 
 ### Settings
 

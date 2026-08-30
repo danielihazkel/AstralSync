@@ -19,11 +19,12 @@ import {
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import TransitCalendarView from "./TransitCalendarView";
+import TransitGraph from "./TransitGraph";
 import TransitSearchView from "./TransitSearchView";
 import { useTabList } from "@/components/useTabList";
 import styles from "./transits.module.css";
 
-const VIEWS = ["now", "calendar", "search"] as const;
+const VIEWS = ["now", "calendar", "graph", "search"] as const;
 
 const TransitWheel = dynamic(() => import("./TransitWheel"), {
   loading: () => <WheelSkeleton />,
@@ -126,7 +127,8 @@ export default function TransitsPanel({
     >
       <button {...getTabProps(0)}>Now</button>
       <button {...getTabProps(1)}>Calendar</button>
-      <button {...getTabProps(2)}>Search</button>
+      <button {...getTabProps(2)}>Graph</button>
+      <button {...getTabProps(3)}>Search</button>
     </div>
   );
 
@@ -136,6 +138,17 @@ export default function TransitsPanel({
         {viewSwitch}
         <div {...panelProps} className={styles.tabPanel}>
           <TransitCalendarView profileId={profileId} />
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "graph") {
+    return (
+      <div className={styles.panel}>
+        {viewSwitch}
+        <div {...panelProps} className={styles.tabPanel}>
+          <TransitGraph profileId={profileId} />
         </div>
       </div>
     );

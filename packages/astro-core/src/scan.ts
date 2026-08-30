@@ -184,6 +184,53 @@ export function findAspectHits(
   }));
 }
 
+export interface OrbWindow {
+  /** When the moving body last came within `orb` before the exact hit. */
+  entryUtc: Date;
+  exactUtc: Date;
+  /** When it next leaves the orb after the exact hit. */
+  exitUtc: Date;
+  /** True when the window was cut short by the search bounds. */
+  truncated: { entry: boolean; exit: boolean };
+}
+
+/**
+ * The contiguous in-orb interval around one exact aspect hit: the last
+ * instant before `exactUtc` at which |separation − angle| crossed `orb`,
+ * and the first after. A retrograde loop that leaves and re-enters orb
+ * produces a separate window for each of its exact passes — the graph
+ * draws them as separate bars. `signedAngle` is the signed target the hit
+ * perfected (±angle; 0/180 unsigned), as `findAspectHits` reports via
+ * `ascending` plus the geometry — pass the value `angleDiff(moving, fixed)`
+ * took at the hit.
+ */
+export function findOrbWindow(
+  movingLonAt: (t: Date) => number,
+  fixedLonAt: (t: Date) => number,
+  signedAngle: number,
+  orb: number,
+  exactUtc: Date,
+  spanMs: number,
+  stepMs: number,
+): OrbWindow {
+  const sepAt = (t: Date) => angleDiff(movingLonAt(t), fixedLonAt(t));
+  const lo = new Date(exactUtc.getTime() - spanMs);
+  const hi = new Date(exactUtc.getTime() + spanMs);
+  const targets = [signedAngle - orb, signedAngle + orb];
+  const before = findLongitudeCrossings(sepAt, targets, lo, exactUtc, stepMs);
+  const after = findLongitudeCrossings(sepAt, targets, exactUtc, hi, stepMs);
+  // The exact instant itself sits between the two edge targets, so the
+  // nearest crossings on either side bound the window.
+  const entry = before.length > 0 ? before[before.length - 1].utc : lo;
+  const exit = after.find((h) => h.utc.getTime() > exactUtc.getTime())?.utc ?? hi;
+  return {
+    entryUtc: entry,
+    exactUtc,
+    exitUtc: exit,
+    truncated: { entry: before.length === 0, exit: exit === hi },
+  };
+}
+
 export interface MundaneAspectHit {
   /** The faster body of the pair (by mean geocentric motion). */
   a: Planet;

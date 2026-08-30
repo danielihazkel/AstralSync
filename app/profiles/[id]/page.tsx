@@ -19,6 +19,7 @@ import {
   type Planet,
 } from "@astralsync/astro-core";
 import { buildAspectMotion } from "@/lib/aspectMotion";
+import { computeChartStats } from "@/lib/chartStats";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
@@ -234,6 +235,9 @@ export default async function ProfilePage({
         chart={chart}
         points={points}
         patterns={detectPatterns(chart.placements)}
+        // Shape, hemispheres, balance, dispositors, house rulers — read-time
+        // like the patterns, from the stored placements and cusps.
+        stats={computeChartStats(chart.placements, chart.houses)}
         // Read-time overlay with fixed tight orbs (2°) — never stored, and
         // deliberately not orb-configurable so SSR output stays stable.
         minorAspects={minorAspects}

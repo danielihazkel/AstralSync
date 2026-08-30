@@ -20,6 +20,20 @@ const canned = {
     placements: [],
     crossAspects: [],
     chart: {} as CyclesData["solarReturn"]["chart"],
+    lunation: {
+      phaseDeg: 95,
+      phaseName: "Waxing Gibbous",
+      waxing: true,
+      lastNewMoonUtc: "2018-01-01T00:00:00.000Z",
+      nextNewMoonUtc: "2047-06-01T00:00:00.000Z",
+      nextFullMoonUtc: "2033-03-01T00:00:00.000Z",
+    },
+  },
+  tertiary: {
+    progressedUtc: "1991-06-01T10:30:00.000Z",
+    ageMonths: 486.2,
+    placements: [],
+    crossAspects: [],
   },
   solarArc: {
     arcDegrees: 36.4,

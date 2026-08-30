@@ -371,6 +371,32 @@ export default function CyclesPanel({
           moonReason={moonReason}
         />
 
+        <h4 className={styles.sectionTitle}>Progressed lunation phase</h4>
+        <p className={styles.muted}>
+          <strong>{progressions.lunation.phaseName}</strong> (
+          {Math.round(progressions.lunation.phaseDeg)}° of the progressed
+          Sun–Moon cycle, {progressions.lunation.waxing ? "waxing" : "waning"}
+          ). This ~29½-year cycle began at the progressed New Moon of{" "}
+          {new Date(progressions.lunation.lastNewMoonUtc).toLocaleDateString(
+            [],
+            { year: "numeric", month: "short" },
+          )}
+          ; the next progressed{" "}
+          {progressions.lunation.waxing ? "Full" : "New"} Moon falls around{" "}
+          {new Date(
+            progressions.lunation.waxing
+              ? progressions.lunation.nextFullMoonUtc
+              : progressions.lunation.nextNewMoonUtc,
+          ).toLocaleDateString([], { year: "numeric", month: "short" })}
+          {progressions.lunation.waxing
+            ? `, the next New Moon around ${new Date(progressions.lunation.nextNewMoonUtc).toLocaleDateString([], { year: "numeric", month: "short" })}`
+            : ""}
+          . New Moon phases seed a chapter, Full Moons bring it to light,
+          the waning half digests it.
+          {data.natal.moonUncertain &&
+            " The natal Moon is uncertain (birth time), so these dates are approximate."}
+        </p>
+
         <Prose entry={data.prose?.progressedSun} />
         <Prose entry={data.prose?.progressedAsc} />
 
@@ -390,6 +416,52 @@ export default function CyclesPanel({
                   {PLANET_GLYPH_CHARS[c.a] + "︎"}
                 </span>
                 Progressed {PLANET_NAMES[c.a]}{" "}
+                {ASPECT_NAMES[c.type].toLowerCase()} natal{" "}
+                <span className={styles.glyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[c.b] + "︎"}
+                </span>
+                {PLANET_NAMES[c.b]}
+                <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
+                {c.b === "moon" && data.natal.moonUncertain && (
+                  <UncertaintyBadge reason={moonReason} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-label="Tertiary progressions">
+        <h3 className={styles.sectionTitle}>
+          Tertiary progressions — lunar month {Math.floor(data.tertiary.ageMonths)}
+        </h3>
+        <p className={styles.muted}>
+          A day for each lunar month of life (progressed date{" "}
+          {new Date(data.tertiary.progressedUtc).toLocaleDateString()}): the
+          tertiary Moon covers about a degree a day, so this layer times the
+          weeks and months where the secondary progressions time the years.
+        </p>
+        <TransitPositionsTable
+          placements={data.tertiary.placements}
+          showHouses={showHouses}
+          positionHeader="Tertiary position"
+          moonUncertain={data.natal.moonUncertain}
+          moonReason={moonReason}
+        />
+        {data.tertiary.crossAspects.length === 0 ? (
+          <p className={styles.muted}>
+            No tertiary planet is within orb of a natal placement right now
+            (current orbs: {orbs?.luminary ?? 3}° for the luminaries,{" "}
+            {orbs?.default ?? 2}° otherwise).
+          </p>
+        ) : (
+          <ul className={styles.aspectList}>
+            {data.tertiary.crossAspects.map((c, i) => (
+              <li key={`${c.a}-${c.b}-${c.type}-${i}`}>
+                <span className={styles.glyph} aria-hidden="true">
+                  {PLANET_GLYPH_CHARS[c.a] + "︎"}
+                </span>
+                Tertiary {PLANET_NAMES[c.a]}{" "}
                 {ASPECT_NAMES[c.type].toLowerCase()} natal{" "}
                 <span className={styles.glyph} aria-hidden="true">
                   {PLANET_GLYPH_CHARS[c.b] + "︎"}

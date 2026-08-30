@@ -6,6 +6,7 @@ import {
   findIngresses,
   findLongitudeCrossings,
   findMundaneAspects,
+  findOrbWindow,
   findStations,
   separation,
 } from "../src";
@@ -248,5 +249,58 @@ describe("findMundaneAspects", () => {
         hits[i - 1].utc.getTime(),
       );
     }
+  });
+});
+
+describe("findOrbWindow", () => {
+  it("brackets a linear crossing symmetrically", () => {
+    // A body moving 1°/day through a fixed 100° target: exact conjunction
+    // at day 10; a 3° orb opens at day 7 and closes at day 13.
+    const t0 = utc(2030, 1, 1);
+    const lonAt = (t: Date) => 90 + (t.getTime() - t0.getTime()) / DAY_MS;
+    const exact = new Date(t0.getTime() + 10 * DAY_MS);
+    const w = findOrbWindow(lonAt, () => 100, 0, 3, exact, 30 * DAY_MS, DAY_MS);
+    expect((w.entryUtc.getTime() - t0.getTime()) / DAY_MS).toBeCloseTo(7, 3);
+    expect((w.exitUtc.getTime() - t0.getTime()) / DAY_MS).toBeCloseTo(13, 3);
+    expect(w.truncated).toEqual({ entry: false, exit: false });
+  });
+
+  it("flags truncation when the span is too short", () => {
+    const t0 = utc(2030, 1, 1);
+    const lonAt = (t: Date) => 90 + (t.getTime() - t0.getTime()) / DAY_MS;
+    const exact = new Date(t0.getTime() + 10 * DAY_MS);
+    const w = findOrbWindow(lonAt, () => 100, 0, 3, exact, 2 * DAY_MS, DAY_MS);
+    expect(w.truncated).toEqual({ entry: true, exit: true });
+    expect(w.entryUtc.getTime()).toBe(exact.getTime() - 2 * DAY_MS);
+  });
+
+  it("handles the opposition wrap and a real Sun transit", () => {
+    // Sun opposite a fixed 0° Aries point: exact near the September equinox.
+    const hits = findAspectHits(
+      (t) => eph.eclipticLongitude("sun", t),
+      () => 0,
+      [180],
+      utc(2024, 9, 1),
+      utc(2024, 10, 15),
+      DAY_MS,
+    );
+    expect(hits).toHaveLength(1);
+    const w = findOrbWindow(
+      (t) => eph.eclipticLongitude("sun", t),
+      () => 0,
+      180,
+      3,
+      hits[0].utc,
+      20 * DAY_MS,
+      DAY_MS,
+    );
+    // The Sun covers 3° in ~3 days on either side.
+    const before = (hits[0].utc.getTime() - w.entryUtc.getTime()) / DAY_MS;
+    const after = (w.exitUtc.getTime() - hits[0].utc.getTime()) / DAY_MS;
+    expect(before).toBeGreaterThan(2.8);
+    expect(before).toBeLessThan(3.3);
+    expect(after).toBeGreaterThan(2.8);
+    expect(after).toBeLessThan(3.3);
+    expect(w.truncated).toEqual({ entry: false, exit: false });
   });
 });

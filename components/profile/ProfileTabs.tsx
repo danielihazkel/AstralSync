@@ -23,6 +23,8 @@ import dynamic from "next/dynamic";
 import type { ChartPoints } from "@/components/chart/ChartWheel";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import ChartPatterns from "@/components/chart/ChartPatterns";
+import ChartStats from "@/components/chart/ChartStats";
+import type { ChartStats as ChartStatsData } from "@/lib/chartStats";
 
 // The SVG wheel is the tab's heaviest component — split it out so the other
 // eight tabs don't pay for it.
@@ -51,6 +53,7 @@ export default function ProfileTabs({
   chart,
   points = null,
   patterns = [],
+  stats = null,
   minorAspects = null,
   angleAspects = null,
   declinations = null,
@@ -70,6 +73,7 @@ export default function ProfileTabs({
   chart: WheelChart;
   points?: ChartPoints | null;
   patterns?: ChartPattern[];
+  stats?: ChartStatsData | null;
   minorAspects?: Aspect[] | null;
   angleAspects?: AngleAspect[] | null;
   declinations?: {
@@ -133,6 +137,7 @@ export default function ProfileTabs({
             downloadName={`${profile.displayName} chart`}
           />
           <ChartPatterns patterns={patterns} />
+          {stats && <ChartStats stats={stats} />}
         </div>
       )}
       {tab === "Reading" && (

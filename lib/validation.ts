@@ -304,6 +304,32 @@ export const transitCalendarQuerySchema = z
 
 export type TransitCalendarQuery = z.infer<typeof transitCalendarQuerySchema>;
 
+/** GET /api/transits/[id]/graph query: the calendar range plus the orb
+ *  params of the transit query (in-orb windows need orbs, unlike the exact
+ *  hits of the calendar). */
+export const transitGraphQuerySchema = z
+  .object({
+    from: civilDateString,
+    to: civilDateString,
+    minors: z.enum(["1", "0"]).optional(),
+    luminaryOrb: orbParam.optional(),
+    defaultOrb: orbParam.optional(),
+    minorOrb: orbParam.optional(),
+  })
+  .refine((v) => v.from <= v.to, { message: "from must not be after to" })
+  .refine(
+    (v) =>
+      Date.parse(`${v.to}T00:00:00Z`) - Date.parse(`${v.from}T00:00:00Z`) <=
+      93 * 86_400_000,
+    { message: "range must not exceed 93 days" },
+  )
+  .refine(
+    (v) => v.from >= "1700-01-01" && v.to <= "2200-12-31",
+    { message: "range must fall within 1700–2200" },
+  );
+
+export type TransitGraphQuery = z.infer<typeof transitGraphQuerySchema>;
+
 /** Literal copies of the astro-core vocabularies (this module is imported
  *  client-side, so no value imports of the ephemeris-bearing package); the
  *  `satisfies` clauses keep them honest against the real types. */

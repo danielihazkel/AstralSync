@@ -78,6 +78,7 @@ export {
   findAspectHits,
   findMundaneAspects,
   findStations,
+  findOrbWindow,
   PLANET_SCAN_STEP_MS,
 } from "./scan";
 export type {
@@ -86,6 +87,7 @@ export type {
   AspectHit,
   MundaneAspectHit,
   StationEvent,
+  OrbWindow,
 } from "./scan";
 export type { EphemerisProvider } from "./ephemeris/interface";
 export { astronomyEngineProvider } from "./ephemeris/astronomyEngine";

@@ -25,6 +25,7 @@ import {
 } from "@astralsync/astro-core";
 import * as Astronomy from "astronomy-engine";
 import { prisma } from "./db";
+import { moonPhaseName } from "./moonPhase";
 import type { TransitOptions } from "./transits";
 import type { StoredChart, WheelChart } from "./view-types";
 
@@ -38,6 +39,9 @@ import type { StoredChart, WheelChart } from "./view-types";
 const DAY_MS = 86_400_000;
 /** Mean tropical year in days — the day-for-a-year progression rate. */
 const TROPICAL_YEAR_DAYS = 365.2425;
+/** Mean tropical month in days — the day-for-a-lunar-month rate of
+ *  tertiary progressions (Troinski's convention). */
+const TROPICAL_MONTH_DAYS = 27.321582;
 
 export interface CyclesData {
   /** ISO instant the cycles were computed for (the `at` param or now). */
@@ -64,6 +68,19 @@ export interface CyclesData {
      *  later). Houses are null when the natal chart is solar — the
      *  progressed instant inherits the birth time's uncertainty. */
     chart: WheelChart;
+    /** The progressed Sun–Moon cycle: phase now and its next turning points
+     *  in real time (a progressed lunation lasts ~29½ years). */
+    lunation: ProgressedLunation;
+  };
+  /** Tertiary progressions — a day for each lunar month of life, so the
+   *  tertiary Moon moves ~1° per real day: a month-scale timing layer. */
+  tertiary: {
+    progressedUtc: string;
+    /** Lunar months of age at computedAt. */
+    ageMonths: number;
+    placements: Placement[];
+    /** Tertiary (a) vs natal (b), sorted by orb ascending. */
+    crossAspects: CrossAspect[];
   };
   solarArc: {
     /** Progressed-Sun minus natal-Sun longitude, degrees (~1°/year of age). */
@@ -162,6 +179,97 @@ export interface CyclesProse {
   solarArc?: CyclesEntryProse;
 }
 
+export interface ProgressedLunation {
+  /** Progressed Moon − progressed Sun, degrees [0, 360). */
+  phaseDeg: number;
+  /** "Waxing Gibbous" etc. — the natal/transit naming bands. */
+  phaseName: string;
+  waxing: boolean;
+  /** Real-time ISO instants: the last progressed New Moon (the current
+   *  ~29½-year cycle's start) and the next New and Full Moons. */
+  lastNewMoonUtc: string;
+  nextNewMoonUtc: string;
+  nextFullMoonUtc: string;
+}
+
+/** Progressed offset in days ↔ real elapsed time: one ephemeris day per
+ *  tropical year. */
+function realFromProgressed(natalUtc: Date, progressedUtc: Date): Date {
+  const offsetDays = (progressedUtc.getTime() - natalUtc.getTime()) / DAY_MS;
+  return new Date(natalUtc.getTime() + offsetDays * TROPICAL_YEAR_DAYS * DAY_MS);
+}
+
+/**
+ * Pure: the progressed lunation phase at `progressedUtc` and its turning
+ * points. The scan runs in progressed time (a ~30-progressed-day window
+ * covers ~30 real years) and maps the hits back to real dates.
+ */
+export function computeProgressedLunation(
+  natalUtc: Date,
+  progressedUtc: Date,
+): ProgressedLunation {
+  const eph = astronomyEngineProvider;
+  const moonAt = (t: Date) => eph.eclipticLongitude("moon", t);
+  const sunAt = (t: Date) => eph.eclipticLongitude("sun", t);
+  const phaseDeg = norm360(moonAt(progressedUtc) - sunAt(progressedUtc));
+  const step = PLANET_SCAN_STEP_MS.moon;
+  const back = findAspectHits(
+    moonAt,
+    sunAt,
+    [0],
+    new Date(progressedUtc.getTime() - 31 * DAY_MS),
+    progressedUtc,
+    step,
+  );
+  const ahead = findAspectHits(
+    moonAt,
+    sunAt,
+    [0, 180],
+    progressedUtc,
+    new Date(progressedUtc.getTime() + 31 * DAY_MS),
+    step,
+  );
+  const lastNew = back[back.length - 1]?.utc ?? progressedUtc;
+  const nextNew = ahead.find((h) => h.angle === 0)?.utc ?? progressedUtc;
+  const nextFull = ahead.find((h) => h.angle === 180)?.utc ?? progressedUtc;
+  return {
+    phaseDeg,
+    phaseName: moonPhaseName(phaseDeg),
+    waxing: phaseDeg < 180,
+    lastNewMoonUtc: realFromProgressed(natalUtc, lastNew).toISOString(),
+    nextNewMoonUtc: realFromProgressed(natalUtc, nextNew).toISOString(),
+    nextFullMoonUtc: realFromProgressed(natalUtc, nextFull).toISOString(),
+  };
+}
+
+/** Pure: natal chart + instant → tertiary placements and natal contacts. */
+export function computeTertiaryProgressions(
+  natal: WheelChart,
+  at: Date,
+  options: TransitOptions = {},
+): CyclesData["tertiary"] {
+  const natalUtc = new Date(natal.input.utc);
+  const ageMonths =
+    (at.getTime() - natalUtc.getTime()) / (TROPICAL_MONTH_DAYS * DAY_MS);
+  const progressedUtc = new Date(natalUtc.getTime() + ageMonths * DAY_MS);
+  const placements = overlayHouses(
+    positionsAt(progressedUtc),
+    natal.houses?.cusps ?? null,
+  );
+  const crossAspects = detectCrossAspects(
+    placements,
+    natal.placements,
+    options.orbs ?? DEFAULT_TRANSIT_ORBS,
+    options.includeMinors ? ALL_ASPECTS : MAJOR_ASPECTS,
+  ).sort((x, y) => x.orb - y.orb);
+  return {
+    progressedUtc: progressedUtc.toISOString(),
+    ageMonths,
+    placements,
+    crossAspects,
+  };
+}
+
 /** Pure: natal chart + instant → progressed placements and natal contacts. */
 export function computeProgressions(
   natal: WheelChart,
@@ -200,6 +308,7 @@ export function computeProgressions(
     placements,
     crossAspects,
     chart,
+    lunation: computeProgressedLunation(natalUtc, progressedUtc),
   };
 }
 
@@ -536,6 +645,7 @@ export function computeCycles(
       moonUncertain: natal.uncertainties.some((u) => u.field === "moon_sign"),
     },
     progressions: computeProgressions(natal, at, options),
+    tertiary: computeTertiaryProgressions(natal, at, options),
     solarArc: computeSolarArc(natal, at),
     solarReturn,
     lunarReturn: computeLunarReturn(natal, at, lrLocation),

@@ -32,6 +32,8 @@ import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import BigThree from "@/components/profile/BigThree";
 import ChartWheel from "@/components/chart/ChartWheel";
 import ChartPatterns from "@/components/chart/ChartPatterns";
+import ChartStats from "@/components/chart/ChartStats";
+import { computeChartStats } from "@/lib/chartStats";
 import Markdown from "@/components/Markdown";
 import PrintButton from "@/components/print/PrintButton";
 import styles from "./print.module.css";
@@ -146,6 +148,7 @@ export default async function PrintReportPage({
           viewOverride="wheel"
         />
         <ChartPatterns patterns={detectPatterns(chart.placements)} />
+        <ChartStats stats={computeChartStats(chart.placements, chart.houses)} />
       </section>
 
       <section className={styles.section} aria-label="Placements">

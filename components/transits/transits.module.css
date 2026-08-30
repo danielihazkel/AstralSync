@@ -141,3 +141,86 @@
   stroke: var(--accent);
   stroke-width: 0.75;
 }
+
+/* Transit time-graph (TransitGraph.tsx). Bars take the aspect palette via
+   a class on their <g>; the swatch in the legend reuses the same classes. */
+.graph {
+  width: 100%;
+  min-width: 640px;
+  height: auto;
+  font-size: 11px;
+}
+
+.gridLine {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.gridLabel {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.todayLine {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.rowLine {
+  stroke: var(--border);
+  stroke-width: 0.5;
+}
+
+.rowLabel {
+  fill: var(--text);
+  font-size: 11px;
+}
+
+.bar {
+  fill: var(--bar-color, var(--aspect-minor));
+  opacity: 0.55;
+}
+
+.exactTick {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.barLabel {
+  fill: var(--text);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.barConjunction { --bar-color: var(--aspect-conjunction); }
+.barSextile { --bar-color: var(--aspect-sextile); }
+.barSquare { --bar-color: var(--aspect-square); }
+.barTrine { --bar-color: var(--aspect-trine); }
+.barOpposition { --bar-color: var(--aspect-opposition); }
+.barMinor { --bar-color: var(--aspect-minor); }
+
+.legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin: 0.5rem 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.6rem;
+  border-radius: 2px;
+  background: var(--bar-color, var(--aspect-minor));
+  opacity: 0.7;
+}
