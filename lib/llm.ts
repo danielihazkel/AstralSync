@@ -794,8 +794,9 @@ export interface PersonalContext {
  * The shared personal sections, in prompt order: birth data always,
  * numerology when present, life events only when any exist — an empty
  * event list simply omits its section, it never gates generation.
+ * Exported for lib/chat.ts, whose system prompt carries the same context.
  */
-function renderPersonalSections(
+export function renderPersonalSections(
   personal: PersonalContext,
 ): [birth: string, numerology: string, events: string] {
   return [

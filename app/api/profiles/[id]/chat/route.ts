@@ -8,7 +8,9 @@ import {
   CHAT_MAX_TURNS,
 } from "@/lib/chat";
 import { createChatLimiter } from "@/lib/chatLimiter";
+import { listLifeEvents } from "@/lib/lifeEvents";
 import { llmClientFromEnv } from "@/lib/llm";
+import { birthDataFromProfile } from "@/lib/promptData";
 import { getProfileView } from "@/lib/snapshots";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
 import { chatSchema } from "@/lib/validation";
@@ -112,9 +114,16 @@ export async function POST(
     );
   }
 
+  // Full personal context (personal-data policy, lib/promptData.ts): birth
+  // data, numerology, and any recorded life events.
+  const events = (await listLifeEvents(id)) ?? [];
   const system = buildChatSystemPrompt(
     toWheelChart(view.astro),
-    toNumeroDerivation(view.numero),
+    {
+      birth: birthDataFromProfile(view.profile),
+      numerology: toNumeroDerivation(view.numero),
+      events,
+    },
     view.hebrew
       ? {
           mazal: toStoredMazal(view.hebrew),

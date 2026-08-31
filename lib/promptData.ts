@@ -28,8 +28,9 @@ import type {
  * interpret.
  *
  * Personal-data policy (explicit user decision, Aug 2026): every personal
- * reading and forecast prompt — natal reading, Mazal reading, Life Story,
- * western and Hebrew forecasts — includes the person's raw birth date,
+ * reading, forecast, and chat prompt — natal reading, Mazal reading, Life
+ * Story, western and Hebrew forecasts, and the reading chat (lib/chat.ts)
+ * — includes the person's raw birth date,
  * time and place (renderBirthData) and their recorded life events
  * (renderLifeEventsData) alongside the complete chart and numerology data.
  * The raw chart/mazal `input` (UTC instant, machine coordinates) is still

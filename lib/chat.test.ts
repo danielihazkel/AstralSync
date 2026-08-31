@@ -7,7 +7,7 @@ import {
   CHAT_MAX_MESSAGE_CHARS,
   CHAT_MAX_TURNS,
 } from "./chat";
-import type { ChatMessage } from "./llm";
+import type { ChatMessage, PersonalContext } from "./llm";
 import type { NumeroDerivation, WheelChart } from "./view-types";
 
 const BIRTH_UTC = new Date(Date.UTC(1990, 2, 4, 10, 30, 0));
@@ -30,8 +30,32 @@ const numero = {
   soulUrge: null,
 } as unknown as NumeroDerivation;
 
+// The personal context every personal prompt carries (personal-data
+// policy, lib/promptData.ts header).
+const personal: PersonalContext = {
+  birth: {
+    birthDate: "1990-03-04",
+    birthTime: "12:30",
+    timeCertainty: "exact",
+    placeLabel: "Tel Aviv, 05, IL",
+    birthLat: 32.109,
+    birthLng: 34.855,
+    tzIana: "Asia/Jerusalem",
+  },
+  numerology: numero,
+  events: [
+    {
+      title: "Moved abroad",
+      eventDate: "2015-07-01",
+      precision: "month",
+      category: "relocation",
+      notesMd: null,
+    },
+  ],
+};
+
 describe("buildChatSystemPrompt", () => {
-  const prompt = buildChatSystemPrompt(chart, numero, null, "Stored reading text.");
+  const prompt = buildChatSystemPrompt(chart, personal, null, "Stored reading text.");
 
   it("carries the chart data, numerology, and the stored reading", () => {
     expect(prompt).toContain("## Complete chart data");
@@ -40,11 +64,27 @@ describe("buildChatSystemPrompt", () => {
     expect(prompt).toContain("Answer questions about this chart");
   });
 
-  it("never leaks the birth instant or coordinates", () => {
-    // The same privacy contract as the reading prompts (lib/llm.test.ts).
-    expect(prompt).not.toContain("1990-03-04");
-    expect(prompt).not.toContain("32.109");
-    expect(prompt).not.toContain("34.855");
+  it("includes the personal context; never the raw chart input instant", () => {
+    // The same personal-data policy as the reading prompts (lib/llm.test.ts).
+    expect(prompt).toContain("## Birth data");
+    expect(prompt).toContain("Birth date: March 4, 1990");
+    expect(prompt).toContain("Birth time: 12:30 (exact)");
+    expect(prompt).toContain("Tel Aviv, 05, IL");
+    expect(prompt).toContain("## Life events");
+    expect(prompt).toContain("Moved abroad");
+    // The machine-readable chart input still never renders directly.
+    expect(prompt).not.toContain("1990-03-04T10:30");
+  });
+
+  it("omits the life-events section when none are recorded", () => {
+    const p = buildChatSystemPrompt(
+      chart,
+      { ...personal, events: [] },
+      null,
+      "r",
+    );
+    expect(p).not.toContain("## Life events");
+    expect(p).not.toContain("recorded life events are also included");
   });
 
   it("suppresses houses guidance on solar charts", () => {
@@ -57,7 +97,12 @@ describe("buildChatSystemPrompt", () => {
       }),
       tzWarnings: [],
     };
-    const p = buildChatSystemPrompt(solar, null, null, "r");
+    const p = buildChatSystemPrompt(
+      solar,
+      { ...personal, numerology: null },
+      null,
+      "r",
+    );
     expect(p).toContain("Birth time is unknown");
     expect(p).not.toContain("## Complete numerology data");
   });

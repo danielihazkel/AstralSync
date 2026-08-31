@@ -1,11 +1,10 @@
-import type { ChatMessage } from "./llm";
 import {
-  renderChartData,
-  renderMazalData,
-  renderNumerologyData,
-} from "./promptData";
+  renderPersonalSections,
+  type ChatMessage,
+  type PersonalContext,
+} from "./llm";
+import { renderChartData, renderMazalData } from "./promptData";
 import type {
-  NumeroDerivation,
   StoredHebrewGematria,
   StoredMazal,
   WheelChart,
@@ -15,9 +14,10 @@ import type {
  * The ephemeral "ask about your chart" chat (PRD §5 extension). Nothing is
  * ever persisted — history lives in the client and rides along with each
  * request, bounded server-side so a hostile client can't inflate prompts.
- * The privacy contract of the reading prompts carries over verbatim: the
- * system prompt is composed ONLY from the promptData renderers (which never
- * render the birth instant or coordinates) plus the stored reading text.
+ * The personal-data policy of the reading prompts carries over verbatim
+ * (lib/promptData.ts header): the system prompt is composed from the
+ * promptData renderers — including the person's birth data, numerology,
+ * and recorded life events — plus the stored reading text.
  */
 
 /** Max user turns per conversation — the 9th question is rejected. */
@@ -31,17 +31,21 @@ export const CHAT_HOURLY_LIMIT = 3 * CHAT_MAX_TURNS;
 export const CHAT_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 /** System prompt for the chat: instructions + the same data blocks the
- *  stored reading was generated from, plus that reading. */
+ *  stored reading was generated from — including the personal context —
+ *  plus that reading. */
 export function buildChatSystemPrompt(
   chart: WheelChart,
-  numerology: NumeroDerivation | null,
+  personal: PersonalContext,
   hebrew: { mazal: StoredMazal; gematria: StoredHebrewGematria } | null,
   readingBodyMd: string,
 ): string {
   const instructions = [
     "You are the follow-up chat for one person's natal reading in an astrology and numerology app.",
-    "Below are the complete chart data and the stored AI reading you are answering questions about.",
-    "Answer questions about this chart, its numerology, and the reading only. For anything else, briefly decline and steer back to the chart.",
+    "Below are the person's birth data, the complete chart data, and the stored AI reading you are answering questions about.",
+    personal.events.length > 0
+      ? "The person's recorded life events are also included — you may draw on them for grounding and context; do not simply retell them."
+      : "",
+    "Answer questions about this chart, its numerology, the recorded life events, and the reading only. For anything else, briefly decline and steer back to the chart.",
     "Keep answers to roughly 150 words in Markdown (paragraphs, optional **bold** and *italic*; no headings, no HTML, no links).",
     "Address the reader as \"you\", gender-neutrally. Be concrete and even-handed. No promises, no fortune-telling: describe tendencies and invitations, not fixed outcomes.",
     chart.isSolarChart
@@ -51,15 +55,17 @@ export function buildChatSystemPrompt(
     .filter(Boolean)
     .join("\n");
 
+  const [birthSection, numerologySection, eventsSection] =
+    renderPersonalSections(personal);
   return [
     instructions,
+    birthSection,
     `## Complete chart data\n${renderChartData(chart)}`,
-    numerology
-      ? `## Complete numerology data\n${renderNumerologyData(numerology)}`
-      : "",
+    numerologySection,
     hebrew
       ? `## Complete Mazal chart data\n${renderMazalData(hebrew.mazal, hebrew.gematria)}`
       : "",
+    eventsSection,
     `## The stored reading\n${readingBodyMd}`,
   ]
     .filter(Boolean)

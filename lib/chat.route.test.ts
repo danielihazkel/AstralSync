@@ -6,17 +6,20 @@ import type { LlmClient } from "./llm";
 // The route reads the profile via Prisma-backed snapshots and the LLM from
 // the environment; mock both so these tests stay offline like the rest.
 vi.mock("@/lib/snapshots", () => ({ getProfileView: vi.fn() }));
+vi.mock("@/lib/lifeEvents", () => ({ listLifeEvents: vi.fn() }));
 vi.mock("@/lib/llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/llm")>()),
   llmClientFromEnv: vi.fn(),
 }));
 
 import { POST } from "../app/api/profiles/[id]/chat/route";
+import { listLifeEvents } from "@/lib/lifeEvents";
 import { llmClientFromEnv } from "@/lib/llm";
 import { getProfileView } from "@/lib/snapshots";
 
 const mockClient = vi.mocked(llmClientFromEnv);
 const mockView = vi.mocked(getProfileView);
+const mockListLifeEvents = vi.mocked(listLifeEvents);
 
 const chart = buildChart({
   utc: new Date(Date.UTC(1990, 2, 4, 10, 30, 0)),
@@ -25,6 +28,20 @@ const chart = buildChart({
 });
 
 const view = {
+  profile: {
+    birthDate: "1990-03-04",
+    birthTime: "12:30",
+    timeCertainty: "exact",
+    birthCity: {
+      geonameId: 1,
+      name: "Tel Aviv",
+      admin1: "05",
+      countryCode: "IL",
+    },
+    birthLat: 32.1,
+    birthLng: 34.8,
+    tzIana: "Asia/Jerusalem",
+  },
   astro: {
     chart: { ...chart, tzWarnings: [] },
     aspects: chart.aspects,
@@ -69,8 +86,41 @@ describe("POST /api/profiles/[id]/chat", () => {
   beforeEach(() => {
     mockClient.mockReset();
     mockView.mockReset();
+    mockListLifeEvents.mockReset();
     mockClient.mockReturnValue(chattyClient);
     mockView.mockResolvedValue(view);
+    mockListLifeEvents.mockResolvedValue([]);
+  });
+
+  it("sends the personal context in the system prompt", async () => {
+    mockListLifeEvents.mockResolvedValue([
+      {
+        id: 1,
+        title: "Moved abroad",
+        eventDate: "2015-07-01",
+        precision: "month",
+        category: "relocation",
+        notesMd: null,
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      },
+    ]);
+    let system = "";
+    mockClient.mockReturnValue({
+      modelName: "m",
+      generate: async () => "unused",
+      async *generateChat(sys: string) {
+        system = sys;
+        yield "ok";
+      },
+    });
+    const res = await POST(request({ question: "q" }), params("1"));
+    await res.text();
+    expect(system).toContain("## Birth data");
+    expect(system).toContain("Tel Aviv, 05, IL");
+    expect(system).toContain("## Complete numerology data");
+    expect(system).toContain("## Life events");
+    expect(system).toContain("Moved abroad");
   });
 
   it("streams the reply and finishes with the full text (nothing persisted)", async () => {
