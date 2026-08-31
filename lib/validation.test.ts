@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  lifeEventCreateSchema,
+  lifeEventUpdateSchema,
   profileInputSchema,
   toProfileBirthData,
   transitQuerySchema,
+  trashActionSchema,
 } from "./validation";
 
 const valid = {
@@ -202,5 +205,86 @@ describe("transitQuerySchema", () => {
       false,
     );
     expect(transitQuerySchema.safeParse({ minors: "yes" }).success).toBe(false);
+  });
+});
+
+describe("lifeEventCreateSchema", () => {
+  const valid = {
+    title: "Moved abroad",
+    eventDate: "2014-03-12",
+    category: "relocation",
+  };
+
+  it("accepts a day-precision event and defaults precision", () => {
+    const parsed = lifeEventCreateSchema.parse(valid);
+    expect(parsed.precision).toBe("day");
+    expect(parsed.title).toBe("Moved abroad");
+  });
+
+  it("requires canonical dates for month and year precision", () => {
+    const ok = (v: object) => lifeEventCreateSchema.safeParse(v).success;
+    expect(ok({ ...valid, precision: "month", eventDate: "2014-03-01" })).toBe(
+      true,
+    );
+    expect(ok({ ...valid, precision: "month" })).toBe(false);
+    expect(ok({ ...valid, precision: "year", eventDate: "2014-01-01" })).toBe(
+      true,
+    );
+    expect(ok({ ...valid, precision: "year", eventDate: "2014-03-01" })).toBe(
+      false,
+    );
+  });
+
+  it("rejects impossible dates, empty titles, unknown categories", () => {
+    const ok = (v: object) => lifeEventCreateSchema.safeParse(v).success;
+    expect(ok({ ...valid, eventDate: "2014-02-30" })).toBe(false);
+    expect(ok({ ...valid, title: "   " })).toBe(false);
+    expect(ok({ ...valid, category: "misc" })).toBe(false);
+  });
+
+  it("trims and bounds the optional notes", () => {
+    expect(
+      lifeEventCreateSchema.parse({ ...valid, notesMd: "  note  " }).notesMd,
+    ).toBe("note");
+    expect(
+      lifeEventCreateSchema.safeParse({
+        ...valid,
+        notesMd: "x".repeat(5_001),
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("lifeEventUpdateSchema", () => {
+  it("rejects an empty patch", () => {
+    expect(lifeEventUpdateSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("requires eventDate and precision together, canonical", () => {
+    const ok = (v: object) => lifeEventUpdateSchema.safeParse(v).success;
+    expect(ok({ eventDate: "2014-03-01" })).toBe(false);
+    expect(ok({ precision: "month" })).toBe(false);
+    expect(ok({ eventDate: "2014-03-01", precision: "month" })).toBe(true);
+    expect(ok({ eventDate: "2014-03-12", precision: "month" })).toBe(false);
+  });
+
+  it("clears notes with null and accepts a lone title", () => {
+    expect(lifeEventUpdateSchema.parse({ notesMd: null }).notesMd).toBeNull();
+    expect(lifeEventUpdateSchema.safeParse({ title: "New title" }).success).toBe(
+      true,
+    );
+  });
+});
+
+describe("trashActionSchema", () => {
+  it("accepts the event kind and rejects unknown kinds", () => {
+    expect(
+      trashActionSchema.safeParse({ action: "restore", kind: "event", id: 3 })
+        .success,
+    ).toBe(true);
+    expect(
+      trashActionSchema.safeParse({ action: "purge", kind: "banana", id: 3 })
+        .success,
+    ).toBe(false);
   });
 });

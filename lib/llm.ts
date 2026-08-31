@@ -8,10 +8,14 @@ import type { ResolvedHebrewReading } from "./hebrewReading";
 import {
   renderChartData,
   renderHebrewPeriodData,
+  renderLifeEventsData,
+  renderLifeStoryBirthData,
   renderMazalData,
   renderNumerologyData,
   renderSynastryData,
   renderWesternPeriodData,
+  type LifeEventPromptItem,
+  type LifeStoryBirthData,
 } from "./promptData";
 // Type-only: lib/synastry pulls in prisma, which this module must not load.
 import type { SynastryData } from "./synastry";
@@ -915,6 +919,53 @@ export function buildSynastryReadingPrompt(
     entries.length > 0
       ? `## Interpretation entries (for the strongest contacts)\n${renderEntrySections(entries)}`
       : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Prompt for the Life Story reading: an overall read of the person's life
+ * so far, combining the complete chart and numerology data with the major
+ * life events they recorded. This is the ONE sanctioned exception to the
+ * no-birth-data contract (lib/promptData.ts header): the raw birth date,
+ * time and place are included by explicit design, and the generating UI
+ * says so. The stored reading is discardable and regenerable — the event
+ * list keeps changing, unlike the write-once natal synthesis.
+ */
+export function buildLifeStoryPrompt(
+  birth: LifeStoryBirthData,
+  chart: WheelChart,
+  numerology: NumeroDerivation | null,
+  events: LifeEventPromptItem[],
+): string {
+  const instructions = [
+    "You are writing one Life Story reading for an astrology and numerology app — an overall read of a person's life so far.",
+    "Below are the person's birth data (shared deliberately for this reading), the complete natal chart and numerology data, and the major life events they recorded.",
+    "Read the arc of the recorded events against the chart's themes: where an event echoes a placement, aspect, or number, say so; where it cuts against them, name the tension.",
+    "You may relate major events qualitatively to well-known slow planetary cycles (for example the Saturn return around ages 28–30 and 57–59), but make no precise transit claims, and treat month- and year-precision dates as approximate.",
+    "Weave everything into a single original reading of roughly 500 words in Markdown",
+    "(paragraphs, optional **bold** and *italic*, optional - lists; no headings, no HTML, no links).",
+    'Address the reader as "you", gender-neutrally. Be concrete and even-handed — strengths and friction both. Handle painful events (loss, health) with care. No promises, no fortune-telling.',
+    chart.isSolarChart
+      ? "Birth time is unknown (solar chart): do not mention houses or a rising sign."
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return [
+    instructions,
+    `## Birth data
+${renderLifeStoryBirthData(birth)}`,
+    `## Complete chart data
+${renderChartData(chart)}`,
+    numerology
+      ? `## Complete numerology data
+${renderNumerologyData(numerology)}`
+      : "",
+    `## Life events
+${renderLifeEventsData(events)}`,
   ]
     .filter(Boolean)
     .join("\n\n");

@@ -6,6 +6,12 @@ import {
   type HebrewPeriodSummary,
   type WesternPeriodSummary,
 } from "./forecast";
+import {
+  LIFE_EVENT_CATEGORY_LABELS,
+  formatEventDate,
+  type LifeEventCategory,
+  type LifeEventPrecision,
+} from "./lifeEventMeta";
 // Type-only: lib/synastry pulls in prisma, which this module must not load.
 import type { SynastryData } from "./synastry";
 import type {
@@ -21,6 +27,13 @@ import type {
  * derivation step, in contrast to the curated subset the reading resolvers
  * interpret. Birth details (`input`: instant, coordinates) are deliberately
  * never rendered; names appear only through the name-number derivations.
+ *
+ * ONE deliberate, documented exception: the Life Story reading
+ * (renderLifeStoryBirthData / renderLifeEventsData at the bottom) includes
+ * the raw birth date, time and place by explicit design — the user
+ * generates that reading knowingly, and its UI says so. Every other
+ * renderer and builder keeps the contract; lib/llm.test.ts and
+ * lib/promptData.test.ts assert it per builder.
  */
 
 const WEEKDAYS = [
@@ -431,6 +444,93 @@ export function renderSynastryData(view: SynastryData): string {
     lines.push("Composite aspects:");
     for (const a of view.composite.chart.aspects) {
       lines.push(`- ${cap(a.a)} ${a.type} ${cap(a.b)} — orb ${degreeLabel(a.orb)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+// --- Life Story (the sanctioned privacy exception) ---------------------------
+
+/** The raw birth data the Life Story prompt includes — the one sanctioned
+ *  exception to this module's no-birth-details contract (see the header). */
+export interface LifeStoryBirthData {
+  /** "YYYY-MM-DD" civil birth date. */
+  birthDate: string;
+  /** "HH:MM" local wall-clock time; null when unknown. */
+  birthTime: string | null;
+  timeCertainty: "exact" | "approx" | "unknown";
+  /** "Name, admin1, CC" city label; null renders coordinates only. */
+  placeLabel: string | null;
+  birthLat: number;
+  birthLng: number;
+  tzIana: string;
+}
+
+function coordLabel(lat: number, lng: number): string {
+  const ns = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}`;
+  const ew = `${Math.abs(lng).toFixed(2)}°${lng >= 0 ? "E" : "W"}`;
+  return `${ns}, ${ew}`;
+}
+
+export function renderLifeStoryBirthData(b: LifeStoryBirthData): string {
+  const place = b.placeLabel
+    ? `${b.placeLabel} (${coordLabel(b.birthLat, b.birthLng)})`
+    : coordLabel(b.birthLat, b.birthLng);
+  return [
+    `Birth date: ${formatEventDate(b.birthDate, "day")}`,
+    b.birthTime === null
+      ? "Birth time: unknown"
+      : `Birth time: ${b.birthTime}${b.timeCertainty === "approx" ? " (approximate)" : " (exact)"}`,
+    `Birthplace: ${place}`,
+    `Timezone: ${b.tzIana}`,
+  ].join("\n");
+}
+
+/** One recorded life event, as the prompt needs it (lib/lifeEvents.ts's
+ *  LifeEventView satisfies this structurally). */
+export interface LifeEventPromptItem {
+  title: string;
+  /** Canonical "YYYY-MM-DD" (see lib/lifeEventMeta.ts). */
+  eventDate: string;
+  precision: LifeEventPrecision;
+  category: LifeEventCategory;
+  notesMd: string | null;
+}
+
+/** In-prompt caps — nothing downstream of the builders truncates, so the
+ *  renderer bounds its own output. */
+export const MAX_LIFE_EVENTS_IN_PROMPT = 100;
+export const MAX_LIFE_EVENT_NOTE_CHARS_IN_PROMPT = 400;
+
+/**
+ * Chronological bullets, one per event, dated only as precisely as the user
+ * actually knows ("March 2014 (month only)"). Over the cap, the most recent
+ * MAX_LIFE_EVENTS_IN_PROMPT are kept and the omission is stated.
+ */
+export function renderLifeEventsData(events: LifeEventPromptItem[]): string {
+  const shown = events.slice(-MAX_LIFE_EVENTS_IN_PROMPT);
+  const omitted = events.length - shown.length;
+  const lines: string[] = [];
+  if (omitted > 0) lines.push(`(${omitted} earlier events omitted)`);
+  for (const e of shown) {
+    const approx =
+      e.precision === "month"
+        ? " (month only)"
+        : e.precision === "year"
+          ? " (year only)"
+          : "";
+    lines.push(
+      `- ${formatEventDate(e.eventDate, e.precision)}${approx} — ${LIFE_EVENT_CATEGORY_LABELS[e.category]}: ${e.title}`,
+    );
+    if (e.notesMd) {
+      const note = e.notesMd.replace(/\s+/g, " ").trim();
+      lines.push(
+        `  Notes: ${
+          note.length > MAX_LIFE_EVENT_NOTE_CHARS_IN_PROMPT
+            ? `${note.slice(0, MAX_LIFE_EVENT_NOTE_CHARS_IN_PROMPT - 1)}…`
+            : note
+        }`,
+      );
     }
   }
   return lines.join("\n");

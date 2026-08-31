@@ -224,3 +224,70 @@ describe("remapReadingRows", () => {
     ).toThrow(/unmapped astro snapshot id/);
   });
 });
+
+describe("profileExportSchema — life events", () => {
+  const lifeEvent = {
+    id: 1,
+    profileId: 12,
+    title: "Moved abroad",
+    eventDate: "2014-03-12",
+    precision: "day",
+    category: "relocation",
+    notesMd: null,
+    createdAt: "2026-08-11T12:00:00.000Z",
+    updatedAt: "2026-08-11T12:00:00.000Z",
+  };
+
+  it("accepts an export with life events and a life_story reading", () => {
+    const base = validExport();
+    const data = {
+      ...base,
+      lifeEvents: [
+        lifeEvent,
+        {
+          title: "First job",
+          eventDate: "2010-06-01",
+          precision: "month",
+          category: "career",
+          notesMd: "Junior role.",
+          createdAt: "2026-08-11T12:00:00.000Z",
+          updatedAt: "2026-08-11T12:00:00.000Z",
+        },
+      ],
+      readings: [
+        ...base.readings,
+        {
+          id: 9,
+          astroSnapshotId: 15,
+          numeroSnapshotId: 15,
+          bodyMd: "A life story.",
+          generator: "life_story",
+          modelName: "claude-opus-5",
+          contentVersion: "1",
+          createdAt: "2026-08-13T10:00:00.000Z",
+        },
+      ],
+    };
+    const parsed = profileExportSchema.parse(data);
+    expect(parsed.lifeEvents).toHaveLength(2);
+    expect(parsed.lifeEvents[1].precision).toBe("month");
+    expect(parsed.lifeEvents[1].notesMd).toBe("Junior role.");
+    expect(parsed.readings.some((r) => r.generator === "life_story")).toBe(
+      true,
+    );
+  });
+
+  it("defaults lifeEvents for pre-feature exports", () => {
+    expect(profileExportSchema.parse(validExport()).lifeEvents).toEqual([]);
+  });
+
+  it("rejects an unknown category or precision", () => {
+    const bad = (patch: object) =>
+      profileExportSchema.safeParse({
+        ...validExport(),
+        lifeEvents: [{ ...lifeEvent, ...patch }],
+      }).success;
+    expect(bad({ category: "misc" })).toBe(false);
+    expect(bad({ precision: "week" })).toBe(false);
+  });
+});

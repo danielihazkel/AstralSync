@@ -111,11 +111,33 @@ const journalEntrySchema = z.object({
   updatedAt: isoDate,
 });
 
+// Every exported field travels (unlike the journal schema above, which
+// predates mood/tags/sky and drops them). Enums are literal copies of
+// prisma/schema.prisma — the module's idiom.
+const lifeEventSchema = z.object({
+  title: z.string().min(1).max(120),
+  eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  precision: z.enum(["day", "month", "year"]).default("day"),
+  category: z.enum([
+    "marriage",
+    "child",
+    "career",
+    "relocation",
+    "loss",
+    "health",
+    "education",
+    "other",
+  ]),
+  notesMd: z.string().max(5_000).nullish(),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+
 const readingSchema = z.object({
   astroSnapshotId: z.number().int(),
   numeroSnapshotId: z.number().int().nullish(),
   bodyMd: z.string(),
-  generator: z.enum(["template", "llm", "hebrew_llm"]),
+  generator: z.enum(["template", "llm", "hebrew_llm", "life_story"]),
   modelName: z.string().max(64).nullish(),
   contentVersion: z.string().max(16).nullish(),
   createdAt: isoDate,
@@ -142,6 +164,8 @@ export const profileExportSchema = z
     readings: z.array(readingSchema).default([]),
     // Absent in pre-journal exports (Phase 3g).
     journalEntries: z.array(journalEntrySchema).default([]),
+    // Absent in pre-life-events exports.
+    lifeEvents: z.array(lifeEventSchema).default([]),
   })
   .superRefine((data, ctx) => {
     for (const [path, rows] of [
@@ -367,6 +391,25 @@ export async function importProfile(data: ProfileExport): Promise<number> {
             // @db.Date column: UTC midnight, same as birthDate above.
             entryDate: new Date(Date.UTC(ey, em - 1, ed)),
             bodyMd: e.bodyMd,
+            createdAt: new Date(e.createdAt),
+            updatedAt: new Date(e.updatedAt),
+          };
+        }),
+      });
+    }
+
+    if (data.lifeEvents.length > 0) {
+      await tx.lifeEvent.createMany({
+        data: data.lifeEvents.map((e) => {
+          const [ey, em, ed] = e.eventDate.split("-").map(Number);
+          return {
+            profileId: profile.id,
+            title: e.title,
+            // @db.Date column: UTC midnight, same as birthDate above.
+            eventDate: new Date(Date.UTC(ey, em - 1, ed)),
+            precision: e.precision,
+            category: e.category,
+            notesMd: e.notesMd ?? null,
             createdAt: new Date(e.createdAt),
             updatedAt: new Date(e.updatedAt),
           };

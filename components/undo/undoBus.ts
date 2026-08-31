@@ -28,7 +28,7 @@ export function announceUndo(req: UndoRequest): void {
 
 /** Restore one trashed item via the Trash API — the common `restore`. */
 export async function restoreFromTrash(
-  kind: "profile" | "journal" | "reading",
+  kind: "profile" | "journal" | "reading" | "event",
   id: number,
 ): Promise<boolean> {
   const res = await fetch("/api/trash", {

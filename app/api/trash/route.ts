@@ -3,9 +3,11 @@ import {
   emptyTrash,
   listTrash,
   purgeJournalEntry,
+  purgeLifeEvent,
   purgeProfile,
   purgeReading,
   restoreJournalEntry,
+  restoreLifeEvent,
   restoreProfile,
   restoreReading,
 } from "@/lib/trash";
@@ -20,7 +22,7 @@ export async function GET() {
 }
 
 /**
- * `{ action: "restore" | "purge", kind: "profile" | "journal" | "reading", id }`.
+ * `{ action, kind: "profile" | "journal" | "reading" | "event", id }`.
  * Restore puts the item back where it was; purge is the irreversible hard
  * delete. A reading whose slot has been regenerated meanwhile answers 409
  * `slot_taken` and stays in the Trash.
@@ -61,7 +63,11 @@ export async function POST(req: NextRequest) {
         ? action === "restore"
           ? await restoreJournalEntry(id)
           : await purgeJournalEntry(id)
-        : await purgeReading(id);
+        : kind === "event"
+          ? action === "restore"
+            ? await restoreLifeEvent(id)
+            : await purgeLifeEvent(id)
+          : await purgeReading(id);
   if (!ok) {
     return NextResponse.json(
       { error: "not_found" },

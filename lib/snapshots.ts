@@ -451,6 +451,8 @@ function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
 
 function serializeAstro(s: AstroSnapshot & { readings?: Reading[] }) {
   const llm = s.readings?.find((r) => r.generator === "llm") ?? null;
+  const story =
+    s.readings?.find((r) => r.generator === "life_story") ?? null;
   return {
     snapshotId: s.id,
     version: s.version,
@@ -473,6 +475,16 @@ function serializeAstro(s: AstroSnapshot & { readings?: Reading[] }) {
           modelName: llm.modelName,
           contentVersion: llm.contentVersion,
           createdAt: llm.createdAt,
+        }
+      : null,
+    /** Stored Life Story reading (life events + full birth data), if any —
+     *  discardable and regenerable, unlike the write-once llmReading. */
+    lifeStoryReading: story
+      ? {
+          bodyMd: story.bodyMd,
+          modelName: story.modelName,
+          contentVersion: story.contentVersion,
+          createdAt: story.createdAt,
         }
       : null,
   };
@@ -872,6 +884,12 @@ export async function exportProfile(id: number) {
       numeroSnapshots: { orderBy: { version: "asc" } },
       hebrewSnapshots: { orderBy: { version: "asc" } },
       journalEntries: { orderBy: { entryDate: "asc" } },
+      // Live events only: the client extension does not reach nested
+      // includes, so the Trash filter is explicit here.
+      lifeEvents: {
+        where: { deletedAt: null },
+        orderBy: { eventDate: "asc" },
+      },
     },
   });
   if (!profile) return null;
@@ -881,6 +899,7 @@ export async function exportProfile(id: number) {
     numeroSnapshots,
     hebrewSnapshots,
     journalEntries,
+    lifeEvents,
     birthCity,
     // Device/installation state, not chart data: the primary flag is
     // re-chosen after import and a live profile is never in the trash.
@@ -902,6 +921,17 @@ export async function exportProfile(id: number) {
     journalEntries: journalEntries.map((e) => ({
       ...e,
       entryDate: dateOnly(e.entryDate),
+    })),
+    // Additive like journalEntries; live events only, explicit fields.
+    lifeEvents: lifeEvents.map((e) => ({
+      id: e.id,
+      title: e.title,
+      eventDate: dateOnly(e.eventDate),
+      precision: e.precision,
+      category: e.category,
+      notesMd: e.notesMd,
+      createdAt: e.createdAt,
+      updatedAt: e.updatedAt,
     })),
   };
 }

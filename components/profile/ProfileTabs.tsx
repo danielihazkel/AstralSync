@@ -38,6 +38,7 @@ import NumerologyPanel, {
 } from "@/components/numerology/NumerologyPanel";
 import CyclesPanel from "@/components/cycles/CyclesPanel";
 import JournalPanel from "@/components/journal/JournalPanel";
+import LifeEventsPanel from "@/components/lifeEvents/LifeEventsPanel";
 import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
@@ -206,6 +207,16 @@ export default function ProfileTabs({
             profileId={profile.id}
             chart={chart}
             isLatest={isLatest}
+          />
+        </div>
+      )}
+      {tab === "Life events" && (
+        <div {...panelProps}>
+          <LifeEventsPanel
+            profileId={profile.id}
+            version={astro.version}
+            lifeStoryReading={astro.lifeStoryReading}
+            llmEnabled={llmEnabled}
           />
         </div>
       )}

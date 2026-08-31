@@ -42,6 +42,7 @@ enum ReadingGenerator {
   template
   llm
   hebrew_llm
+  life_story
 }
 
 enum ForecastMode {
@@ -62,6 +63,24 @@ enum RelationshipKind {
   friend
   colleague
   other
+}
+
+// Canonical unions live in lib/lifeEventMeta.ts (client-safe); keep in sync.
+enum LifeEventCategory {
+  marriage
+  child
+  career
+  relocation
+  loss
+  health
+  education
+  other
+}
+
+enum LifeEventPrecision {
+  day
+  month
+  year
 }
 
 // Canonical union lives in lib/journalMeta.ts (client-safe); keep in sync.
@@ -134,6 +153,7 @@ model Profile {
   hebrewSnapshots HebrewSnapshot[]
   forecasts       Forecast[]
   journalEntries  JournalEntry[]
+  lifeEvents      LifeEvent[]
 
   synastryReadingsAsA SynastryReading[] @relation("synastryA")
   synastryReadingsAsB SynastryReading[] @relation("synastryB")
@@ -340,6 +360,33 @@ model JournalEntry {
 
   @@index([profileId, entryDate])
   @@map("journal_entry")
+}
+
+// Major life events the user records per profile (marriage, births, moves,
+// losses…), feeding the Life Story reading. The JournalEntry stance: the
+// user's own words, freely editable and deletable, soft-deleted into the
+// Trash — never write-once.
+model LifeEvent {
+  id        Int                @id @default(autoincrement())
+  profileId Int                @map("profile_id")
+  profile   Profile            @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  title     String             @db.VarChar(120)
+  /// Canonical civil date: the real day for "day" precision, day 01 for
+  /// "month", January 01 for "year" (users often only remember the year).
+  eventDate DateTime           @map("event_date") @db.Date
+  /// How much of eventDate is meaningful. Column named date_precision
+  /// because PRECISION is a MySQL reserved word.
+  precision LifeEventPrecision @default(day) @map("date_precision")
+  category  LifeEventCategory
+  /// Optional markdown notes.
+  notesMd   String?            @map("notes_md") @db.Text
+  /// Soft delete, same contract as JournalEntry.deletedAt.
+  deletedAt DateTime?          @map("deleted_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  @@index([profileId, eventDate])
+  @@map("life_event")
 }
 
 model Forecast {

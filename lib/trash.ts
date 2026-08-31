@@ -1,9 +1,10 @@
 import { Prisma, type ReadingGenerator } from "@prisma/client";
 import { prisma } from "./db";
+import type { LifeEventPrecision } from "./lifeEventMeta";
 
 /**
- * The Trash: undo for the three destructive actions the app has. Profiles
- * and journal entries are soft-deleted (`deletedAt`, hidden by the client
+ * The Trash: undo for the destructive actions the app has. Profiles,
+ * journal entries and life events are soft-deleted (`deletedAt`, hidden by the client
  * extension in lib/db.ts); discarded AI readings move to `reading_archive`
  * because their unique slot must be freed for regeneration. Everything here
  * either names `deletedAt` explicitly (trash access) or only creates and
@@ -66,6 +67,34 @@ export async function restoreJournalEntry(entryId: number): Promise<boolean> {
 export async function purgeJournalEntry(entryId: number): Promise<boolean> {
   const { count } = await prisma.journalEntry.deleteMany({
     where: { id: entryId, ...TRASHED },
+  });
+  return count > 0;
+}
+
+// --- life events ------------------------------------------------------------
+
+export async function softDeleteLifeEvent(
+  profileId: number,
+  eventId: number,
+): Promise<boolean> {
+  const { count } = await prisma.lifeEvent.updateMany({
+    where: { id: eventId, profileId },
+    data: { deletedAt: new Date() },
+  });
+  return count > 0;
+}
+
+export async function restoreLifeEvent(eventId: number): Promise<boolean> {
+  const { count } = await prisma.lifeEvent.updateMany({
+    where: { id: eventId, ...TRASHED },
+    data: { deletedAt: null },
+  });
+  return count > 0;
+}
+
+export async function purgeLifeEvent(eventId: number): Promise<boolean> {
+  const { count } = await prisma.lifeEvent.deleteMany({
+    where: { id: eventId, ...TRASHED },
   });
   return count > 0;
 }
@@ -163,6 +192,16 @@ export interface TrashData {
     excerpt: string;
     deletedAt: string;
   }>;
+  lifeEvents: Array<{
+    id: number;
+    profileId: number;
+    displayName: string;
+    title: string;
+    /** Canonical "YYYY-MM-DD" (see lib/lifeEvents.ts). */
+    eventDate: string;
+    precision: LifeEventPrecision;
+    deletedAt: string;
+  }>;
   readings: Array<{
     id: number;
     profileId: number;
@@ -188,13 +227,18 @@ function dateOnly(d: Date): string {
 /** Everything restorable. Entries and readings whose whole profile is in
  *  the Trash are folded into that profile (restoring it brings them back). */
 export async function listTrash(): Promise<TrashData> {
-  const [profiles, entries, readings] = await Promise.all([
+  const [profiles, entries, lifeEvents, readings] = await Promise.all([
     prisma.profile.findMany({
       where: TRASHED,
       orderBy: { deletedAt: "desc" },
       select: { id: true, displayName: true, birthDate: true, deletedAt: true },
     }),
     prisma.journalEntry.findMany({
+      where: { ...TRASHED, profile: { deletedAt: null } },
+      orderBy: { deletedAt: "desc" },
+      include: { profile: { select: { id: true, displayName: true } } },
+    }),
+    prisma.lifeEvent.findMany({
       where: { ...TRASHED, profile: { deletedAt: null } },
       orderBy: { deletedAt: "desc" },
       include: { profile: { select: { id: true, displayName: true } } },
@@ -227,6 +271,15 @@ export async function listTrash(): Promise<TrashData> {
       excerpt: excerpt(e.bodyMd),
       deletedAt: e.deletedAt!.toISOString(),
     })),
+    lifeEvents: lifeEvents.map((e) => ({
+      id: e.id,
+      profileId: e.profile.id,
+      displayName: e.profile.displayName,
+      title: e.title,
+      eventDate: dateOnly(e.eventDate),
+      precision: e.precision as LifeEventPrecision,
+      deletedAt: e.deletedAt!.toISOString(),
+    })),
     readings: readings.map((r) => ({
       id: r.id,
       profileId: r.astroSnapshot.profile.id,
@@ -243,16 +296,20 @@ export async function listTrash(): Promise<TrashData> {
 export async function emptyTrash(): Promise<{
   profiles: number;
   journalEntries: number;
+  lifeEvents: number;
   readings: number;
 }> {
-  const [readings, journalEntries, profiles] = await prisma.$transaction([
-    prisma.readingArchive.deleteMany({}),
-    prisma.journalEntry.deleteMany({ where: TRASHED }),
-    prisma.profile.deleteMany({ where: TRASHED }),
-  ]);
+  const [readings, journalEntries, lifeEvents, profiles] =
+    await prisma.$transaction([
+      prisma.readingArchive.deleteMany({}),
+      prisma.journalEntry.deleteMany({ where: TRASHED }),
+      prisma.lifeEvent.deleteMany({ where: TRASHED }),
+      prisma.profile.deleteMany({ where: TRASHED }),
+    ]);
   return {
     profiles: profiles.count,
     journalEntries: journalEntries.count,
+    lifeEvents: lifeEvents.count,
     readings: readings.count,
   };
 }

@@ -1,4 +1,5 @@
-/** URL `?tab=` values for the profile tabs — lowercase, stable, bookmarkable. */
+/** URL `?tab=` values for the profile tabs — lowercase slugs, stable,
+ *  bookmarkable ("Life events" → "life-events"). */
 
 export const TABS = [
   "Chart",
@@ -9,17 +10,19 @@ export const TABS = [
   "Cycles",
   "Forecast",
   "Journal",
+  "Life events",
   "Details",
 ] as const;
 export type Tab = (typeof TABS)[number];
 
 export function paramFromTab(tab: Tab): string {
-  return tab.toLowerCase();
+  return tab.toLowerCase().replace(/\s+/g, "-");
 }
 
-/** Case-insensitive; unknown or missing values fall back to the Chart tab. */
+/** Case-insensitive; spaces normalize to the slug's dashes; unknown or
+ *  missing values fall back to the Chart tab. */
 export function tabFromParam(raw: string | null): Tab {
   if (raw === null) return "Chart";
-  const lower = raw.toLowerCase();
-  return TABS.find((t) => t.toLowerCase() === lower) ?? "Chart";
+  const slug = raw.toLowerCase().replace(/\s+/g, "-");
+  return TABS.find((t) => paramFromTab(t) === slug) ?? "Chart";
 }

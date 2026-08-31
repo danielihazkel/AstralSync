@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { TrashData } from "@/lib/trash";
 import { formatBirthDate } from "@/components/format";
+import { formatEventDate } from "@/lib/lifeEventMeta";
 import styles from "./settings.module.css";
 
 type State =
@@ -15,6 +16,7 @@ type State =
 const GENERATOR_LABEL: Record<string, string> = {
   llm: "AI reading",
   hebrew_llm: "Mazal AI reading",
+  life_story: "Life Story reading",
   template: "reading",
 };
 
@@ -56,7 +58,7 @@ export default function TrashPanel() {
 
   async function act(
     action: "restore" | "purge",
-    kind: "profile" | "journal" | "reading",
+    kind: "profile" | "journal" | "reading" | "event",
     id: number,
   ) {
     const key = `${kind}:${id}`;
@@ -114,21 +116,24 @@ export default function TrashPanel() {
     );
   }
 
-  const { profiles, journalEntries, readings } = state.data;
-  const total = profiles.length + journalEntries.length + readings.length;
+  const { profiles, journalEntries, lifeEvents, readings } = state.data;
+  const total =
+    profiles.length + journalEntries.length + lifeEvents.length +
+    readings.length;
 
   if (total === 0) {
     return (
       <p className={styles.note}>
-        The Trash is empty. Deleted profiles, notes and discarded AI readings
-        wait here until you restore them or delete them for good.
+        The Trash is empty. Deleted profiles, notes, life events and
+        discarded AI readings wait here until you restore them or delete
+        them for good.
       </p>
     );
   }
 
   const row = (
     key: string,
-    kind: "profile" | "journal" | "reading",
+    kind: "profile" | "journal" | "reading" | "event",
     id: number,
     label: React.ReactNode,
     meta: string,
@@ -194,6 +199,28 @@ export default function TrashPanel() {
                     {e.displayName}
                   </Link>
                   , {formatBirthDate(e.entryDate)}: <em>{e.excerpt}</em>
+                </>,
+                `· deleted ${when(e.deletedAt)}`,
+              ),
+            )}
+          </ul>
+        </>
+      )}
+      {lifeEvents.length > 0 && (
+        <>
+          <h3 className={styles.trashGroup}>Life events</h3>
+          <ul className={styles.trashList}>
+            {lifeEvents.map((e) =>
+              row(
+                `e${e.id}`,
+                "event",
+                e.id,
+                <>
+                  <Link href={`/profiles/${e.profileId}?tab=life-events`}>
+                    {e.displayName}
+                  </Link>
+                  , {formatEventDate(e.eventDate, e.precision)}:{" "}
+                  <em>{e.title}</em>
                 </>,
                 `· deleted ${when(e.deletedAt)}`,
               ),

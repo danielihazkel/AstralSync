@@ -8,7 +8,11 @@
  * — the Trash surfaces do exactly that to list, restore or purge rows.
  */
 
-export const SOFT_DELETE_MODELS = new Set(["Profile", "JournalEntry"]);
+export const SOFT_DELETE_MODELS = new Set([
+  "Profile",
+  "JournalEntry",
+  "LifeEvent",
+]);
 
 /** Operations whose `where` is narrowed. Creates are untouched (a new row
  *  is live by definition); aggregates and groupBy aren't used on these
@@ -51,6 +55,7 @@ export const PROFILE_OWNED_MODELS = new Set([
   "NumeroSnapshot",
   "HebrewSnapshot",
   "JournalEntry",
+  "LifeEvent",
 ]);
 
 const READ_OPERATIONS = new Set([

@@ -21,6 +21,7 @@ describe("withLiveProfileFilter", () => {
   it("applies to reads on profile-owned models only", () => {
     expect(shouldFilterViaProfile("AstroSnapshot", "findFirst")).toBe(true);
     expect(shouldFilterViaProfile("JournalEntry", "findMany")).toBe(true);
+    expect(shouldFilterViaProfile("LifeEvent", "findMany")).toBe(true);
     expect(shouldFilterViaProfile("AstroSnapshot", "create")).toBe(false);
     expect(shouldFilterViaProfile("Profile", "findMany")).toBe(false);
     expect(shouldFilterViaProfile("Reading", "findUnique")).toBe(false);
@@ -62,6 +63,8 @@ describe("shouldFilter", () => {
   it("covers reads, updates and deletes on the soft-delete models only", () => {
     expect(shouldFilter("Profile", "findMany")).toBe(true);
     expect(shouldFilter("JournalEntry", "deleteMany")).toBe(true);
+    expect(shouldFilter("LifeEvent", "findMany")).toBe(true);
+    expect(shouldFilter("LifeEvent", "updateMany")).toBe(true);
     expect(shouldFilter("Profile", "create")).toBe(false);
     expect(shouldFilter("Profile", "upsert")).toBe(false);
     expect(shouldFilter("AstroSnapshot", "findMany")).toBe(false);

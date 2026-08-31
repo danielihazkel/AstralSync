@@ -6,6 +6,13 @@ import {
   normalizeTags,
 } from "./journalMeta";
 import {
+  LIFE_EVENT_CATEGORIES,
+  LIFE_EVENT_PRECISIONS,
+  MAX_LIFE_EVENT_NOTES,
+  MAX_LIFE_EVENT_TITLE,
+  isCanonicalEventDate,
+} from "./lifeEventMeta";
+import {
   MAX_RELATIONSHIP_LABEL,
   MAX_RELATIONSHIP_NOTE,
   RELATIONSHIP_KINDS,
@@ -184,7 +191,7 @@ export type ProfilePatch = z.infer<typeof profilePatchSchema>;
 /** POST /api/trash body: restore or purge one trashed item. */
 export const trashActionSchema = z.object({
   action: z.enum(["restore", "purge"]),
-  kind: z.enum(["profile", "journal", "reading"]),
+  kind: z.enum(["profile", "journal", "reading", "event"]),
   id: z.number().int().positive(),
 });
 
@@ -306,6 +313,70 @@ export const journalListQuerySchema = z
   });
 
 export type JournalListQuery = z.infer<typeof journalListQuerySchema>;
+
+// --- life events -------------------------------------------------------------
+
+const lifeEventCategory = z.enum(LIFE_EVENT_CATEGORIES);
+const lifeEventPrecision = z.enum(LIFE_EVENT_PRECISIONS);
+
+const CANONICAL_MESSAGE =
+  "eventDate must be the first day of the period for month/year precision";
+
+/** POST /api/profiles/[id]/life-events body. The date is stored canonical
+ *  for its precision (day 01 / January 01) so range logic stays plain
+ *  string comparison. */
+export const lifeEventCreateSchema = z
+  .object({
+    title: z.string().trim().min(1).max(MAX_LIFE_EVENT_TITLE),
+    eventDate: civilDateString,
+    precision: lifeEventPrecision.default("day"),
+    category: lifeEventCategory,
+    notesMd: z.string().trim().min(1).max(MAX_LIFE_EVENT_NOTES).nullish(),
+  })
+  .refine((v) => isCanonicalEventDate(v.eventDate, v.precision), {
+    message: CANONICAL_MESSAGE,
+  });
+
+export type LifeEventCreateInput = z.infer<typeof lifeEventCreateSchema>;
+
+/** PUT /api/profiles/[id]/life-events/[eventId] body — at least one field.
+ *  eventDate and precision travel together (the canonical form depends on
+ *  both); `notesMd: null` clears the notes. */
+export const lifeEventUpdateSchema = z
+  .object({
+    title: z.string().trim().min(1).max(MAX_LIFE_EVENT_TITLE).optional(),
+    eventDate: civilDateString.optional(),
+    precision: lifeEventPrecision.optional(),
+    category: lifeEventCategory.optional(),
+    notesMd: z
+      .string()
+      .trim()
+      .min(1)
+      .max(MAX_LIFE_EVENT_NOTES)
+      .nullable()
+      .optional(),
+  })
+  .refine(
+    (v) =>
+      v.title !== undefined ||
+      v.eventDate !== undefined ||
+      v.precision !== undefined ||
+      v.category !== undefined ||
+      v.notesMd !== undefined,
+    { message: "nothing to update" },
+  )
+  .refine((v) => (v.eventDate === undefined) === (v.precision === undefined), {
+    message: "eventDate and precision must be provided together",
+  })
+  .refine(
+    (v) =>
+      v.eventDate === undefined ||
+      v.precision === undefined ||
+      isCanonicalEventDate(v.eventDate, v.precision),
+    { message: CANONICAL_MESSAGE },
+  );
+
+export type LifeEventUpdateInput = z.infer<typeof lifeEventUpdateSchema>;
 
 /** GET /api/transits/[id]/calendar query: an inclusive civil-date range,
  *  capped at 93 days (one quarter) — the scan cost is linear in the span —
