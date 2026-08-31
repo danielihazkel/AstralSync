@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listAllJournalEntries } from "@/lib/journal";
+import { TIMELINE_PAGE_SIZE } from "@/lib/journalTimeline";
 import JournalTimeline from "@/components/journal/JournalTimeline";
 
 export const metadata: Metadata = {
@@ -15,11 +16,15 @@ export const dynamic = "force-dynamic";
  *  client-side (text, mood, tag, profile). Writing stays on each profile's
  *  Journal tab. */
 export default async function JournalPage() {
-  const entries = await listAllJournalEntries();
+  const entries = await listAllJournalEntries({ limit: TIMELINE_PAGE_SIZE });
+  const nextCursor =
+    entries.length === TIMELINE_PAGE_SIZE
+      ? entries[entries.length - 1].id
+      : null;
   return (
     <main>
       <h1>Journal</h1>
-      <JournalTimeline entries={entries} />
+      <JournalTimeline entries={entries} nextCursor={nextCursor} />
       <p style={{ marginTop: "1.5rem" }}>
         <Link href="/">← All profiles</Link>
       </p>

@@ -9,6 +9,7 @@ import {
   timelineTags,
   type TimelineEntryData,
 } from "@/lib/journalTimeline";
+import EmptyState from "@/components/EmptyState";
 import Markdown from "@/components/Markdown";
 import { MOOD_LABELS } from "./moodLabels";
 import styles from "./journal.module.css";
@@ -19,14 +20,45 @@ import styles from "./journal.module.css";
  * editing stays on each profile's Journal tab, one link away.
  */
 export default function JournalTimeline({
-  entries,
+  entries: initialEntries,
+  nextCursor: initialCursor = null,
 }: {
   entries: TimelineEntryData[];
+  /** Cursor for the next /api/journal page; null when everything loaded. */
+  nextCursor?: number | null;
 }) {
   const [q, setQ] = useState("");
   const [mood, setMood] = useState<JournalMood | "">("");
   const [tag, setTag] = useState("");
   const [profileId, setProfileId] = useState<number | "">("");
+  const [older, setOlder] = useState<TimelineEntryData[]>([]);
+  const [cursor, setCursor] = useState<number | null>(initialCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const entries = useMemo(
+    () => [...initialEntries, ...older],
+    [initialEntries, older],
+  );
+
+  async function loadMore() {
+    if (cursor === null || loadingMore) return;
+    setLoadingMore(true);
+    setLoadError(false);
+    try {
+      const res = await fetch(`/api/journal?cursor=${cursor}`);
+      if (!res.ok) throw new Error();
+      const body = (await res.json()) as {
+        entries: TimelineEntryData[];
+        nextCursor: number | null;
+      };
+      setOlder((cur) => [...cur, ...body.entries]);
+      setCursor(body.nextCursor);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const profiles = useMemo(() => {
     const seen = new Map<number, string>();
@@ -46,10 +78,12 @@ export default function JournalTimeline({
 
   if (entries.length === 0) {
     return (
-      <p className={styles.muted}>
-        No journal entries yet — notes live on each profile&rsquo;s Journal
-        tab.
-      </p>
+      <EmptyState
+        glyph={"\u270e"}
+        title="No journal entries yet"
+        hint="Notes live on each profile's Journal tab — every entry also remembers what was in the sky that day."
+        action={{ href: "/", label: "Open a profile" }}
+      />
     );
   }
 
@@ -148,6 +182,20 @@ export default function JournalTimeline({
               </li>
             ))}
           </ul>
+          {cursor !== null && (
+            <p className={styles.loadMoreRow}>
+              <button
+                className={styles.loadMore}
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+              >
+                {loadingMore ? "Loading…" : "Load older entries"}
+              </button>
+              {loadError && (
+                <span className={styles.muted}> Could not load more.</span>
+              )}
+            </p>
+          )}
         </>
       )}
     </div>

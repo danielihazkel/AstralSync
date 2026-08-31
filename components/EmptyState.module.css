@@ -1,0 +1,32 @@
+.empty {
+  margin: 1.25rem 0;
+  padding: 1.6rem 1.2rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  text-align: center;
+  background: var(--surface);
+}
+
+.glyph {
+  margin: 0 0 0.4rem;
+  font-size: 1.6rem;
+  color: var(--accent);
+}
+
+.title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--heading);
+}
+
+.hint {
+  margin: 0.2rem auto 0;
+  max-width: 34rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.action {
+  color: var(--accent-bright);
+}

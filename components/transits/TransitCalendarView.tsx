@@ -8,6 +8,8 @@ import type {
   TransitCalendarEvent,
 } from "@/lib/transitCalendar";
 import { loadOrbSettings } from "@/lib/orbSettings";
+import { MONTH_SHIFT_EVENT } from "@/lib/shortcuts";
+import PrintButton from "@/components/print/PrintButton";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -189,6 +191,15 @@ export default function TransitCalendarView({
     setMonth0(d.getMonth());
   }
 
+  // The global "[" / "]" shortcuts page months via a window event; no dep
+  // array — re-subscribing keeps the closure's month state fresh.
+  useEffect(() => {
+    const on = (e: Event) =>
+      shiftMonth((e as CustomEvent<{ delta: number }>).detail.delta);
+    window.addEventListener(MONTH_SHIFT_EVENT, on);
+    return () => window.removeEventListener(MONTH_SHIFT_EVENT, on);
+  });
+
   const monthLabel = new Date(year, month0, 1).toLocaleDateString([], {
     month: "long",
     year: "numeric",
@@ -226,7 +237,8 @@ export default function TransitCalendarView({
             >
               Export .ics
             </button>
-          )}
+          )}{" "}
+          <PrintButton />
         </span>
       </div>
 

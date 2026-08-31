@@ -144,6 +144,9 @@ export default async function PrintReportPage({
     <main className={styles.report}>
       <div className={styles.actions}>
         <Link href={`/profiles/${profile.id}`}>← Back to the profile</Link>
+        <Link href={`/profiles/${profile.id}/print/cycles`}>
+          Year-ahead report →
+        </Link>
         <PrintButton className={styles.printButton} />
       </div>
 

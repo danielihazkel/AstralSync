@@ -4,17 +4,35 @@ import {
   listProfiles,
   UnknownCityError,
 } from "@/lib/snapshots";
-import { profileInputSchema } from "@/lib/validation";
+import { profileInputSchema, profileListQuerySchema } from "@/lib/validation";
 
 // Profile lists carry personal birth data — keep them out of shared caches.
 const NO_STORE = { "Cache-Control": "no-store" };
 
-/** Multi-profile list (PRD §4.6). */
-export async function GET() {
-  return NextResponse.json(
-    { profiles: await listProfiles() },
-    { headers: NO_STORE },
+/** Multi-profile list (PRD §4.6). No params → the full list (primary
+ *  first); `?limit=` (with optional `?cursor=`) pages by id ascending and
+ *  adds `nextCursor` — the guardrail for very large installs. */
+export async function GET(req: NextRequest) {
+  const parsed = profileListQuerySchema.safeParse(
+    Object.fromEntries(req.nextUrl.searchParams),
   );
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_query", issues: parsed.error.issues },
+      { status: 400 },
+    );
+  }
+  const { cursor, limit } = parsed.data;
+  if (limit === undefined) {
+    return NextResponse.json(
+      { profiles: await listProfiles() },
+      { headers: NO_STORE },
+    );
+  }
+  const profiles = await listProfiles({ cursor, limit });
+  const nextCursor =
+    profiles.length === limit ? profiles[profiles.length - 1].id : null;
+  return NextResponse.json({ profiles, nextCursor }, { headers: NO_STORE });
 }
 
 /**

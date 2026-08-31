@@ -1,0 +1,120 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 90;
+}
+
+.palette,
+.help {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(34rem, 92vw);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.45);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 0.95rem;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.list {
+  margin: 0;
+  padding: 0.3rem 0 0.4rem;
+  list-style: none;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.group {
+  padding: 0.4rem 0.95rem 0.15rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.item {
+  padding: 0.42rem 0.95rem;
+  cursor: pointer;
+}
+
+.itemActive {
+  background: var(--accent-dim);
+  color: var(--accent-bright);
+}
+
+.noMatch {
+  margin: 0;
+  padding: 0.8rem 0.95rem;
+  color: var(--text-muted);
+}
+
+.help {
+  padding: 1rem 1.2rem 1.2rem;
+}
+
+.helpTitle {
+  margin: 0 0 0.7rem;
+  font-size: 1.05rem;
+  color: var(--heading);
+}
+
+.helpList {
+  margin: 0;
+  max-height: 56vh;
+  overflow-y: auto;
+}
+
+.helpRow {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0 0.9rem;
+  padding: 0.18rem 0;
+}
+
+.keys {
+  font-family: ui-monospace, monospace;
+  color: var(--accent-bright);
+}
+
+.helpDesc {
+  margin: 0;
+  color: var(--text);
+}
+
+@media print {
+  .backdrop,
+  .palette,
+  .help {
+    display: none;
+  }
+}
+
+/* .item is a full-width button (keyboard nav lives on the input). */
+.item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+}
+
+.itemActive {
+  background: var(--accent-dim);
+}

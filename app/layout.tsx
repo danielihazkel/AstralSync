@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { NotificationScheduler } from "@/components/pwa/NotificationScheduler";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import GlobalShortcuts from "@/components/shortcuts/GlobalShortcuts";
 import { ThemeScript } from "@/components/theme/ThemeScript";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { UndoToast } from "@/components/undo/UndoToast";
@@ -42,6 +44,8 @@ export default function RootLayout({
         </header>
         {children}
         <UndoToast />
+        <GlobalShortcuts />
+        <NotificationScheduler />
       </body>
     </html>
   );

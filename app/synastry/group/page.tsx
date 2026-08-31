@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getGroupSynastry, type GroupPairSummary } from "@/lib/synastry";
+import { listRelationships } from "@/lib/relationships";
+import {
+  RELATIONSHIP_KINDS,
+  RELATIONSHIP_KIND_LABELS,
+  type RelationshipKind,
+} from "@/lib/relationshipMeta";
 import { ASPECT_NAMES, PLANET_NAMES } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import styles from "@/components/synastry/synastry.module.css";
@@ -44,12 +50,44 @@ function StrongestCell({ pair }: { pair: GroupPairSummary }) {
  * is contested, so the grid shows the raw structure and links each cell to
  * the full pair page.
  */
-export default async function GroupSynastryPage() {
-  const group = await getGroupSynastry();
+export default async function GroupSynastryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string }>;
+}) {
+  const { kind: rawKind } = await searchParams;
+  const kind = (RELATIONSHIP_KINDS as readonly string[]).includes(rawKind ?? "")
+    ? (rawKind as RelationshipKind)
+    : null;
+  const [group, relationships] = await Promise.all([
+    getGroupSynastry(),
+    listRelationships(),
+  ]);
   const { profiles, pairs } = group;
   const byPair = new Map(pairs.map((p) => [`${p.aId}|${p.bId}`, p]));
   const pairOf = (x: number, y: number) =>
     byPair.get(`${x}|${y}`) ?? byPair.get(`${y}|${x}`) ?? null;
+  const relByPair = new Map(relationships.map((r) => [`${r.aId}|${r.bId}`, r]));
+  const relOf = (x: number, y: number) =>
+    relByPair.get(`${x}|${y}`) ?? relByPair.get(`${y}|${x}`) ?? null;
+  // ?kind= narrows the grid to profiles in a relationship of that kind and
+  // the pair list to exactly those pairs.
+  const kindIds = kind
+    ? new Set(
+        relationships
+          .filter((r) => r.kind === kind)
+          .flatMap((r) => [r.aId, r.bId]),
+      )
+    : null;
+  const gridProfiles = kindIds
+    ? profiles.filter((p) => kindIds.has(p.id))
+    : profiles;
+  const shownPairs = kind
+    ? pairs.filter((p) => relOf(p.aId, p.bId)?.kind === kind)
+    : pairs;
+  const presentKinds = RELATIONSHIP_KINDS.filter((k) =>
+    relationships.some((r) => r.kind === k),
+  );
 
   return (
     <main className={styles.page}>
@@ -84,12 +122,34 @@ export default async function GroupSynastryPage() {
             comparison. Deliberately not a score: the grid shows structure,
             not a verdict.
           </p>
+          {presentKinds.length > 0 && (
+            <p className={styles.muted}>
+              Filter by relationship:{" "}
+              {kind === null ? (
+                <strong>All</strong>
+              ) : (
+                <Link href="/synastry/group">All</Link>
+              )}
+              {presentKinds.map((k) => (
+                <span key={k}>
+                  {" · "}
+                  {kind === k ? (
+                    <strong>{RELATIONSHIP_KIND_LABELS[k]}</strong>
+                  ) : (
+                    <Link href={`/synastry/group?kind=${k}`}>
+                      {RELATIONSHIP_KIND_LABELS[k]}
+                    </Link>
+                  )}
+                </span>
+              ))}
+            </p>
+          )}
           <div className="tableWrap">
             <table className={styles.table} aria-label="Pairwise synastry">
               <thead>
                 <tr>
                   <th scope="col" aria-label="Profile" />
-                  {profiles.map((p) => (
+                  {gridProfiles.map((p) => (
                     <th key={p.id} scope="col">
                       {p.displayName}
                     </th>
@@ -97,10 +157,10 @@ export default async function GroupSynastryPage() {
                 </tr>
               </thead>
               <tbody>
-                {profiles.map((row) => (
+                {gridProfiles.map((row) => (
                   <tr key={row.id}>
                     <th scope="row">{row.displayName}</th>
-                    {profiles.map((col) => {
+                    {gridProfiles.map((col) => {
                       if (row.id === col.id) {
                         return <td key={col.id}>—</td>;
                       }
@@ -126,7 +186,7 @@ export default async function GroupSynastryPage() {
           <section aria-label="Pairs by contact count">
             <h2 className={styles.sectionTitle}>Most contact first</h2>
             <ul className={styles.aspectList}>
-              {[...pairs]
+              {[...shownPairs]
                 .sort((x, y) => y.count - x.count)
                 .map((pair) => {
                   const a = profiles.find((p) => p.id === pair.aId)!;
@@ -137,6 +197,16 @@ export default async function GroupSynastryPage() {
                         {a.displayName} × {b.displayName}
                       </Link>{" "}
                       · {pair.count} contact{pair.count === 1 ? "" : "s"}
+                      {relOf(pair.aId, pair.bId) && (
+                        <span className={styles.tag}>
+                          {" "}
+                          {
+                            RELATIONSHIP_KIND_LABELS[
+                              relOf(pair.aId, pair.bId)!.kind
+                            ]
+                          }
+                        </span>
+                      )}
                       {pair.strongest && (
                         <span className={styles.muted}>
                           {" "}

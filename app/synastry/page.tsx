@@ -16,6 +16,9 @@ import {
   synastryAspectKey,
 } from "@/lib/synastry";
 import { synastryQuerySchema } from "@/lib/validation";
+import { getRelationship, listRelationships } from "@/lib/relationships";
+import { RELATIONSHIP_KIND_LABELS } from "@/lib/relationshipMeta";
+import SaveRelationshipPanel from "@/components/synastry/SaveRelationshipPanel";
 import PairPicker from "@/components/synastry/PairPicker";
 import PrintButton from "@/components/print/PrintButton";
 import { PLANET_NAMES, SIGN_NAMES, formatDegreeInSign } from "@/components/format";
@@ -107,7 +110,10 @@ export default async function SynastryPage({
   // Reached without a pair (e.g. the header link): offer the picker instead
   // of a 404. Present-but-invalid ids still 404 below.
   if (params.a === undefined && params.b === undefined) {
-    const profiles = await listProfiles();
+    const [profiles, relationships] = await Promise.all([
+      listProfiles(),
+      listRelationships(),
+    ]);
     return (
       <main className={styles.page}>
         <header className={styles.header}>
@@ -131,6 +137,25 @@ export default async function SynastryPage({
             <Link href="/onboarding">create another chart</Link> to compare.
           </p>
         )}
+        {relationships.length > 0 && (
+          <section aria-label="Saved relationships">
+            <h2 className={styles.sectionTitle}>Saved relationships</h2>
+            <ul className={styles.aspectList}>
+              {relationships.map((r) => (
+                <li key={r.id}>
+                  <Link href={`/synastry?a=${r.aId}&b=${r.bId}`}>
+                    {r.label ?? `${r.aName} × ${r.bName}`}
+                  </Link>{" "}
+                  <span className={styles.muted}>
+                    {RELATIONSHIP_KIND_LABELS[r.kind]}
+                    {r.label ? ` · ${r.aName} × ${r.bName}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         {profiles.length >= 3 && (
           <p className={styles.muted}>
             Or see <Link href="/synastry/group">every pair at once</Link> in
@@ -152,6 +177,7 @@ export default async function SynastryPage({
 
   // The pair's stored AI reading (order-insensitive slot) + staleness.
   const storedReading = await getSynastryReading(query.data.a, query.data.b);
+  const relationship = await getRelationship(query.data.a, query.data.b);
   const [pairA] = normalizePair(query.data.a, query.data.b);
   const currentA = a.profileId === pairA ? a.version : b.version;
   const currentB = a.profileId === pairA ? b.version : a.version;
@@ -232,6 +258,12 @@ export default async function SynastryPage({
           </p>
         ))}
       </header>
+
+      <SaveRelationshipPanel
+        a={query.data.a}
+        b={query.data.b}
+        existing={relationship}
+      />
 
       {eitherSolar && (
         <p className={styles.notice} role="note">

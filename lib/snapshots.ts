@@ -444,6 +444,7 @@ function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
     utcOffsetMinutes: p.utcOffsetMinutes,
     offsetOverridden: p.offsetOverridden,
     isPrimary: p.isPrimary,
+    tags: (p.tagsJson as unknown as string[] | null) ?? [],
     createdAt: p.createdAt,
   };
 }
@@ -753,10 +754,18 @@ export async function getProfileName(id: number): Promise<string | null> {
   return profile?.displayName ?? null;
 }
 
-/** Live profiles in creation order, the primary one (if any) first. */
-export async function listProfiles() {
+/** Live profiles in creation order, the primary one (if any) first. With
+ *  `page` the order switches to id ascending (cursor-stable) — the API's
+ *  guardrail for very large installs; server pages keep the default. */
+export async function listProfiles(page?: { cursor?: number; limit: number }) {
   const profiles = await prisma.profile.findMany({
-    orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    orderBy: page
+      ? { id: "asc" }
+      : [{ isPrimary: "desc" }, { createdAt: "asc" }],
+    ...(page ? { take: page.limit } : {}),
+    ...(page?.cursor !== undefined
+      ? { cursor: { id: page.cursor }, skip: 1 }
+      : {}),
     include: { astroSnapshots: { orderBy: { version: "desc" }, take: 1 } },
   });
   return profiles.map((p) => {
@@ -770,6 +779,8 @@ export async function listProfiles() {
       isSolarChart: latest?.isSolarChart ?? false,
       latestVersion: latest?.version ?? 0,
       isPrimary: p.isPrimary,
+      tags: (p.tagsJson as unknown as string[] | null) ?? [],
+      lastViewedAt: p.lastViewedAt,
       createdAt: p.createdAt,
       // Lean natal placements for the home page's Today dashboard.
       placements:
@@ -819,6 +830,33 @@ export async function setPrimaryProfile(
     await tx.profile.update({ where: { id }, data: { isPrimary } });
     return true;
   });
+}
+
+/** Replace the profile's free-form tags — installation metadata, never a
+ *  recompute. An empty list clears to NULL, mirroring JournalEntry.tagsJson.
+ *  False when the profile doesn't exist (maps to 404). */
+export async function setProfileTags(
+  id: number,
+  tags: string[],
+): Promise<boolean> {
+  const { count } = await prisma.profile.updateMany({
+    where: { id },
+    data: { tagsJson: tags.length > 0 ? tags : Prisma.DbNull },
+  });
+  return count > 0;
+}
+
+/** Record a profile-page open — feeds the Today strip's scan cap. Best
+ *  effort: bookkeeping must never break a page view. */
+export async function touchProfileViewed(id: number): Promise<void> {
+  try {
+    await prisma.profile.updateMany({
+      where: { id },
+      data: { lastViewedAt: new Date() },
+    });
+  } catch {
+    // Swallowed deliberately — a view is not a transaction.
+  }
 }
 
 /** Full data export (PRD §4.6): every snapshot version, every reading. */

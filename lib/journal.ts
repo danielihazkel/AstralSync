@@ -217,12 +217,20 @@ export async function updateJournalEntry(
  *  client-side filter). The sky snapshot stays out: the timeline is a
  *  reading surface, and each entry links back to its profile's Journal tab
  *  for the full view. */
-export async function listAllJournalEntries(): Promise<TimelineEntryData[]> {
+export async function listAllJournalEntries(page?: {
+  cursor?: number;
+  limit: number;
+}): Promise<TimelineEntryData[]> {
   const rows = await prisma.journalEntry.findMany({
     // The client extension hides trashed entries; entries whose whole
     // profile is in the Trash need the relation filter.
     where: { profile: { deletedAt: null } },
-    orderBy: [{ entryDate: "desc" }, { createdAt: "desc" }],
+    // id desc mirrors createdAt desc while keeping the cursor unique.
+    orderBy: [{ entryDate: "desc" }, { id: "desc" }],
+    ...(page ? { take: page.limit } : {}),
+    ...(page?.cursor !== undefined
+      ? { cursor: { id: page.cursor }, skip: 1 }
+      : {}),
     include: { profile: { select: { id: true, displayName: true } } },
   });
   return rows.map((row) => ({

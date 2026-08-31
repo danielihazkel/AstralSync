@@ -19,6 +19,12 @@ type Testables = {
   }) => string;
   rscCacheKey: (url: string) => string;
   trimCache: (cache: unknown, max: number) => Promise<void>;
+  dueNotifications: (
+    digest: unknown,
+    nowMs: number,
+    windowMs?: number,
+    graceMs?: number,
+  ) => Array<{ key: string; atUtc: string }>;
   VERSION: string;
 };
 
@@ -106,7 +112,13 @@ describe("trimCache", () => {
 
 describe("lifecycle", () => {
   it("registers install, activate, and fetch listeners", () => {
-    expect(listeners).toEqual(["install", "activate", "fetch"]);
+    expect(listeners).toEqual([
+      "notificationclick",
+      "periodicsync",
+      "install",
+      "activate",
+      "fetch",
+    ]);
   });
 
   it("exposes the substituted build id as its version", () => {
@@ -123,5 +135,39 @@ describe("renderServiceWorker", () => {
   it("falls back to a fixed id when nothing survives sanitizing", () => {
     const src = `cache-${BUILD_ID_PLACEHOLDER}`;
     expect(renderServiceWorker(src, '";')).toBe("cache-unknown");
+  });
+});
+
+describe("dueNotifications", () => {
+  const NOW = Date.parse("2026-08-31T12:00:00Z");
+  const digest = {
+    notifications: [
+      { key: "past-old", atUtc: "2026-08-31T09:00:00.000Z" },
+      { key: "recent", atUtc: "2026-08-31T11:30:00.000Z" },
+      { key: "soon", atUtc: "2026-08-31T20:00:00.000Z" },
+      { key: "tomorrow", atUtc: "2026-09-01T11:00:00.000Z" },
+      { key: "far", atUtc: "2026-09-02T13:00:00.000Z" },
+      { key: "fired", atUtc: "2026-08-31T18:00:00.000Z" },
+    ],
+    fired: ["fired"],
+  };
+
+  it("fires hits inside the window, skipping old, far and already-fired", () => {
+    expect(testables.dueNotifications(digest, NOW).map((n) => n.key)).toEqual([
+      "recent",
+      "soon",
+      "tomorrow",
+    ]);
+  });
+
+  it("tolerates a malformed digest", () => {
+    expect(testables.dueNotifications(null, NOW)).toEqual([]);
+    expect(testables.dueNotifications({}, NOW)).toEqual([]);
+    expect(
+      testables.dueNotifications(
+        { notifications: [{ key: "x", atUtc: "nope" }] },
+        NOW,
+      ),
+    ).toEqual([]);
   });
 });

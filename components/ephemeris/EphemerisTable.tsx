@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MONTH_SHIFT_EVENT } from "@/lib/shortcuts";
 import { PLANETS } from "@astralsync/astro-core";
 import type { EphemerisMonth } from "@/lib/ephemeris";
 import { PLANET_NAMES } from "@/components/format";
@@ -48,6 +49,15 @@ export default function EphemerisTable() {
     setYear(d.getUTCFullYear());
     setMonth(d.getUTCMonth() + 1);
   }
+
+  // The global "[" / "]" shortcuts page months via a window event; no dep
+  // array — re-subscribing keeps the closure's month state fresh.
+  useEffect(() => {
+    const on = (e: Event) =>
+      shift((e as CustomEvent<{ delta: number }>).detail.delta);
+    window.addEventListener(MONTH_SHIFT_EVENT, on);
+    return () => window.removeEventListener(MONTH_SHIFT_EVENT, on);
+  });
 
   const label = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString([], {
     month: "long",

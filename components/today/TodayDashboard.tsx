@@ -46,11 +46,14 @@ function upcomingIcsEvents(upcoming: UpcomingProfile[]): IcsEvent[] {
 export default function TodayDashboard({
   profiles,
   primaryId = null,
+  hiddenCount = 0,
 }: {
   profiles: TodayProfile[];
   /** The primary ("my") chart leads each per-profile list; the rest fold
    *  into a collapsed "other charts" group so the strip stays short. */
   primaryId?: number | null;
+  /** Profiles the scan guardrail left out (lib/todayCap). */
+  hiddenCount?: number;
 }) {
   const [sky, setSky] = useState<TodaySky | null>(null);
   const [location, setLocation] = useState<HomeLocation | null>(null);
@@ -381,6 +384,14 @@ export default function TodayDashboard({
             </>
           )}
         </details>
+      )}
+
+      {hiddenCount > 0 && (
+        <p className={styles.muted}>
+          Not scanning {hiddenCount} less recently viewed chart
+          {hiddenCount === 1 ? "" : "s"} — open a profile to bring it back
+          into the strip.
+        </p>
       )}
     </section>
   );

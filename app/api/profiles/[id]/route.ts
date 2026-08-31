@@ -5,6 +5,7 @@ import {
   editProfile,
   getProfileView,
   setPrimaryProfile,
+  setProfileTags,
   UnknownCityError,
 } from "@/lib/snapshots";
 import { profileInputSchema, profilePatchSchema } from "@/lib/validation";
@@ -89,8 +90,9 @@ export async function PUT(
 }
 
 /**
- * Installation-level flags: `{ isPrimary }` marks this profile as "me" (any
- * other primary is cleared) or clears it. Never recomputes or versions.
+ * Installation-level metadata: `{ isPrimary }` marks this profile as "me"
+ * (any other primary is cleared) or clears it; `{ tags }` replaces the
+ * free-form tags. Never recomputes or versions.
  */
 export async function PATCH(
   req: NextRequest,
@@ -109,11 +111,20 @@ export async function PATCH(
       { status: 400 },
     );
   }
-  const ok = await setPrimaryProfile(id, parsed.data.isPrimary);
-  if (!ok) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const patch = parsed.data;
+  if (patch.isPrimary !== undefined) {
+    const ok = await setPrimaryProfile(id, patch.isPrimary);
+    if (!ok) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
   }
-  return NextResponse.json({ id, isPrimary: parsed.data.isPrimary });
+  if (patch.tags !== undefined) {
+    const ok = await setProfileTags(id, patch.tags);
+    if (!ok) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+  }
+  return NextResponse.json({ id, ...patch });
 }
 
 /**

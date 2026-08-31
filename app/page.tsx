@@ -1,5 +1,6 @@
-import Link from "next/link";
 import { listProfiles } from "@/lib/snapshots";
+import { capTodayProfiles } from "@/lib/todayCap";
+import EmptyState from "@/components/EmptyState";
 import ImportProfileButton from "@/components/profiles/ImportProfileButton";
 import ProfileList from "@/components/profiles/ProfileList";
 import PairPicker from "@/components/synastry/PairPicker";
@@ -14,6 +15,11 @@ export default async function Home() {
   // inherits "me first" for free.
   const profiles = await listProfiles();
   const primaryId = profiles.find((p) => p.isPrimary)?.id ?? null;
+  // Scan guardrail: the Today strip computes for the primary + most
+  // recently viewed charts; the rest stay in the list below, unscanned.
+  const todayScan = capTodayProfiles(
+    profiles.filter((p) => p.placements !== null),
+  );
 
   return (
     <main>
@@ -24,22 +30,23 @@ export default async function Home() {
       </p>
 
       <TodayDashboard
-        profiles={profiles
-          .filter((p) => p.placements !== null)
-          .map((p) => ({
-            id: p.id,
-            displayName: p.displayName,
-            placements: p.placements!,
-          }))}
+        profiles={todayScan.shown.map((p) => ({
+          id: p.id,
+          displayName: p.displayName,
+          placements: p.placements!,
+        }))}
         primaryId={primaryId}
+        hiddenCount={todayScan.hiddenCount}
       />
 
       {profiles.length === 0 ? (
         <div className={styles.empty}>
-          <p>No profiles yet.</p>
-          <Link href="/onboarding" className={styles.cta}>
-            Create your first chart
-          </Link>
+          <EmptyState
+            glyph="✶"
+            title="No charts yet"
+            hint="Birth data goes in once — the chart, numerology and Mazal snapshots are computed at creation and stored locally forever."
+            action={{ href: "/onboarding", label: "Create your first chart" }}
+          />
           <p className={styles.tagline}>
             Have an export file? <ImportProfileButton />
           </p>

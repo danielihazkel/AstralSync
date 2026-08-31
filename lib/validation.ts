@@ -5,6 +5,11 @@ import {
   MAX_TAG_LENGTH,
   normalizeTags,
 } from "./journalMeta";
+import {
+  MAX_RELATIONSHIP_LABEL,
+  MAX_RELATIONSHIP_NOTE,
+  RELATIONSHIP_KINDS,
+} from "./relationshipMeta";
 import type { AspectType, Planet } from "@astralsync/astro-core";
 import type { ProfileBirthData } from "./snapshots";
 import { isValidTimeZone } from "./tzValidate";
@@ -148,11 +153,31 @@ export const profileInputSchema = profileInputBase
 
 export type ProfileInput = z.infer<typeof profileInputSchema>;
 
-/** PATCH /api/profiles/[id] body: installation-level flags that never touch
- *  the chart (no recompute, no new version). Only the primary flag so far. */
-export const profilePatchSchema = z.object({
-  isPrimary: z.boolean(),
-});
+/** Normalized tag list — shared by journal entries and profile tags. Limits
+ *  are checked after normalization and reject (400) rather than truncate —
+ *  the user should see why input was refused, not silently lose tags. */
+const tagList = z
+  .array(z.string().max(MAX_TAG_LENGTH * 2))
+  .max(50)
+  .transform(normalizeTags)
+  .refine((t) => t.length <= MAX_TAGS, {
+    message: `at most ${MAX_TAGS} tags`,
+  })
+  .refine((t) => t.every((s) => s.length <= MAX_TAG_LENGTH), {
+    message: `tags must be at most ${MAX_TAG_LENGTH} characters`,
+  });
+
+/** PATCH /api/profiles/[id] body: installation-level metadata that never
+ *  touches the chart (no recompute, no new version) — the primary flag
+ *  and/or the free-form tags. At least one field. */
+export const profilePatchSchema = z
+  .object({
+    isPrimary: z.boolean().optional(),
+    tags: tagList.optional(),
+  })
+  .refine((v) => v.isPrimary !== undefined || v.tags !== undefined, {
+    message: "nothing to update",
+  });
 
 export type ProfilePatch = z.infer<typeof profilePatchSchema>;
 
@@ -229,19 +254,9 @@ function atMatchesEntryDate(v: { at?: string; entryDate?: string }): boolean {
 
 const journalMood = z.enum(JOURNAL_MOODS);
 
-/** Normalized tag list. Limits are checked after normalization and reject
- *  (400) rather than truncate — the user should see why input was refused,
- *  not silently lose tags. */
-const journalTags = z
-  .array(z.string().max(MAX_TAG_LENGTH * 2))
-  .max(50)
-  .transform(normalizeTags)
-  .refine((t) => t.length <= MAX_TAGS, {
-    message: `at most ${MAX_TAGS} tags`,
-  })
-  .refine((t) => t.every((s) => s.length <= MAX_TAG_LENGTH), {
-    message: `tags must be at most ${MAX_TAG_LENGTH} characters`,
-  });
+/** Journal entries share the profile tag rules (defined above the patch
+ *  schema); the alias keeps the journal schemas reading naturally. */
+const journalTags = tagList;
 
 /** POST /api/profiles/[id]/journal body. */
 export const journalCreateSchema = z
@@ -469,3 +484,41 @@ export function toProfileBirthData(
       : null,
   };
 }
+
+// --- relationships -----------------------------------------------------------
+
+/** POST /api/relationships body — save (create or overwrite; one row per
+ *  pair) a relationship. The pair is normalized server-side, so (a,b) and
+ *  (b,a) address the same row; a === b is refused. */
+export const relationshipSaveSchema = z
+  .object({
+    a: z.number().int().positive(),
+    b: z.number().int().positive(),
+    kind: z.enum(RELATIONSHIP_KINDS),
+    label: z.string().trim().max(MAX_RELATIONSHIP_LABEL).optional(),
+    note: z.string().trim().max(MAX_RELATIONSHIP_NOTE).optional(),
+  })
+  .refine((v) => v.a !== v.b, { message: "a and b must differ" });
+
+export type RelationshipSaveInput = z.infer<typeof relationshipSaveSchema>;
+
+// --- pagination guardrails ---------------------------------------------------
+
+/** GET /api/profiles query: optional cursor pagination (id-ordered when
+ *  `limit` is present). The full list stays the no-param default — a
+ *  household install has no business paginating at five profiles, but
+ *  nothing should fall over at five hundred either. */
+export const profileListQuerySchema = z.object({
+  cursor: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+export type ProfileListQuery = z.infer<typeof profileListQuerySchema>;
+
+/** GET /api/journal query: cursor pagination for the global timeline. */
+export const journalTimelineQuerySchema = z.object({
+  cursor: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
+export type JournalTimelineQuery = z.infer<typeof journalTimelineQuerySchema>;

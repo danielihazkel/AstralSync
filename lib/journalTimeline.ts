@@ -65,3 +65,7 @@ export function timelineTags(entries: TimelineEntryData[]): string[] {
   }
   return out;
 }
+
+/** Page size shared by the /journal server load and GET /api/journal — the
+ *  scale guardrail for years of notes. */
+export const TIMELINE_PAGE_SIZE = 200;

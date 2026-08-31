@@ -33,6 +33,7 @@ import {
   getProfileName,
   getProfileView,
   listSnapshotVersions,
+  touchProfileViewed,
 } from "@/lib/snapshots";
 import {
   toNumeroReadingInput,
@@ -89,6 +90,8 @@ export default async function ProfilePage({
   // Lazy backfill for pre-feature profiles (latest version only, write-once
   // create, no-op after the first view) — getProfileView stays a pure read.
   await ensureHebrewSnapshot(id);
+  // Feeds the Today strip's scan cap (most-recently-viewed); best effort.
+  await touchProfileViewed(id);
   const [view, versions] = await Promise.all([
     getProfileView(id, version),
     listSnapshotVersions(id),

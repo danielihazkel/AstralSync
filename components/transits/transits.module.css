@@ -224,3 +224,12 @@
   background: var(--bar-color, var(--aspect-minor));
   opacity: 0.7;
 }
+
+/* Print: the month calendar prints as a clean event list — interactive
+   controls vanish, the day groups stand alone. */
+@media print {
+  .panel button,
+  .asOfRow button {
+    display: none;
+  }
+}

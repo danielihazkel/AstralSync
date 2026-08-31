@@ -30,6 +30,14 @@ export default function ForecastPanel({
 
   return (
     <div className={styles.panel}>
+      {!llmEnabled && (
+        <p className={styles.notice} role="note">
+          AI forecasts are switched off on this install. To enable them, set{" "}
+          <code>READING_LLM</code> and <code>READING_LLM_MODEL</code> in the
+          server&rsquo;s <code>.env</code> and restart (see the README).
+          Charts, transits and template readings all work without them.
+        </p>
+      )}
       <div
         className={styles.switcher}
         role="group"

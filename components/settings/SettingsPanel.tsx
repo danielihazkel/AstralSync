@@ -25,6 +25,7 @@ import { HOUSE_SYSTEM_NAMES } from "@/components/format";
 import OrbSettingsControl from "./OrbSettingsControl";
 import HomeLocationPicker from "./HomeLocationPicker";
 import DataPanel from "./DataPanel";
+import NotificationsPanel from "./NotificationsPanel";
 import TrashPanel from "./TrashPanel";
 import styles from "./settings.module.css";
 
@@ -218,6 +219,11 @@ export default function SettingsPanel() {
           starts from this default, and a profile&rsquo;s Details tab can
           switch it later (which recomputes a new chart version).
         </p>
+      </section>
+
+      <section className={styles.section} id="notifications">
+        <h2 className={styles.sectionTitle}>Notifications</h2>
+        <NotificationsPanel />
       </section>
 
       <section className={styles.section} id="data">

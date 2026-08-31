@@ -278,3 +278,37 @@
     break-inside: avoid;
   }
 }
+
+/* Saved relationships (Batch P) */
+.relRow {
+  margin: 0.2rem 0 0.8rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.relLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-bright);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.relForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: center;
+  margin: 0.2rem 0 0.9rem;
+  font-size: 0.9rem;
+}
+
+@media print {
+  .relLink,
+  .relForm {
+    display: none;
+  }
+}

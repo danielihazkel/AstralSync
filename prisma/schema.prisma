@@ -55,6 +55,15 @@ enum ForecastKind {
   month
 }
 
+// Canonical union lives in lib/relationshipMeta.ts (client-safe); keep in sync.
+enum RelationshipKind {
+  partner
+  family
+  friend
+  colleague
+  other
+}
+
 // Canonical union lives in lib/journalMeta.ts (client-safe); keep in sync.
 enum JournalMood {
   very_low
@@ -111,6 +120,13 @@ model Profile {
   /// from the Trash. The Prisma client (lib/db.ts) hides trashed rows from
   /// every ordinary read; a hard delete (purge) still cascades.
   deletedAt          DateTime?     @map("deleted_at")
+  /// Free-form tags as a JSON string array (the JournalEntry.tagsJson
+  /// idiom); null = no tags. Installation-level metadata, never versioned.
+  tagsJson           Json?         @map("tags_json")
+  /// Last time the profile page was opened — the Today strip caps its
+  /// per-profile transit scan to the primary + most recently viewed charts.
+  /// Null for never-viewed (imported/new) profiles.
+  lastViewedAt       DateTime?     @map("last_viewed_at")
   createdAt          DateTime      @default(now()) @map("created_at")
 
   astroSnapshots  AstroSnapshot[]
@@ -121,8 +137,32 @@ model Profile {
 
   synastryReadingsAsA SynastryReading[] @relation("synastryA")
   synastryReadingsAsB SynastryReading[] @relation("synastryB")
+  relationshipsAsA    Relationship[]    @relation("relationshipA")
+  relationshipsAsB    Relationship[]    @relation("relationshipB")
 
   @@map("profile")
+}
+
+// A saved pairing of two profiles ("Dana × Yoav — partners"): the label the
+// synastry surfaces hang their lists and filters on. Freely editable and
+// deletable (the JournalEntry stance, not the snapshot one); the pair's
+// cached SynastryReading is independent and unaffected.
+model Relationship {
+  id   Int     @id @default(autoincrement())
+  /// Ordered pair: aId < bId, so (a,b) and (b,a) share the row — the
+  /// SynastryReading convention.
+  aId  Int     @map("a_id")
+  a    Profile @relation("relationshipA", fields: [aId], references: [id], onDelete: Cascade)
+  bId  Int     @map("b_id")
+  b    Profile @relation("relationshipB", fields: [bId], references: [id], onDelete: Cascade)
+  kind RelationshipKind
+  /// Optional display label ("my parents"); the pair's names otherwise.
+  label String? @db.VarChar(80)
+  note  String? @db.VarChar(400)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([aId, bId])
+  @@map("relationship")
 }
 
 // Write-once. New birth data or house system → new version row.

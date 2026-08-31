@@ -14,6 +14,7 @@ function item(overrides: Partial<ProfileListItem> & { id: number }): ProfileList
     isSolarChart: false,
     latestVersion: 1,
     isPrimary: false,
+    tags: [],
     createdAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };

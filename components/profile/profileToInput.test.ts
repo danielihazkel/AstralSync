@@ -23,6 +23,7 @@ const base: ProfileData = {
   tzIana: "Europe/Paris",
   utcOffsetMinutes: 60,
   offsetOverridden: false,
+  tags: [],
   isPrimary: false,
   createdAt: new Date("2026-01-01T00:00:00Z"),
 };

@@ -282,6 +282,8 @@ describe("buildSnapshotRows", () => {
 describe("profileRowToBirthData (lazy backfill input)", () => {
   const row: Profile = {
     id: 7,
+    tagsJson: null,
+    lastViewedAt: null,
     displayName: "Ada",
     fullBirthName: "Ada King Lovelace",
     hebrewBirthName: null,

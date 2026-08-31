@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MONTH_SHIFT_EVENT } from "@/lib/shortcuts";
 import { useEffect, useState } from "react";
 import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
 import { SIGN_NAMES } from "@/components/format";
@@ -84,6 +85,15 @@ export default function SkyCalendar() {
     setMonth1(d.getMonth() + 1);
     setSelected(null);
   }
+
+  // The global "[" / "]" shortcuts page months via a window event; no dep
+  // array — re-subscribing keeps the closure's month state fresh.
+  useEffect(() => {
+    const on = (e: Event) =>
+      shiftMonth((e as CustomEvent<{ delta: number }>).detail.delta);
+    window.addEventListener(MONTH_SHIFT_EVENT, on);
+    return () => window.removeEventListener(MONTH_SHIFT_EVENT, on);
+  });
 
   const monthLabel = new Date(year, month1 - 1, 1).toLocaleDateString([], {
     month: "long",

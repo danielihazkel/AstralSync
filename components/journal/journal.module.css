@@ -259,3 +259,19 @@
   color: var(--danger);
   border-color: var(--danger);
 }
+
+.loadMoreRow {
+  text-align: center;
+  margin: 0.8rem 0 0;
+}
+
+.loadMore {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--accent-bright);
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}

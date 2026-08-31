@@ -11,6 +11,7 @@ import {
 } from "@/components/format";
 import DeleteProfileButton from "@/components/profiles/DeleteProfileButton";
 import HouseSystemSelector from "./HouseSystemSelector";
+import TagsEditor from "./TagsEditor";
 import PrimaryProfileButton from "./PrimaryProfileButton";
 import VersionHistory from "./VersionHistory";
 import styles from "./profile.module.css";
@@ -97,6 +98,11 @@ export default function DetailsPanel({
             — compute-relevant changes create a new chart version
           </span>
         </p>
+      </section>
+
+      <section className={styles.detailsSection}>
+        <h3 className={styles.sectionTitle}>Tags</h3>
+        <TagsEditor profileId={profile.id} tags={profile.tags} />
       </section>
 
       {isLatest && chart.houses && (

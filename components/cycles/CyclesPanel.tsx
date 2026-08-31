@@ -304,7 +304,10 @@ export default function CyclesPanel({
         <span className={styles.muted}>
           As of {new Date(data.computedAt).toLocaleString()}
         </span>
-        <button onClick={() => void load()}>Refresh</button>
+        <span>
+          <a href={`/profiles/${profileId}/print/cycles`}>Year-ahead report</a>{" "}
+          <button onClick={() => void load()}>Refresh</button>
+        </span>
       </div>
 
       {!isLatest && (
