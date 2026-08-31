@@ -2,21 +2,22 @@ import { describe, expect, it } from "vitest";
 import type { NumeroDerivation, WheelChart } from "./view-types";
 import { buildLifeStoryPrompt } from "./llm";
 import {
+  birthDataFromProfile,
   MAX_LIFE_EVENTS_IN_PROMPT,
+  renderBirthData,
   renderLifeEventsData,
-  renderLifeStoryBirthData,
+  type BirthData,
   type LifeEventPromptItem,
-  type LifeStoryBirthData,
 } from "./promptData";
 
 /**
- * The Life Story prompt is the ONE sanctioned exception to the
- * no-birth-data contract: these tests assert the raw birth date, time and
- * place ARE present — the deliberate inverse of llm.test.ts's
- * `not.toContain` assertions, which stay in force for every other builder.
+ * Birth data and life events are shared by every personal reading/forecast
+ * prompt under the personal-data policy (lib/promptData.ts header). These
+ * tests cover the shared renderers and the Life Story builder, which
+ * pioneered them; llm.test.ts covers the other builders.
  */
 
-const birth: LifeStoryBirthData = {
+const birth: BirthData = {
   birthDate: "2000-08-09",
   birthTime: "13:00",
   timeCertainty: "exact",
@@ -124,9 +125,9 @@ const events: LifeEventPromptItem[] = [
   },
 ];
 
-describe("renderLifeStoryBirthData", () => {
-  it("renders the full birth data — the sanctioned exception", () => {
-    const data = renderLifeStoryBirthData(birth);
+describe("renderBirthData", () => {
+  it("renders the full birth data", () => {
+    const data = renderBirthData(birth);
     expect(data).toContain("Birth date: August 9, 2000");
     expect(data).toContain("Birth time: 13:00 (exact)");
     expect(data).toContain("Tel Aviv, 05, IL");
@@ -136,10 +137,10 @@ describe("renderLifeStoryBirthData", () => {
 
   it("marks approximate and unknown birth times", () => {
     expect(
-      renderLifeStoryBirthData({ ...birth, timeCertainty: "approx" }),
+      renderBirthData({ ...birth, timeCertainty: "approx" }),
     ).toContain("13:00 (approximate)");
     expect(
-      renderLifeStoryBirthData({
+      renderBirthData({
         ...birth,
         birthTime: null,
         timeCertainty: "unknown",
@@ -148,13 +149,48 @@ describe("renderLifeStoryBirthData", () => {
   });
 
   it("falls back to coordinates when no city label exists", () => {
-    const data = renderLifeStoryBirthData({
+    const data = renderBirthData({
       ...birth,
       placeLabel: null,
       birthLat: -33.9,
       birthLng: -70.7,
     });
     expect(data).toContain("Birthplace: 33.90°S, 70.70°W");
+  });
+});
+
+describe("birthDataFromProfile", () => {
+  it("builds the city label and passes the birth fields through", () => {
+    const b = birthDataFromProfile({
+      birthDate: "2000-08-09",
+      birthTime: "13:00",
+      timeCertainty: "exact",
+      birthCity: { name: "Tel Aviv", admin1: "05", countryCode: "IL" },
+      birthLat: 32.1,
+      birthLng: 34.8,
+      tzIana: "Asia/Jerusalem",
+    });
+    expect(b).toEqual(birth);
+  });
+
+  it("skips empty label parts and handles a missing city", () => {
+    const base = {
+      birthDate: "2000-08-09",
+      birthTime: null,
+      timeCertainty: "unknown" as const,
+      birthLat: 51.5,
+      birthLng: -0.1,
+      tzIana: "Europe/London",
+    };
+    expect(
+      birthDataFromProfile({
+        ...base,
+        birthCity: { name: "London", admin1: null, countryCode: "GB" },
+      }).placeLabel,
+    ).toBe("London, GB");
+    expect(
+      birthDataFromProfile({ ...base, birthCity: null }).placeLabel,
+    ).toBeNull();
   });
 });
 

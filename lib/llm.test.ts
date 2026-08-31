@@ -18,7 +18,9 @@ import {
   LlmUnavailableError,
   ollamaClient,
   openAiCompatClient,
+  type PersonalContext,
 } from "./llm";
+import type { BirthData, LifeEventPromptItem } from "./promptData";
 
 describe("llmClientFromEnv", () => {
   it("is off when unset or explicitly off", () => {
@@ -199,9 +201,44 @@ const numero: NumeroDerivation = {
   hebrewDestiny: null,
 };
 
+// The personal context every personal prompt carries (personal-data
+// policy, lib/promptData.ts header). Mirrors lib/lifeStoryPrompt.test.ts.
+const birth: BirthData = {
+  birthDate: "2000-08-09",
+  birthTime: "13:00",
+  timeCertainty: "exact",
+  placeLabel: "Tel Aviv, 05, IL",
+  birthLat: 32.1,
+  birthLng: 34.8,
+  tzIana: "Asia/Jerusalem",
+};
+
+const lifeEvents: LifeEventPromptItem[] = [
+  {
+    title: "Started first job",
+    eventDate: "2019-06-01",
+    precision: "month",
+    category: "career",
+    notesMd: null,
+  },
+  {
+    title: "Moved abroad",
+    eventDate: "2021-03-12",
+    precision: "day",
+    category: "relocation",
+    notesMd: "A big change that took years to settle.",
+  },
+];
+
+const personal: PersonalContext = {
+  birth,
+  numerology: numero,
+  events: lifeEvents,
+};
+
 describe("buildReadingPrompt", () => {
   it("includes entry titles, bodies, and the element distribution", () => {
-    const prompt = buildReadingPrompt(resolved, chart, numero);
+    const prompt = buildReadingPrompt(resolved, chart, personal);
     expect(prompt).toContain("Sun in Leo");
     expect(prompt).toContain("Sun body.");
     expect(prompt).toContain("water 4");
@@ -210,7 +247,7 @@ describe("buildReadingPrompt", () => {
   });
 
   it("includes the complete chart data — outer planets, houses, aspects", () => {
-    const prompt = buildReadingPrompt(resolved, chart, numero);
+    const prompt = buildReadingPrompt(resolved, chart, personal);
     expect(prompt).toContain("## Complete chart data");
     expect(prompt).toContain("Pluto: Sagittarius 5°30′, 2nd house, retrograde");
     expect(prompt).toContain("Ascendant (rising): Scorpio 12°30′");
@@ -219,7 +256,7 @@ describe("buildReadingPrompt", () => {
   });
 
   it("includes the lunar nodes as derived positions without leaking the instant", () => {
-    const prompt = buildReadingPrompt(resolved, chart, numero);
+    const prompt = buildReadingPrompt(resolved, chart, personal);
     expect(prompt).toContain("Points (lunar nodes, true node):");
     expect(prompt).toMatch(/- North Node: [A-Z][a-z]+ \d+°\d{2}′/);
     expect(prompt).toMatch(/- South Node: [A-Z][a-z]+ \d+°\d{2}′/);
@@ -227,24 +264,45 @@ describe("buildReadingPrompt", () => {
   });
 
   it("includes the complete numerology data with derivations", () => {
-    const prompt = buildReadingPrompt(resolved, chart, numero);
+    const prompt = buildReadingPrompt(resolved, chart, personal);
     expect(prompt).toContain("## Complete numerology data");
     expect(prompt).toContain("Life Path: 7");
     expect(prompt).toContain("Destiny (Expression): 11 (master number)");
     expect(prompt).toContain("Dana: d=4 a=1 n=5 a=1; 11");
-    expect(buildReadingPrompt(resolved, chart, null)).not.toContain(
-      "## Complete numerology data",
-    );
+    expect(
+      buildReadingPrompt(resolved, chart, { ...personal, numerology: null }),
+    ).not.toContain("## Complete numerology data");
+  });
+
+  it("includes the birth data and life events; never the raw chart input", () => {
+    const prompt = buildReadingPrompt(resolved, chart, personal);
+    expect(prompt).toContain("## Birth data");
+    expect(prompt).toContain("Birth date: August 9, 2000");
+    expect(prompt).toContain("Birth time: 13:00 (exact)");
+    expect(prompt).toContain("Tel Aviv, 05, IL");
+    expect(prompt).toContain("## Life events");
+    expect(prompt).toContain("Moved abroad");
+    // The machine-readable chart input still never renders directly.
+    expect(prompt).not.toContain("2000-08-09T10:00");
+  });
+
+  it("omits the life-events section when none are recorded", () => {
+    const prompt = buildReadingPrompt(resolved, chart, {
+      ...personal,
+      events: [],
+    });
+    expect(prompt).not.toContain("## Life events");
+    expect(prompt).not.toContain("recorded life events");
   });
 
   it("excludes the composed synthesis section from the source material", () => {
-    expect(buildReadingPrompt(resolved, chart, numero)).not.toContain(
+    expect(buildReadingPrompt(resolved, chart, personal)).not.toContain(
       "Composed.",
     );
   });
 
   it("adds the solar-chart caveat and suppresses houses in the data block", () => {
-    const prompt = buildReadingPrompt(resolved, solarChart, numero);
+    const prompt = buildReadingPrompt(resolved, solarChart, personal);
     expect(prompt).toContain("solar chart");
     expect(prompt).toContain("Pluto: Sagittarius, retrograde");
     expect(prompt).not.toContain("2nd house");
@@ -339,7 +397,7 @@ const gematria: StoredHebrewGematria = {
 
 describe("buildHebrewReadingPrompt", () => {
   it("writes the instructions in English and asks for English output", () => {
-    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, personal);
     expect(prompt).toContain("entirely in English");
     expect(prompt).not.toContain("בעברית בלבד");
     expect(prompt).toContain("300");
@@ -349,7 +407,7 @@ describe("buildHebrewReadingPrompt", () => {
   });
 
   it("includes the complete Mazal data, skipping the null planetary hour", () => {
-    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, personal);
     expect(prompt).toContain("## Complete Mazal chart data");
     expect(prompt).toContain("24 Tevet 5760");
     expect(prompt).toContain("Mazal (month sign): Tevet — Gdi (Capricorn)");
@@ -360,15 +418,31 @@ describe("buildHebrewReadingPrompt", () => {
   });
 
   it("includes the numerology data when available", () => {
-    const withNumero = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
+    const withNumero = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, personal);
     expect(withNumero).toContain("## Complete numerology data");
     expect(withNumero).toContain("Life Path: 7");
-    const withoutNumero = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, null);
+    const withoutNumero = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, {
+      ...personal,
+      numerology: null,
+    });
     expect(withoutNumero).not.toContain("## Complete numerology data");
   });
 
+  it("includes the birth data and life events, omitting an empty event list", () => {
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, personal);
+    expect(prompt).toContain("## Birth data");
+    expect(prompt).toContain("Tel Aviv, 05, IL");
+    expect(prompt).toContain("## Life events");
+    expect(prompt).toContain("Moved abroad");
+    const noEvents = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, {
+      ...personal,
+      events: [],
+    });
+    expect(noEvents).not.toContain("## Life events");
+  });
+
   it("includes every section with its title, source, and body", () => {
-    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, numero);
+    const prompt = buildHebrewReadingPrompt(resolvedHebrew, mazal, gematria, personal);
     expect(prompt).toContain("### התאריך העברי (1.1.2000)");
     expect(prompt).toContain("כ״ד טֵבֵת תש״ס");
     expect(prompt).toContain("### מזל גדי — חודש טבת (חודש טבת — מזל גדי)");
@@ -430,7 +504,7 @@ const NO_ENTRIES = { transit: [], natalArchetypes: [] };
 
 describe("buildWesternForecastPrompt", () => {
   it("frames the kind, word target, and approximate timing", () => {
-    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries);
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries, personal);
     expect(prompt).toContain("weekly forecast");
     expect(prompt).toContain("roughly 350 words");
     expect(prompt).toContain("phrase timing approximately");
@@ -438,7 +512,7 @@ describe("buildWesternForecastPrompt", () => {
   });
 
   it("includes the period sky, the natal chart, and the aspect entries", () => {
-    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries);
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries, personal);
     expect(prompt).toContain("## Period sky data");
     expect(prompt).toContain("- Saturn stations retrograde around 2026-08-14");
     expect(prompt).toContain("Transiting Saturn square natal Sun");
@@ -460,7 +534,7 @@ describe("buildWesternForecastPrompt", () => {
         },
       ],
       natalArchetypes: aspectEntries.natalArchetypes,
-    });
+    }, personal);
     expect(prompt).toContain("## Transit interpretations");
     expect(prompt).toContain("A pruning season.");
     expect(prompt).toContain("ground the forecast's headlines in them");
@@ -480,7 +554,7 @@ describe("buildWesternForecastPrompt", () => {
         },
       ],
       natalArchetypes: [],
-    });
+    }, personal);
     expect(prompt).not.toContain("adapt their themes to transits");
     expect(prompt).not.toContain("natal archetypes");
   });
@@ -493,6 +567,7 @@ describe("buildWesternForecastPrompt", () => {
       },
       chart,
       NO_ENTRIES,
+      personal,
     );
     expect(day).toContain("daily forecast");
     expect(day).toContain("roughly 250 words");
@@ -509,16 +584,32 @@ describe("buildWesternForecastPrompt", () => {
       },
       solarChart,
       NO_ENTRIES,
+      personal,
     );
     expect(prompt).toContain("solar chart");
     expect(prompt).toContain("natal Moon sign is uncertain");
   });
 
-  it("never leaks the birth instant or coordinates", () => {
-    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries);
-    expect(prompt).not.toContain("2000-08-09");
-    expect(prompt).not.toContain("32.1");
-    expect(prompt).not.toContain("34.8");
+  it("includes the personal context; never the raw chart input instant", () => {
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries, personal);
+    expect(prompt).toContain("## Birth data");
+    expect(prompt).toContain("Birth time: 13:00 (exact)");
+    expect(prompt).toContain("Tel Aviv, 05, IL");
+    expect(prompt).toContain("## Complete numerology data");
+    expect(prompt).toContain("Life Path: 7");
+    expect(prompt).toContain("## Life events");
+    expect(prompt).toContain("Moved abroad");
+    // The machine-readable chart input still never renders directly.
+    expect(prompt).not.toContain("2000-08-09T10:00");
+  });
+
+  it("omits the life-events section when none are recorded", () => {
+    const prompt = buildWesternForecastPrompt(westernSummary, chart, aspectEntries, {
+      ...personal,
+      events: [],
+    });
+    expect(prompt).not.toContain("## Life events");
+    expect(prompt).not.toContain("recorded life events");
   });
 });
 
@@ -588,7 +679,7 @@ const hebrewEntries: ContentEntry[] = [
 
 describe("buildHebrewForecastPrompt", () => {
   it("reads the period against the natal Mazal, in English, Hebrew sources in", () => {
-    const prompt = buildHebrewForecastPrompt(hebrewSummary, mazal, gematria, hebrewEntries);
+    const prompt = buildHebrewForecastPrompt(hebrewSummary, mazal, gematria, hebrewEntries, personal);
     expect(prompt).toContain("daily forecast");
     expect(prompt).toContain("roughly 250 words");
     expect(prompt).toContain("entirely in English");
@@ -602,11 +693,24 @@ describe("buildHebrewForecastPrompt", () => {
     expect(prompt).toContain("גוף הפרק על מזל אריה.");
   });
 
-  it("never leaks the birth instant or coordinates", () => {
-    const prompt = buildHebrewForecastPrompt(hebrewSummary, mazal, gematria, hebrewEntries);
+  it("includes the personal context; never the raw mazal input instant", () => {
+    const prompt = buildHebrewForecastPrompt(hebrewSummary, mazal, gematria, hebrewEntries, personal);
+    expect(prompt).toContain("## Birth data");
+    expect(prompt).toContain("Tel Aviv, 05, IL");
+    expect(prompt).toContain("## Complete numerology data");
+    expect(prompt).toContain("## Life events");
+    expect(prompt).toContain("Moved abroad");
+    // The machine-readable mazal input still never renders directly.
     expect(prompt).not.toContain("2000-01-01T10:00");
-    expect(prompt).not.toContain("32.1");
-    expect(prompt).not.toContain("34.8");
+  });
+
+  it("omits the life-events section when none are recorded", () => {
+    const prompt = buildHebrewForecastPrompt(hebrewSummary, mazal, gematria, hebrewEntries, {
+      ...personal,
+      events: [],
+    });
+    expect(prompt).not.toContain("## Life events");
+    expect(prompt).not.toContain("recorded life events");
   });
 });
 

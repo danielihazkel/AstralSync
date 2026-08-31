@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getProfileView } from "@/lib/snapshots";
 import { resolveReading } from "@/lib/content";
+import { listLifeEvents } from "@/lib/lifeEvents";
 import { buildReadingPrompt, llmClientFromEnv, LlmUnavailableError } from "@/lib/llm";
+import { birthDataFromProfile } from "@/lib/promptData";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
 import { archiveReading } from "@/lib/trash";
 import {
@@ -59,7 +61,15 @@ export async function POST(
     view.astro.contentVersion,
   );
 
-  const prompt = buildReadingPrompt(resolved, chart, toNumeroDerivation(view.numero));
+  // Full personal context (personal-data policy, lib/promptData.ts): birth
+  // data, numerology, and any recorded life events — an empty event list
+  // generates fine, it just omits its section.
+  const events = (await listLifeEvents(id)) ?? [];
+  const prompt = buildReadingPrompt(resolved, chart, {
+    birth: birthDataFromProfile(view.profile),
+    numerology: toNumeroDerivation(view.numero),
+    events,
+  });
 
   // Shared by both paths: persistence semantics are identical.
   const persist = async (bodyMd: string) => {

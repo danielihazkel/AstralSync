@@ -6,16 +6,16 @@ import type {
 } from "./forecast";
 import type { ResolvedHebrewReading } from "./hebrewReading";
 import {
+  renderBirthData,
   renderChartData,
   renderHebrewPeriodData,
   renderLifeEventsData,
-  renderLifeStoryBirthData,
   renderMazalData,
   renderNumerologyData,
   renderSynastryData,
   renderWesternPeriodData,
+  type BirthData,
   type LifeEventPromptItem,
-  type LifeStoryBirthData,
 } from "./promptData";
 // Type-only: lib/synastry pulls in prisma, which this module must not load.
 import type { SynastryData } from "./synastry";
@@ -780,15 +780,44 @@ export function llmClientFromEnv(
 }
 
 /**
- * Prompt for the stored synthesis: the complete chart and numerology data
- * plus the already-resolved library entries. Birth details (`chart.input`:
- * instant, coordinates) are never included; the name appears only through
- * the numerology word derivations.
+ * The personal context every personal reading/forecast prompt carries
+ * (personal-data policy — see the lib/promptData.ts header): the raw birth
+ * data, the full numerology derivation, and the recorded life events.
+ */
+export interface PersonalContext {
+  birth: BirthData;
+  numerology: NumeroDerivation | null;
+  events: LifeEventPromptItem[];
+}
+
+/**
+ * The shared personal sections, in prompt order: birth data always,
+ * numerology when present, life events only when any exist — an empty
+ * event list simply omits its section, it never gates generation.
+ */
+function renderPersonalSections(
+  personal: PersonalContext,
+): [birth: string, numerology: string, events: string] {
+  return [
+    `## Birth data\n${renderBirthData(personal.birth)}`,
+    personal.numerology
+      ? `## Complete numerology data\n${renderNumerologyData(personal.numerology)}`
+      : "",
+    personal.events.length > 0
+      ? `## Life events\n${renderLifeEventsData(personal.events)}`
+      : "",
+  ];
+}
+
+/**
+ * Prompt for the stored synthesis: the person's birth data and life events
+ * (personal-data policy, lib/promptData.ts header), the complete chart and
+ * numerology data, plus the already-resolved library entries.
  */
 export function buildReadingPrompt(
   resolved: ResolvedReading,
   chart: WheelChart,
-  numerology: NumeroDerivation | null,
+  personal: PersonalContext,
 ): string {
   const { dominance } = resolved;
   const counts = Object.entries(dominance.counts)
@@ -804,7 +833,10 @@ export function buildReadingPrompt(
 
   const instructions = [
     "You are writing one synthesized natal reading for an astrology and numerology app.",
-    "Below are the complete chart and numerology data for this person, followed by the individual interpretation entries that apply.",
+    "Below are the person's birth data, the complete chart and numerology data, and the individual interpretation entries that apply.",
+    personal.events.length > 0
+      ? "The person's recorded life events are also included — you may draw on them for grounding and context; do not simply retell them."
+      : "",
     "Ground the reading in the complete data — you may draw on any placement, aspect, or number, not only those covered by the interpretation entries.",
     "Weave everything into a single original reading of roughly 400 words in Markdown",
     "(paragraphs, optional **bold** and *italic*, optional - lists; no headings, no HTML, no links).",
@@ -818,12 +850,14 @@ export function buildReadingPrompt(
     .filter(Boolean)
     .join("\n");
 
+  const [birthSection, numerologySection, eventsSection] =
+    renderPersonalSections(personal);
   return [
     instructions,
+    birthSection,
     `## Complete chart data\n${renderChartData(chart)}`,
-    numerology
-      ? `## Complete numerology data\n${renderNumerologyData(numerology)}`
-      : "",
+    numerologySection,
+    eventsSection,
     `## Interpretation entries\n${sections}`,
   ]
     .filter(Boolean)
@@ -831,20 +865,19 @@ export function buildReadingPrompt(
 }
 
 /**
- * Prompt for the Mazal-tab synthesis: the complete Mazal chart, gematria,
- * and numerology data plus the resolveHebrewReading sections. The sections
- * are Hebrew source material, but the instructions ask for an English
- * reading (Hebrew terms transliterated). Like buildReadingPrompt, birth
- * details (`mazal.input`) are never included; the Hebrew name appears via
- * the gematria derivation, as it already does in the name_gematria section.
- * Suppressed data (planetary hour on unknown time, name gematria without a
- * Hebrew name) is simply absent — no caveat flags needed.
+ * Prompt for the Mazal-tab synthesis: the person's birth data and life
+ * events (personal-data policy, lib/promptData.ts header), the complete
+ * Mazal chart, gematria, and numerology data plus the resolveHebrewReading
+ * sections. The sections are Hebrew source material, but the instructions
+ * ask for an English reading (Hebrew terms transliterated). Suppressed
+ * data (planetary hour on unknown time, name gematria without a Hebrew
+ * name) is simply absent — no caveat flags needed.
  */
 export function buildHebrewReadingPrompt(
   resolved: ResolvedHebrewReading,
   mazal: StoredMazal,
   gematria: StoredHebrewGematria,
-  numerology: NumeroDerivation | null,
+  personal: PersonalContext,
 ): string {
   const sections = resolved.sections
     .map((s) => `### ${s.title} (${s.source})\n${s.bodyMd}`)
@@ -852,21 +885,28 @@ export function buildHebrewReadingPrompt(
 
   const instructions = [
     "You are writing one synthesized reading for the Jewish astrology (Mazal) and gematria tab of an astrology and numerology app.",
-    "Below are the complete Mazal chart and numerology data for this person, followed by the interpretation entries that apply.",
+    "Below are the person's birth data, the complete Mazal chart and numerology data, and the interpretation entries that apply.",
+    personal.events.length > 0
+      ? "The person's recorded life events are also included — you may draw on them for grounding and context; do not simply retell them."
+      : "",
     "The interpretation entries are written in Hebrew: draw on their ideas and translate them — do not quote them untranslated.",
     "Write the reading entirely in English. Keep key Hebrew terms transliterated (mazal, Sefer Yetzirah, gematria, mispar katan), with a brief gloss where helpful.",
     "Weave everything into a single original reading of roughly 300 to 400 words in Markdown",
     "(paragraphs, optional **bold** and *italic*; no headings, no HTML, no links).",
     "Synthesize rather than summarize each entry separately: point out the reinforcements and tensions between them.",
     "Address the reader as \"you\", gender-neutrally. Be concrete and even-handed — strengths and friction both. No promises, no fortune-telling.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
+  const [birthSection, numerologySection, eventsSection] =
+    renderPersonalSections(personal);
   return [
     instructions,
+    birthSection,
     `## Complete Mazal chart data\n${renderMazalData(mazal, gematria)}`,
-    numerology
-      ? `## Complete numerology data\n${renderNumerologyData(numerology)}`
-      : "",
+    numerologySection,
+    eventsSection,
     `## Interpretation entries (Hebrew source material)\n${sections}`,
   ]
     .filter(Boolean)
@@ -877,8 +917,10 @@ export function buildHebrewReadingPrompt(
  * Prompt for the AI synastry/composite reading: both charts, the cross
  * aspects, and the composite, plus resolved library entries for the tightest
  * contacts (`synastry_aspect` with natal `aspect` fallback — see
- * resolveSynastryEntries). Display names are user-chosen labels; the birth
- * instant and coordinates are never rendered (renderSynastryData contract).
+ * resolveSynastryEntries). Display names are user-chosen labels; synastry
+ * stays OUTSIDE the personal-data policy (lib/promptData.ts header) — the
+ * birth instant and coordinates are never rendered (renderSynastryData
+ * contract).
  */
 export function buildSynastryReadingPrompt(
   view: SynastryData,
@@ -927,14 +969,14 @@ export function buildSynastryReadingPrompt(
 /**
  * Prompt for the Life Story reading: an overall read of the person's life
  * so far, combining the complete chart and numerology data with the major
- * life events they recorded. This is the ONE sanctioned exception to the
- * no-birth-data contract (lib/promptData.ts header): the raw birth date,
- * time and place are included by explicit design, and the generating UI
- * says so. The stored reading is discardable and regenerable — the event
- * list keeps changing, unlike the write-once natal synthesis.
+ * life events they recorded, plus the raw birth date, time and place —
+ * shared by every personal prompt under the personal-data policy
+ * (lib/promptData.ts header). The stored reading is discardable and
+ * regenerable — the event list keeps changing, unlike the write-once natal
+ * synthesis.
  */
 export function buildLifeStoryPrompt(
-  birth: LifeStoryBirthData,
+  birth: BirthData,
   chart: WheelChart,
   numerology: NumeroDerivation | null,
   events: LifeEventPromptItem[],
@@ -954,18 +996,14 @@ export function buildLifeStoryPrompt(
     .filter(Boolean)
     .join("\n");
 
+  const [birthSection, numerologySection, eventsSection] =
+    renderPersonalSections({ birth, numerology, events });
   return [
     instructions,
-    `## Birth data
-${renderLifeStoryBirthData(birth)}`,
-    `## Complete chart data
-${renderChartData(chart)}`,
-    numerology
-      ? `## Complete numerology data
-${renderNumerologyData(numerology)}`
-      : "",
-    `## Life events
-${renderLifeEventsData(events)}`,
+    birthSection,
+    `## Complete chart data\n${renderChartData(chart)}`,
+    numerologySection,
+    eventsSection,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -1001,18 +1039,23 @@ export interface ForecastAspectContext {
  * chart. `aspectContext.transit` holds authored `transit_aspect` entries for
  * pairs in play; `aspectContext.natalArchetypes` holds natal `aspect`
  * entries standing in for unauthored pairs, which the model is told to adapt
- * to a transit reading. Like buildReadingPrompt, birth details
- * (`chart.input`) are never included.
+ * to a transit reading. The person's birth data, numerology, and life
+ * events ride along under the personal-data policy (lib/promptData.ts
+ * header).
  */
 export function buildWesternForecastPrompt(
   summary: WesternPeriodSummary,
   chart: WheelChart,
   aspectContext: ForecastAspectContext,
+  personal: PersonalContext,
 ): string {
   const kind = summary.period.kind;
   const instructions = [
     `You are writing one ${KIND_LABEL[kind]} for an astrology app, based on the current transits over this person's natal chart.`,
-    "Below are the period's sky data, the complete natal chart, and interpretation entries for the strongest planetary pairs in play.",
+    "Below are the period's sky data, the person's birth data, the complete natal chart and numerology data, and interpretation entries for the strongest planetary pairs in play.",
+    personal.events.length > 0
+      ? "The person's recorded life events are also included for personal context — use them to ground the forecast; do not retell them."
+      : "",
     aspectContext.transit.length > 0
       ? "The transit interpretation entries describe the named transits directly — ground the forecast's headlines in them."
       : "",
@@ -1034,10 +1077,15 @@ export function buildWesternForecastPrompt(
     .filter(Boolean)
     .join("\n");
 
+  const [birthSection, numerologySection, eventsSection] =
+    renderPersonalSections(personal);
   return [
     instructions,
     `## Period sky data\n${renderWesternPeriodData(summary)}`,
+    birthSection,
     `## Complete natal chart data\n${renderChartData(chart)}`,
+    numerologySection,
+    eventsSection,
     aspectContext.transit.length > 0
       ? `## Transit interpretations (for the pairs in play)\n${renderEntrySections(aspectContext.transit)}`
       : "",
@@ -1055,19 +1103,24 @@ export function buildWesternForecastPrompt(
  * interpreted against this person's natal Mazal chart. `monthContext` holds
  * the Hebrew library entries in play (mazal_month, plus day_planet /
  * hebrew_date_gematria for daily forecasts). Hebrew sources in, English
- * prose out, matching buildHebrewReadingPrompt; birth details
- * (`mazal.input`) are never included.
+ * prose out, matching buildHebrewReadingPrompt. The person's birth data,
+ * numerology, and life events ride along under the personal-data policy
+ * (lib/promptData.ts header).
  */
 export function buildHebrewForecastPrompt(
   summary: HebrewPeriodSummary,
   natalMazal: StoredMazal,
   natalGematria: StoredHebrewGematria,
   monthContext: ContentEntry[],
+  personal: PersonalContext,
 ): string {
   const kind = summary.period.kind;
   const instructions = [
     `You are writing one ${KIND_LABEL[kind]} for the Jewish astrology (Mazal) side of an astrology app, reading the period's Hebrew calendar against this person's natal Mazal chart.`,
-    "Below are the period's Hebrew calendar data, the person's complete natal Mazal chart, and the interpretation entries that apply to the period.",
+    "Below are the period's Hebrew calendar data, the person's birth data, their complete natal Mazal chart and numerology data, and the interpretation entries that apply to the period.",
+    personal.events.length > 0
+      ? "The person's recorded life events are also included for personal context — use them to ground the forecast; do not retell them."
+      : "",
     "The interpretation entries are written in Hebrew: draw on their ideas and translate them — do not quote them untranslated.",
     "Relate the period's energies (month mazal, day planets, date gematria) to the natal chart: where they reinforce the person's natal mazal and where they pull against it.",
     "Hebrew dates use the daytime mapping — after sunset the next Hebrew day has already begun; do not present dates as exact to the hour.",
@@ -1075,12 +1128,19 @@ export function buildHebrewForecastPrompt(
     `Weave everything into a single original forecast of roughly ${FORECAST_WORDS[kind]} words in Markdown`,
     "(paragraphs, optional **bold** and *italic*, optional - lists; no headings, no HTML, no links).",
     "Address the reader as \"you\", gender-neutrally. Be concrete and even-handed — openings and frictions both. No promises, no fortune-telling: describe climates and invitations, not fixed outcomes.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
+  const [birthSection, numerologySection, eventsSection] =
+    renderPersonalSections(personal);
   return [
     instructions,
     `## Period Hebrew calendar data\n${renderHebrewPeriodData(summary)}`,
+    birthSection,
     `## Complete natal Mazal chart data\n${renderMazalData(natalMazal, natalGematria)}`,
+    numerologySection,
+    eventsSection,
     monthContext.length > 0
       ? `## Interpretation entries (Hebrew source material)\n${renderEntrySections(monthContext)}`
       : "",

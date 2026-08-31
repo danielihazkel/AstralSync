@@ -8,7 +8,7 @@ import {
   llmClientFromEnv,
   LlmUnavailableError,
 } from "@/lib/llm";
-import type { LifeStoryBirthData } from "@/lib/promptData";
+import { birthDataFromProfile } from "@/lib/promptData";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
 import { archiveReading } from "@/lib/trash";
 import { toNumeroDerivation, toWheelChart } from "@/lib/view-types";
@@ -21,11 +21,11 @@ function parseId(raw: unknown): number | null {
 /**
  * The Life Story reading: an overall LLM read of the person's life so far,
  * combining the complete chart and numerology data, the recorded life
- * events, AND the raw birth date/time/place — the app's one sanctioned
- * exception to the no-birth-data prompt contract (lib/promptData.ts), which
- * the generating UI states. Cached in `reading` under generator
- * "life_story"; because it depends on the mutable event list, discard +
- * regenerate is the sanctioned way to fold in new events.
+ * events, and the raw birth date/time/place — the personal context every
+ * personal reading/forecast prompt now carries (personal-data policy,
+ * lib/promptData.ts). Cached in `reading` under generator "life_story";
+ * because it depends on the mutable event list, discard + regenerate is
+ * the sanctioned way to fold in new events.
  */
 export async function POST(
   req: NextRequest,
@@ -64,23 +64,8 @@ export async function POST(
     return NextResponse.json({ error: "no_events" }, { status: 409 });
   }
 
-  const p = view.profile;
-  const birth: LifeStoryBirthData = {
-    birthDate: p.birthDate,
-    birthTime: p.birthTime,
-    timeCertainty: p.timeCertainty,
-    placeLabel: p.birthCity
-      ? [p.birthCity.name, p.birthCity.admin1, p.birthCity.countryCode]
-          .filter(Boolean)
-          .join(", ")
-      : null,
-    birthLat: p.birthLat,
-    birthLng: p.birthLng,
-    tzIana: p.tzIana,
-  };
-
   const prompt = buildLifeStoryPrompt(
-    birth,
+    birthDataFromProfile(view.profile),
     toWheelChart(view.astro),
     toNumeroDerivation(view.numero),
     events,

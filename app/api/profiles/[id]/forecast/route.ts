@@ -23,6 +23,7 @@ import {
   getLatestNatal,
   type StoredForecast,
 } from "@/lib/forecastStore";
+import { listLifeEvents } from "@/lib/lifeEvents";
 import {
   buildHebrewForecastPrompt,
   buildWesternForecastPrompt,
@@ -30,10 +31,16 @@ import {
   LlmUnavailableError,
   type ForecastAspectContext,
 } from "@/lib/llm";
+import { birthDataFromProfile } from "@/lib/promptData";
 import { ensureHebrewSnapshot, getProfileView } from "@/lib/snapshots";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
 import { forecastParamsSchema, type ForecastParams } from "@/lib/validation";
-import { toStoredHebrewGematria, toStoredMazal } from "@/lib/view-types";
+import {
+  toNumeroDerivation,
+  toStoredHebrewGematria,
+  toStoredMazal,
+  toWheelChart,
+} from "@/lib/view-types";
 
 function parseId(raw: unknown): number | null {
   const id = Number(raw);
@@ -176,31 +183,35 @@ export async function POST(
     );
   }
 
+  // Both modes read the full profile view: the natal chart for the western
+  // summary, and the personal context (personal-data policy,
+  // lib/promptData.ts) — birth data, numerology, and any recorded life
+  // events — that every forecast prompt now carries.
+  if (parsed.mode === "hebrew") await ensureHebrewSnapshot(id);
+  const view = await getProfileView(id);
+  if (!view) {
+    return NextResponse.json(
+      { error: "not_found" },
+      { status: 404, headers: NO_STORE },
+    );
+  }
+  const personal = {
+    birth: birthDataFromProfile(view.profile),
+    numerology: toNumeroDerivation(view.numero),
+    events: (await listLifeEvents(id)) ?? [],
+  };
+
   let prompt: string;
   let natalVersion: number;
   let contentVersion: string;
   if (parsed.mode === "western") {
-    const natal = await getLatestNatal(id);
-    if (!natal) {
-      return NextResponse.json(
-        { error: "not_found" },
-        { status: 404, headers: NO_STORE },
-      );
-    }
-    const summary = computeWesternPeriodSummary(natal.chart, natal.version, period);
+    const chart = toWheelChart(view.astro);
+    const summary = computeWesternPeriodSummary(chart, view.astro.version, period);
     const entries = westernEntries(summary.topAspects);
-    prompt = buildWesternForecastPrompt(summary, natal.chart, entries);
-    natalVersion = natal.version;
+    prompt = buildWesternForecastPrompt(summary, chart, entries, personal);
+    natalVersion = view.astro.version;
     contentVersion = loadContentIndex().version;
   } else {
-    await ensureHebrewSnapshot(id);
-    const view = await getProfileView(id);
-    if (!view) {
-      return NextResponse.json(
-        { error: "not_found" },
-        { status: 404, headers: NO_STORE },
-      );
-    }
     if (!view.hebrew) {
       return NextResponse.json(
         { error: "no_hebrew_snapshot" },
@@ -222,6 +233,7 @@ export async function POST(
       toStoredMazal(view.hebrew),
       toStoredHebrewGematria(view.hebrew),
       entries,
+      personal,
     );
     natalVersion = view.astro.version;
     contentVersion = index.version;

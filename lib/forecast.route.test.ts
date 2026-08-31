@@ -17,6 +17,9 @@ vi.mock("@/lib/snapshots", () => ({
   ensureHebrewSnapshot: vi.fn(),
   getProfileView: vi.fn(),
 }));
+vi.mock("@/lib/lifeEvents", () => ({
+  listLifeEvents: vi.fn(),
+}));
 vi.mock("@/lib/llm", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/llm")>()),
   llmClientFromEnv: vi.fn(),
@@ -29,6 +32,7 @@ import {
   getForecast,
   getLatestNatal,
 } from "@/lib/forecastStore";
+import { listLifeEvents } from "@/lib/lifeEvents";
 import { llmClientFromEnv, LlmUnavailableError } from "@/lib/llm";
 import { ensureHebrewSnapshot, getProfileView } from "@/lib/snapshots";
 
@@ -39,6 +43,7 @@ const mockGetLatestNatal = vi.mocked(getLatestNatal);
 const mockClientFromEnv = vi.mocked(llmClientFromEnv);
 const mockEnsureHebrew = vi.mocked(ensureHebrewSnapshot);
 const mockGetProfileView = vi.mocked(getProfileView);
+const mockListLifeEvents = vi.mocked(listLifeEvents);
 
 function natalChart(): WheelChart {
   const chart = buildChart({
@@ -68,10 +73,46 @@ const hebrewDateParts = {
   renderGematriya: "כ״ד טֵבֵת תש״ס",
 };
 
-// The route only touches view.hebrew (mazal/gematria JSON) and
-// view.astro.version — a partial shape cast keeps the fixture honest-sized.
+// POST reads the whole view: profile (birth data), astro (natal chart +
+// version), numero (derivation), hebrew (mazal/gematria JSON) — a partial
+// shape cast keeps the fixture honest-sized.
+const { aspects: natalAspects, ...storedNatal } = natalChart();
 const profileView = {
-  astro: { version: 2 },
+  profile: {
+    birthDate: "2000-01-01",
+    birthTime: "12:00",
+    timeCertainty: "exact",
+    birthCity: {
+      geonameId: 1,
+      name: "Tel Aviv",
+      admin1: "05",
+      countryCode: "IL",
+    },
+    birthLat: 32.1,
+    birthLng: 34.8,
+    tzIana: "Asia/Jerusalem",
+  },
+  astro: { version: 2, chart: storedNatal, aspects: natalAspects },
+  numero: {
+    derivation: {
+      lifePath: {
+        value: 4,
+        isMaster: false,
+        derivation: {
+          components: [
+            { part: "month", raw: 1, steps: [], reduced: 1 },
+            { part: "day", raw: 1, steps: [], reduced: 1 },
+            { part: "year", raw: 2000, steps: [2], reduced: 2 },
+          ],
+          total: 4,
+          steps: [],
+        },
+      },
+      destiny: null,
+      soulUrge: null,
+      hebrewDestiny: null,
+    },
+  },
   hebrew: {
     mazal: {
       schemaVersion: 1,
@@ -149,6 +190,7 @@ beforeEach(() => {
   mockDeleteForecast.mockResolvedValue(true);
   mockGetProfileView.mockResolvedValue(profileView);
   mockEnsureHebrew.mockResolvedValue(undefined);
+  mockListLifeEvents.mockResolvedValue([]);
   mockClientFromEnv.mockReturnValue({
     modelName: "test-model",
     generate: vi.fn(async () => "A stored forecast."),
@@ -243,6 +285,52 @@ describe("POST /api/profiles/[id]/forecast", () => {
     expect(prompt).toContain("Period: day, 2026-08-13");
     expect(prompt).toContain("## Complete natal chart data");
     expect(prompt).toContain("daily forecast");
+    // The personal context (personal-data policy, lib/promptData.ts).
+    expect(prompt).toContain("## Birth data");
+    expect(prompt).toContain("Tel Aviv, 05, IL");
+    expect(prompt).toContain("## Complete numerology data");
+    expect(prompt).toContain("Life Path: 4");
+    // No events recorded → no section, and generation still succeeds.
+    expect(prompt).not.toContain("## Life events");
+  });
+
+  it("includes recorded life events in both modes' prompts", async () => {
+    mockListLifeEvents.mockResolvedValue([
+      {
+        id: 1,
+        title: "Moved abroad",
+        eventDate: "2021-03-12",
+        precision: "day",
+        category: "relocation",
+        notesMd: null,
+        createdAt: new Date("2026-08-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      },
+    ]);
+    const generate = vi.fn(async (_prompt: string) => "ok");
+    mockClientFromEnv.mockReturnValue({ modelName: "m", generate });
+    await POST(
+      post({ mode: "western", kind: "day", date: "2026-08-13" }),
+      params("1"),
+    );
+    await POST(
+      post({ mode: "hebrew", kind: "day", date: "2026-08-13" }),
+      params("1"),
+    );
+    for (const call of generate.mock.calls) {
+      expect(call[0]).toContain("## Life events");
+      expect(call[0]).toContain("Moved abroad");
+    }
+  });
+
+  it("404 when the profile has no snapshots", async () => {
+    mockGetProfileView.mockResolvedValue(null);
+    const res = await POST(
+      post({ mode: "western", kind: "day", date: "2026-08-13" }),
+      params("1"),
+    );
+    expect(res.status).toBe(404);
+    expect((await res.json()).error).toBe("not_found");
   });
 
   it("generates a hebrew forecast against the natal Mazal", async () => {
@@ -258,6 +346,8 @@ describe("POST /api/profiles/[id]/forecast", () => {
     expect(prompt).toContain("## Period Hebrew calendar data");
     expect(prompt).toContain("## Complete natal Mazal chart data");
     expect(prompt).toContain("Mazal (month sign): Tevet — Gdi (Capricorn)");
+    expect(prompt).toContain("## Birth data");
+    expect(prompt).toContain("## Complete numerology data");
     expect(mockCreateForecast).toHaveBeenCalledWith(
       expect.objectContaining({ mode: "hebrew", natalVersion: 2 }),
     );

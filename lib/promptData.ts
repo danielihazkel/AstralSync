@@ -25,15 +25,19 @@ import type {
  * Compact human-readable renderings of the FULL stored data for the LLM
  * prompts in lib/llm.ts — every placement, aspect, house cusp, and
  * derivation step, in contrast to the curated subset the reading resolvers
- * interpret. Birth details (`input`: instant, coordinates) are deliberately
- * never rendered; names appear only through the name-number derivations.
+ * interpret.
  *
- * ONE deliberate, documented exception: the Life Story reading
- * (renderLifeStoryBirthData / renderLifeEventsData at the bottom) includes
- * the raw birth date, time and place by explicit design — the user
- * generates that reading knowingly, and its UI says so. Every other
- * renderer and builder keeps the contract; lib/llm.test.ts and
- * lib/promptData.test.ts assert it per builder.
+ * Personal-data policy (explicit user decision, Aug 2026): every personal
+ * reading and forecast prompt — natal reading, Mazal reading, Life Story,
+ * western and Hebrew forecasts — includes the person's raw birth date,
+ * time and place (renderBirthData) and their recorded life events
+ * (renderLifeEventsData) alongside the complete chart and numerology data.
+ * The raw chart/mazal `input` (UTC instant, machine coordinates) is still
+ * never rendered directly — birth details reach the prompts only through
+ * renderBirthData's formatted block. Synastry prompts remain the
+ * exception the other way: they carry no birth details at all
+ * (renderSynastryData contract). lib/llm.test.ts and
+ * lib/lifeStoryPrompt.test.ts assert the policy per builder.
  */
 
 const WEEKDAYS = [
@@ -274,8 +278,8 @@ function periodLabel(period: ForecastPeriod): string {
  * The period's sky for the western forecast prompts: start-of-period
  * positions, Moon sign spans, ingresses/stations (day-sampled, so dated
  * "around"), and the tracked transit-to-natal aspect windows. Current-period
- * dates only — the natal side comes from renderChartData, which never leaks
- * birth details.
+ * dates only — the natal side comes from renderChartData; the person's
+ * birth details travel separately via renderBirthData (see the header).
  */
 export function renderWesternPeriodData(summary: WesternPeriodSummary): string {
   const lines: string[] = [`Period: ${periodLabel(summary.period)}`];
@@ -449,11 +453,11 @@ export function renderSynastryData(view: SynastryData): string {
   return lines.join("\n");
 }
 
-// --- Life Story (the sanctioned privacy exception) ---------------------------
+// --- Birth data & life events (shared by all personal prompts) ---------------
 
-/** The raw birth data the Life Story prompt includes — the one sanctioned
- *  exception to this module's no-birth-details contract (see the header). */
-export interface LifeStoryBirthData {
+/** The raw birth data every personal reading/forecast prompt includes —
+ *  see the personal-data policy in the header. */
+export interface BirthData {
   /** "YYYY-MM-DD" civil birth date. */
   birthDate: string;
   /** "HH:MM" local wall-clock time; null when unknown. */
@@ -472,7 +476,7 @@ function coordLabel(lat: number, lng: number): string {
   return `${ns}, ${ew}`;
 }
 
-export function renderLifeStoryBirthData(b: LifeStoryBirthData): string {
+export function renderBirthData(b: BirthData): string {
   const place = b.placeLabel
     ? `${b.placeLabel} (${coordLabel(b.birthLat, b.birthLng)})`
     : coordLabel(b.birthLat, b.birthLng);
@@ -484,6 +488,40 @@ export function renderLifeStoryBirthData(b: LifeStoryBirthData): string {
     `Birthplace: ${place}`,
     `Timezone: ${b.tzIana}`,
   ].join("\n");
+}
+
+/**
+ * Build the prompt's BirthData from a serialized profile view — the shape
+ * lib/snapshots.ts's serializeProfile returns satisfies the structural
+ * param (kept structural so this module stays prisma-free, see the import
+ * comment at the top).
+ */
+export function birthDataFromProfile(p: {
+  birthDate: string;
+  birthTime: string | null;
+  timeCertainty: "exact" | "approx" | "unknown";
+  birthCity: {
+    name: string;
+    admin1: string | null;
+    countryCode: string;
+  } | null;
+  birthLat: number;
+  birthLng: number;
+  tzIana: string;
+}): BirthData {
+  return {
+    birthDate: p.birthDate,
+    birthTime: p.birthTime,
+    timeCertainty: p.timeCertainty,
+    placeLabel: p.birthCity
+      ? [p.birthCity.name, p.birthCity.admin1, p.birthCity.countryCode]
+          .filter(Boolean)
+          .join(", ")
+      : null,
+    birthLat: p.birthLat,
+    birthLng: p.birthLng,
+    tzIana: p.tzIana,
+  };
 }
 
 /** One recorded life event, as the prompt needs it (lib/lifeEvents.ts's
