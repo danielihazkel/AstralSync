@@ -113,13 +113,16 @@ picker.
   correspondences, date and name gematria — with RTL Hebrew sources and an
   optional English AI synthesis.
 - **Transits** — live positions against the natal chart with per-aspect
-  prose, a transit bi-wheel, and adjustable orbs (see settings below); a
+  prose, a transit bi-wheel, and adjustable orbs (see settings below). A
+  date picker pins the whole view to any day in the engine's range, so
+  “what was hitting my chart then?” is a question you can ask; a
   **Calendar** view lists exact perfection dates, ingresses, stations, and
   eclipses over any range up to three months, exportable as an `.ics` file;
   a **Graph** view draws each contact's in-orb window across the month
   (entry → exact → exit, retrograde passes tagged) as a timeline per natal
   planet.
-- **Cycles** — the annual profection (year lord), **zodiacal releasing**
+- **Cycles** — pinnable to any date, like Transits — the annual profection
+  (year lord), **zodiacal releasing**
   from the Lots of Fortune and Spirit (general and sub-periods at 360-day
   years, loosing of the bond, peak periods), secondary progressions
   (against the natal wheel or as a standalone progressed chart with
@@ -138,8 +141,16 @@ picker.
   sample sizes.
 - **Life events** — the milestones you choose to record (marriage, children,
   career, moves, losses…), each dated to the precision you actually
-  remember: a day, a month, or just a year. They feed the **Life Story**
-  reading, which reads them against the chart.
+  remember: a day, a month, or just a year. Each one expands to **the sky it
+  happened under**: the transits to your natal chart that day, and who was
+  in charge — the profection house and its lord, the firdaria period,
+  zodiacal releasing from Fortune and Spirit with its peaks and loosings of
+  the bond, and the progressed Sun. An event dated only to the year hides
+  the Moon, Sun, Mercury, Venus and Mars and says why: they move too far in
+  a year for their positions to mean anything. Above the list, a **life
+  arc** lays your events against those periods on one timeline. All of it
+  feeds the **Life Story** reading, which now gets each event's timing
+  rather than guessing it from the calendar.
 - **Details** — birth data, engine metadata, version history, house-system
   selector, profile tags, "this is me", reading coverage (which
   interpretation keys this chart wants but the library hasn't authored),

@@ -201,6 +201,10 @@ The per-task log stops at Phase 3e; later work landed as reviewed batches
 - [x] **Batch B** — moon-phase extraction, journal mood/tags/Insights, mundane aspect scanner, `/calendar/[date]` almanac
 - [x] **Batch C** — scan-engine perf (~10×), month prefetch + caches, full progressed chart (progressed houses), Wheel|Table accessible views on every wheel
 - [x] **Batch D** — outer-planet reading sections, node-variant-aware readings, Details-tab reading coverage, docs refresh, bounded caches
+- [x] **Batches E–P** — the content matrix (en 592 → 1499), aspects to angles and applying/separating, scan search, electional v2, Davison, solar arc, relocated returns, declinations, firdaria, the Part of Spirit, antiscia, group synastry, the global journal timeline, chart shape & balance, the transit graph, `/ephemeris`, tertiary progressions, eight house systems, Vertex & East Point, zodiacal releasing, lunar mansions, local notifications, the command palette, saved relationships, profile tags, empty states, year-ahead reports, scale guardrails
+- [x] **Life events & the personal-data policy** — the Life events tab and Life Story reading; birth data, numerology and recorded events now travel in every personal LLM prompt (synastry excepted)
+- [x] **Batch Q** (round 4) — export/import round-trip integrity: the journal export's missing Trash filter, the import's silent loss of mood/tags/sky and profile tags, saved relationships in the bundle, an atomic bundle restore, one home for the format version, an export↔import field-parity guard; the documentation truth pass (the README's privacy claim had been false since the policy changed); a one-time in-app disclosure before the first generation; a shared spend cap on the five stored AI generation routes
+- [x] **Batch R** (round 4) — life events × astrology: a shared `?at=` instant picker on Transits and Cycles (both routes always accepted it; only the Journal tab ever sent one), a per-event sky with its time-lord state, precision-aware honesty below day precision, the life-arc timeline, per-event timing in the Life Story prompt, and `LifeEvent.skyJson`. Plus the Lot of Spirit authored and emitted (en 1499 → 1511)
 
 ## Phase 4 (public deployment gate — deferred)
 
@@ -208,7 +212,9 @@ The per-task log stops at Phase 3e; later work landed as reviewed batches
 - License review before distribution: `@hebcal/core` (`hebrew-core`) is GPL-2.0 — fine unhosted, re-evaluate here
 - Hosted MySQL/Postgres migration
 - Privacy hardening: encryption at rest, retention policy, GDPR-style deletion
-- Rate limiting; re-evaluate client-side vs. server-side calculation for static hosting
+- Rate limiting per route, on a shared store — the AI generation routes carry an in-memory, single-process spend cap (`lib/generationLimiter.ts`), which is an abuse backstop, not a deployment answer
+- CI, error monitoring, security headers/CSP — absent by design while local-only
+- Re-evaluate client-side vs. server-side calculation for static hosting
 
 ## Explicitly out of scope (PRD §7)
 
