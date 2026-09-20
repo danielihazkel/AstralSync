@@ -37,7 +37,7 @@ export interface SettingsBundle {
 
 export function collectSettingsBundle(): SettingsBundle {
   return {
-    settingsVersion: 1,
+    settingsVersion: SETTINGS_VERSION,
     theme: loadThemePreference(),
     orbs: loadOrbSettings(),
     chart: loadChartSettings(),
@@ -45,13 +45,26 @@ export function collectSettingsBundle(): SettingsBundle {
   };
 }
 
+/**
+ * Current settings-file format version.
+ *
+ * Like EXPORT_VERSION in lib/importProfile, the forward-compatibility
+ * decision has one home: a file whose version this doesn't recognise is
+ * refused rather than half-applied, and when the shape does change, the
+ * upgrade belongs in parseSettingsBundle below. Adding a *new* preference
+ * needs no bump — every field is read with `in` and sanitized
+ * independently, so an older file simply carries fewer of them.
+ */
+export const SETTINGS_VERSION = 1;
+
 /** Pure: unknown JSON → the recognised, sanitized parts of a bundle. Null
- *  when it isn't a settings document at all. */
+ *  when it isn't a settings document at all, or is a version this build
+ *  cannot read. */
 export function parseSettingsBundle(raw: unknown): Partial<SettingsBundle> | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
-  if (r.settingsVersion !== 1) return null;
-  const out: Partial<SettingsBundle> = { settingsVersion: 1 };
+  if (r.settingsVersion !== SETTINGS_VERSION) return null;
+  const out: Partial<SettingsBundle> = { settingsVersion: SETTINGS_VERSION };
   if ("theme" in r) out.theme = sanitizeThemePreference(r.theme);
   if ("orbs" in r) out.orbs = sanitizeOrbSettings(r.orbs);
   if (typeof r.chart === "object" && r.chart !== null) {

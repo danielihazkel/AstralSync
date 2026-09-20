@@ -13,6 +13,41 @@ import { prisma } from "./db";
  * guard in lib/db.ts is untouched.
  */
 
+/**
+ * Current export-file format version, stamped by exportProfile /
+ * exportAllProfiles and required by the schemas below.
+ *
+ * Forward compatibility has exactly one home: upgradeExport(). Today every
+ * accepted file is already current, so it is a pass-through — but when the
+ * format does change, the choice is "upgrade the old shape here" rather than
+ * "orphan every export file a user has on disk", and this is where that
+ * upgrade goes. Fields have so far only ever been *added*, which zod's
+ * nullish defaults absorb without a version bump at all; bump only on a
+ * change that an old file cannot satisfy.
+ */
+export const EXPORT_VERSION = 1;
+
+/** Raised when a file is too new (or too old) to be understood at all. */
+export class UnsupportedExportVersion extends Error {
+  constructor(readonly found: unknown) {
+    super(`unsupported export version: ${String(found)}`);
+    this.name = "UnsupportedExportVersion";
+  }
+}
+
+/**
+ * Bring an export file up to EXPORT_VERSION, or reject it. Call before
+ * parsing; the schemas assume the current shape.
+ */
+export function upgradeExport(body: unknown): unknown {
+  if (typeof body !== "object" || body === null) return body;
+  const found = (body as { exportVersion?: unknown }).exportVersion;
+  // Absent version: pre-versioning file, treated as v1 (the schemas will
+  // reject it if it is something else entirely).
+  if (found === undefined || found === EXPORT_VERSION) return body;
+  throw new UnsupportedExportVersion(found);
+}
+
 const isoDate = z
   .string()
   .refine((s) => !Number.isNaN(Date.parse(s)), "not a valid date string");

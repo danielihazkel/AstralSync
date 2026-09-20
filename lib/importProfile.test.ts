@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  UnsupportedExportVersion,
   profileBundleSchema,
   profileExportSchema,
   remapReadingRows,
   remapRelationshipRows,
+  upgradeExport,
 } from "./importProfile";
 
 /**
@@ -487,5 +489,31 @@ describe("profileBundleSchema", () => {
       }),
     );
     expect(parsed.success).toBe(false);
+  });
+});
+
+describe("upgradeExport", () => {
+  it("passes a current file through unchanged", () => {
+    const body = { exportVersion: 1, profiles: [] };
+    expect(upgradeExport(body)).toBe(body);
+  });
+
+  it("treats a file with no version as the current one", () => {
+    const body = { profiles: [] };
+    expect(upgradeExport(body)).toBe(body);
+  });
+
+  it("rejects a version it cannot understand", () => {
+    expect(() => upgradeExport({ exportVersion: 2 })).toThrow(
+      UnsupportedExportVersion,
+    );
+    expect(() => upgradeExport({ exportVersion: "1" })).toThrow(
+      UnsupportedExportVersion,
+    );
+  });
+
+  it("leaves non-objects to the schemas", () => {
+    expect(upgradeExport(null)).toBeNull();
+    expect(upgradeExport("nope")).toBe("nope");
   });
 });

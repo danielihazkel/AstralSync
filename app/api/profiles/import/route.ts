@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  UnsupportedExportVersion,
   importBundle,
   importProfile,
   isBundle,
   profileBundleSchema,
   profileExportSchema,
+  upgradeExport,
 } from "@/lib/importProfile";
 
 // Generous for a JSON export; a whole-installation bundle scales with the
@@ -26,19 +28,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "too_large" }, { status: 413 });
   }
 
-  const body = await req.json().catch(() => null);
-  if (body === null) {
+  const raw = await req.json().catch(() => null);
+  if (raw === null) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
-  if (
-    typeof body === "object" &&
-    "exportVersion" in body &&
-    body.exportVersion !== 1
-  ) {
-    return NextResponse.json(
-      { error: "unsupported_export_version" },
-      { status: 400 },
-    );
+
+  // One place decides what an older file means (lib/importProfile).
+  let body: unknown;
+  try {
+    body = upgradeExport(raw);
+  } catch (e) {
+    if (e instanceof UnsupportedExportVersion) {
+      return NextResponse.json(
+        { error: "unsupported_export_version" },
+        { status: 400 },
+      );
+    }
+    throw e;
   }
 
   if (isBundle(body)) {
