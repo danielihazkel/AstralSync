@@ -25,6 +25,7 @@ import {
 } from "./eventDateInput";
 import EmptyState from "@/components/EmptyState";
 import EventSky from "./EventSky";
+import LifeArc, { type LifeArcPeriods } from "./LifeArc";
 import Markdown from "@/components/Markdown";
 import DiscardReadingButton from "@/components/profile/DiscardReadingButton";
 import { announceUndo, restoreFromTrash } from "@/components/undo/undoBus";
@@ -117,11 +118,17 @@ export default function LifeEventsPanel({
   version,
   lifeStoryReading,
   llmEnabled,
+  birthUtc,
+  arcPeriods = null,
 }: {
   profileId: number;
   version: number;
   lifeStoryReading: AstroView["lifeStoryReading"];
   llmEnabled: boolean;
+  /** Birth instant — the left edge of the life arc. */
+  birthUtc: string;
+  /** Releasing + firdaria bands; null on a solar chart. */
+  arcPeriods?: LifeArcPeriods | null;
 }) {
   const router = useRouter();
   const [events, setEvents] = useState<EventsState>({ kind: "loading" });
@@ -345,16 +352,29 @@ export default function LifeEventsPanel({
               hint="Add the moments that shaped your story — then generate the Life Story reading below."
             />
           ) : (
-            <ul className={styles.entryList}>
-              {events.events.map((e) => (
-                <EventRow
-                  key={e.id}
-                  profileId={profileId}
-                  event={e}
-                  onChanged={loadEvents}
-                />
-              ))}
-            </ul>
+            <>
+              <LifeArc
+                birthUtc={birthUtc}
+                events={events.events.map((e) => ({
+                  id: e.id,
+                  title: e.title,
+                  eventDate: e.eventDate,
+                  precision: e.precision,
+                  category: e.category,
+                }))}
+                periods={arcPeriods}
+              />
+              <ul className={styles.entryList}>
+                {events.events.map((e) => (
+                  <EventRow
+                    key={e.id}
+                    profileId={profileId}
+                    event={e}
+                    onChanged={loadEvents}
+                  />
+                ))}
+              </ul>
+            </>
           ))}
       </section>
 

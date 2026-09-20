@@ -26,6 +26,7 @@ import {
 import { buildAspectMotion } from "@/lib/aspectMotion";
 import { computeChartStats } from "@/lib/chartStats";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
+import { computeArcPeriods } from "@/lib/eventLords";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
 import {
@@ -99,6 +100,10 @@ export default async function ProfilePage({
   if (!view) notFound();
 
   const chart = toWheelChart(view.astro);
+  // The life-arc bands: releasing and firdaria periods from birth. Cheap
+  // (calendar arithmetic, no ephemeris search) and server-side, so the Life
+  // events tab needs no extra round trip. Null on a solar chart.
+  const arcPeriods = computeArcPeriods(chart, new Date());
   // Calculated points (nodes, Lilith) are ephemeral: recomputed from the
   // stored instant on every read, never persisted. Both node variants ship
   // so the client toggle needs no round trip.
@@ -258,6 +263,7 @@ export default async function ProfilePage({
         numero={view.numero}
         numeroProse={numeroProse}
         chart={chart}
+        arcPeriods={arcPeriods}
         points={points}
         patterns={detectPatterns(chart.placements)}
         // Shape, hemispheres, balance, dispositors, house rulers — read-time

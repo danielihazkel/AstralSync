@@ -37,6 +37,57 @@ export interface EventLords {
   } | null;
 }
 
+/**
+ * The full period lists for the life-arc timeline: every releasing L1 period
+ * and every firdaria major period from birth. Same cheap-primitives rule as
+ * computeEventLords — no return searches.
+ */
+export function computeArcPeriods(
+  natal: WheelChart,
+  at: Date,
+): {
+  releasing: {
+    sign: string;
+    lord: Planet;
+    startUtc: string;
+    endUtc: string;
+    peak: boolean;
+    loosedBond: boolean;
+  }[];
+  firdaria: { lord: string; startUtc: string; endUtc: string }[];
+} | null {
+  const ascendant = natal.bigThree.ascendant;
+  if (!ascendant || !natal.houses) return null;
+  const natalUtc = new Date(natal.input.utc);
+  const sunLon = natal.placements.find((p) => p.planet === "sun")?.longitude;
+  const moonLon = natal.placements.find((p) => p.planet === "moon")?.longitude;
+  if (sunLon === undefined || moonLon === undefined) return null;
+
+  const isDay = isDayChart(sunLon, natal.houses.cusps);
+  const firdaria = currentFirdaria(natalUtc, isDay, at);
+  const fortune = zodiacalReleasing(
+    signOf(partOfFortune(natal.houses.ascendant, sunLon, moonLon, isDay)),
+    natalUtc,
+    at,
+  );
+
+  return {
+    releasing: fortune.l1.map((p) => ({
+      sign: p.sign,
+      lord: p.lord,
+      startUtc: p.startUtc,
+      endUtc: p.endUtc,
+      peak: p.angular === "10th",
+      loosedBond: p.loosedBond,
+    })),
+    firdaria: (firdaria?.cycle ?? []).map((p) => ({
+      lord: p.lord,
+      startUtc: p.startUtc,
+      endUtc: p.endUtc,
+    })),
+  };
+}
+
 export function computeEventLords(
   natal: WheelChart,
   at: Date,

@@ -39,6 +39,7 @@ import NumerologyPanel, {
 import CyclesPanel from "@/components/cycles/CyclesPanel";
 import JournalPanel from "@/components/journal/JournalPanel";
 import LifeEventsPanel from "@/components/lifeEvents/LifeEventsPanel";
+import type { LifeArcPeriods } from "@/components/lifeEvents/LifeArc";
 import TransitsPanel from "@/components/transits/TransitsPanel";
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
 import ReadingPanel from "./ReadingPanel";
@@ -52,6 +53,7 @@ export default function ProfileTabs({
   numero,
   numeroProse,
   chart,
+  arcPeriods = null,
   points = null,
   patterns = [],
   stats = null,
@@ -72,6 +74,8 @@ export default function ProfileTabs({
   numero: NumeroView;
   numeroProse: NumeroProse;
   chart: WheelChart;
+  /** Life-arc bands (releasing + firdaria); null on a solar chart. */
+  arcPeriods?: LifeArcPeriods | null;
   points?: ChartPoints | null;
   patterns?: ChartPattern[];
   stats?: ChartStatsData | null;
@@ -217,6 +221,8 @@ export default function ProfileTabs({
             version={astro.version}
             lifeStoryReading={astro.lifeStoryReading}
             llmEnabled={llmEnabled}
+            birthUtc={chart.input.utc}
+            arcPeriods={arcPeriods}
           />
         </div>
       )}

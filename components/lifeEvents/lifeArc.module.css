@@ -1,0 +1,132 @@
+.arc {
+  margin: 0 0 1.25rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.muted {
+  margin: 0 0 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Decade ruler across the top. */
+.axis {
+  position: relative;
+  height: 1rem;
+  margin-left: 8.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+}
+
+.rowLabel {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: right;
+  cursor: help;
+}
+
+.track {
+  position: relative;
+  height: 1.35rem;
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--surface-raised);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* A releasing peak: the conventional high point, so it earns the accent. */
+.peak {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent-bright);
+}
+
+/* A loosing of the bond — the jump to the opposite sign. */
+.loosed {
+  border-left-width: 3px;
+  border-left-color: var(--accent-bright);
+}
+
+.bandText {
+  padding: 0 0.25rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.pin {
+  position: absolute;
+  top: 0.1rem;
+  width: 0.7rem;
+  height: 1.1rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent-dim);
+  padding: 0;
+}
+
+.pinActive {
+  background: var(--accent);
+}
+
+.caption {
+  margin: 0.35rem 0 0 8.5rem;
+  min-height: 1.2rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Phone: the label column costs more than it gives. */
+@media (max-width: 40rem) {
+  .axis,
+  .caption {
+    margin-left: 0;
+  }
+  .row {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+  .rowLabel {
+    text-align: left;
+  }
+}
