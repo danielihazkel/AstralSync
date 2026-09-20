@@ -24,6 +24,7 @@ import {
   type EventDateInputs,
 } from "./eventDateInput";
 import EmptyState from "@/components/EmptyState";
+import EventSky from "./EventSky";
 import Markdown from "@/components/Markdown";
 import DiscardReadingButton from "@/components/profile/DiscardReadingButton";
 import { announceUndo, restoreFromTrash } from "@/components/undo/undoBus";
@@ -441,6 +442,9 @@ function EventRow({
   onChanged: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  // Fetched on expand, never up front: a profile can hold 200 events, and
+  // each open costs two live computations.
+  const [skyOpen, setSkyOpen] = useState(false);
   const [title, setTitle] = useState(event.title);
   const [precision, setPrecision] = useState<LifeEventPrecision>(
     event.precision,
@@ -521,6 +525,15 @@ function EventRow({
           </span>
         </span>
         <span className={styles.entryActions}>
+          {!editing && (
+            <button
+              className={styles.skyToggle}
+              aria-expanded={skyOpen}
+              onClick={() => setSkyOpen((v) => !v)}
+            >
+              {skyOpen ? "Hide the sky" : "The sky then"}
+            </button>
+          )}
           {!editing && (
             <button
               onClick={() => {
@@ -621,6 +634,13 @@ function EventRow({
             <div className={styles.entryBody}>
               <Markdown md={event.notesMd} />
             </div>
+          )}
+          {skyOpen && (
+            <EventSky
+              profileId={profileId}
+              eventDate={event.eventDate}
+              precision={event.precision}
+            />
           )}
         </>
       )}
