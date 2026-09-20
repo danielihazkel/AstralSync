@@ -21,6 +21,8 @@ import {
   type AstroSnapshot,
   type GeoCity,
   type HebrewSnapshot,
+  type JournalEntry,
+  type LifeEvent,
   type NumeroSnapshot,
   type Profile,
   type Reading,
@@ -871,6 +873,96 @@ export async function touchProfileViewed(id: number): Promise<void> {
   }
 }
 
+/**
+ * Pure row -> export-shape mappers. Extracted so lib/exportParity.test.ts can
+ * check, offline, that every key they emit is a key the importer's zod schemas
+ * actually read. Explicit field lists, never spreads: a spread silently widens
+ * the export whenever a column lands (that is how deletedAt, id and profileId
+ * ended up in export files, and how mood/tags/sky ended up exported but
+ * un-imported).
+ */
+export function exportProfileColumns(p: {
+  id: number;
+  displayName: string;
+  fullBirthName: string | null;
+  hebrewBirthName: string | null;
+  nameScript: Profile["nameScript"];
+  birthDate: Date;
+  birthTime: string | null;
+  timeCertainty: Profile["timeCertainty"];
+  birthCityGeonameId: number | null;
+  birthLat: number;
+  birthLng: number;
+  tzIana: string;
+  utcOffsetMinutes: number;
+  offsetOverridden: boolean;
+  tagsJson: Prisma.JsonValue;
+  createdAt: Date;
+}) {
+  return {
+    id: p.id,
+    displayName: p.displayName,
+    fullBirthName: p.fullBirthName,
+    hebrewBirthName: p.hebrewBirthName,
+    nameScript: p.nameScript,
+    birthDate: dateOnly(p.birthDate),
+    birthTime: p.birthTime,
+    timeCertainty: p.timeCertainty,
+    birthCityGeonameId: p.birthCityGeonameId,
+    birthLat: p.birthLat,
+    birthLng: p.birthLng,
+    tzIana: p.tzIana,
+    utcOffsetMinutes: p.utcOffsetMinutes,
+    offsetOverridden: p.offsetOverridden,
+    tagsJson: p.tagsJson,
+    createdAt: p.createdAt,
+  };
+}
+
+export function exportJournalEntry(e: {
+  id: number;
+  entryDate: Date;
+  bodyMd: string;
+  mood: JournalEntry["mood"];
+  tagsJson: Prisma.JsonValue;
+  skyJson: Prisma.JsonValue;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: e.id,
+    entryDate: dateOnly(e.entryDate),
+    bodyMd: e.bodyMd,
+    mood: e.mood,
+    tagsJson: e.tagsJson,
+    skyJson: e.skyJson,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+  };
+}
+
+export function exportLifeEvent(e: {
+  id: number;
+  title: string;
+  eventDate: Date;
+  precision: LifeEvent["precision"];
+  category: LifeEvent["category"];
+  notesMd: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: e.id,
+    title: e.title,
+    eventDate: dateOnly(e.eventDate),
+    precision: e.precision,
+    category: e.category,
+    notesMd: e.notesMd,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+  };
+}
+
 /** Full data export (PRD §4.6): every snapshot version, every reading. */
 export async function exportProfile(id: number) {
   const profile = await prisma.profile.findUnique({
@@ -883,9 +975,13 @@ export async function exportProfile(id: number) {
       },
       numeroSnapshots: { orderBy: { version: "asc" } },
       hebrewSnapshots: { orderBy: { version: "asc" } },
-      journalEntries: { orderBy: { entryDate: "asc" } },
-      // Live events only: the client extension does not reach nested
-      // includes, so the Trash filter is explicit here.
+      // Live rows only, for both: the lib/db.ts client extension narrows
+      // top-level `where` but never reaches a nested `include`, so every
+      // soft-deleted relation needs its Trash filter spelled out here.
+      journalEntries: {
+        where: { deletedAt: null },
+        orderBy: { entryDate: "asc" },
+      },
       lifeEvents: {
         where: { deletedAt: null },
         orderBy: { eventDate: "asc" },
@@ -901,16 +997,15 @@ export async function exportProfile(id: number) {
     journalEntries,
     lifeEvents,
     birthCity,
-    // Device/installation state, not chart data: the primary flag is
-    // re-chosen after import and a live profile is never in the trash.
-    isPrimary: _isPrimary,
-    deletedAt: _deletedAt,
-    ...columns
   } = profile;
   return {
     exportVersion: 1,
     exportedAt: new Date().toISOString(),
-    profile: { ...columns, birthDate: dateOnly(columns.birthDate) },
+    // Device/installation state is deliberately omitted by the mapper:
+    // isPrimary is re-chosen after import, deletedAt can't apply (a live
+    // profile is never in the trash), and lastViewedAt describes this
+    // browser's history, not the chart.
+    profile: exportProfileColumns(profile),
     birthCity,
     astroSnapshots: astroSnapshots.map(({ readings: _r, ...s }) => s),
     numeroSnapshots,
@@ -918,21 +1013,9 @@ export async function exportProfile(id: number) {
     hebrewSnapshots,
     readings: astroSnapshots.flatMap((s) => s.readings),
     // Additive like hebrewSnapshots (Phase 3g journal notes).
-    journalEntries: journalEntries.map((e) => ({
-      ...e,
-      entryDate: dateOnly(e.entryDate),
-    })),
-    // Additive like journalEntries; live events only, explicit fields.
-    lifeEvents: lifeEvents.map((e) => ({
-      id: e.id,
-      title: e.title,
-      eventDate: dateOnly(e.eventDate),
-      precision: e.precision,
-      category: e.category,
-      notesMd: e.notesMd,
-      createdAt: e.createdAt,
-      updatedAt: e.updatedAt,
-    })),
+    journalEntries: journalEntries.map(exportJournalEntry),
+    // Additive like journalEntries; live rows only.
+    lifeEvents: lifeEvents.map(exportLifeEvent),
   };
 }
 

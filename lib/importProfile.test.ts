@@ -291,3 +291,79 @@ describe("profileExportSchema — life events", () => {
     expect(bad({ precision: "week" })).toBe(false);
   });
 });
+
+describe("profileExportSchema — journal metadata round-trip", () => {
+  // Regression: the schema used to accept only entryDate/bodyMd/createdAt/
+  // updatedAt, so every import silently destroyed the mood, tags and pinned
+  // sky that exportProfile emits — and with them the data lib/journalInsights
+  // runs on.
+  const sky = {
+    computedAt: "2026-03-01T12:00:00.000Z",
+    natalVersion: 2,
+    engine: { name: "astronomy-engine", version: "2.1.19" },
+    placements: [],
+    crossAspects: [],
+  };
+
+  function withJournal(entry: Record<string, unknown>) {
+    return { ...validExport(), journalEntries: [entry] };
+  }
+
+  const fullEntry = {
+    id: 9,
+    entryDate: "2026-03-01",
+    bodyMd: "A note.",
+    mood: "high",
+    tagsJson: ["work", "travel"],
+    skyJson: sky,
+    createdAt: "2026-03-01T18:00:00.000Z",
+    updatedAt: "2026-03-01T18:00:00.000Z",
+  };
+
+  it("carries mood, tags and the pinned sky through the schema", () => {
+    const parsed = profileExportSchema.safeParse(withJournal(fullEntry));
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    const [e] = parsed.data.journalEntries;
+    expect(e.mood).toBe("high");
+    expect(e.tagsJson).toEqual(["work", "travel"]);
+    expect(e.skyJson).toEqual(sky);
+  });
+
+  it("still accepts pre-feature entries that carry none of them", () => {
+    const parsed = profileExportSchema.safeParse(
+      withJournal({
+        entryDate: "2026-03-01",
+        bodyMd: "A note.",
+        createdAt: "2026-03-01T18:00:00.000Z",
+        updatedAt: "2026-03-01T18:00:00.000Z",
+      }),
+    );
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.journalEntries[0].mood ?? null).toBeNull();
+  });
+
+  it("rejects a mood outside the enum", () => {
+    const parsed = profileExportSchema.safeParse(
+      withJournal({ ...fullEntry, mood: "elated" }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it("carries profile tags, and tolerates an export written before them", () => {
+    const base = validExport();
+    const tagged = {
+      ...base,
+      profile: { ...base.profile, tagsJson: ["family"] },
+    };
+    const withTags = profileExportSchema.safeParse(tagged);
+    expect(withTags.success).toBe(true);
+    if (withTags.success) {
+      expect(withTags.data.profile.tagsJson).toEqual(["family"]);
+    }
+    // The fixture itself has no tagsJson key at all.
+    const without = profileExportSchema.safeParse(validExport());
+    expect(without.success).toBe(true);
+  });
+});

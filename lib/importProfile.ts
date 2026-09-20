@@ -19,7 +19,7 @@ const isoDate = z
 
 const jsonValue = z.unknown();
 
-const profileSchema = z.object({
+export const profileSchema = z.object({
   displayName: z.string().min(1).max(100),
   fullBirthName: z.string().max(200).nullish(),
   hebrewBirthName: z.string().max(200).nullish(),
@@ -36,6 +36,9 @@ const profileSchema = z.object({
   tzIana: z.string().min(1).max(64),
   utcOffsetMinutes: z.number().int(),
   offsetOverridden: z.boolean().default(false),
+  // Installation-level metadata, exported since Batch P. Nullish so
+  // pre-tags exports still validate.
+  tagsJson: z.array(z.string()).nullish(),
   createdAt: isoDate,
 });
 
@@ -104,17 +107,25 @@ const hebrewSnapshotSchema = z.object({
   createdAt: isoDate,
 });
 
-const journalEntrySchema = z.object({
+// Every exported field travels. mood/tags/sky are nullish so exports written
+// before those columns existed still validate. skyJson stays an unvalidated
+// passthrough on purpose: this is a restore, not re-entry (see the module
+// header), and deep-validating EntrySky would reject rows a previous engine
+// version legitimately wrote.
+export const journalEntrySchema = z.object({
   entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   bodyMd: z.string().min(1).max(10_000),
+  mood: z
+    .enum(["very_low", "low", "neutral", "high", "very_high"])
+    .nullish(),
+  tagsJson: z.array(z.string()).nullish(),
+  skyJson: jsonValue.nullish(),
   createdAt: isoDate,
   updatedAt: isoDate,
 });
 
-// Every exported field travels (unlike the journal schema above, which
-// predates mood/tags/sky and drops them). Enums are literal copies of
-// prisma/schema.prisma — the module's idiom.
-const lifeEventSchema = z.object({
+// Enums are literal copies of prisma/schema.prisma — the module's idiom.
+export const lifeEventSchema = z.object({
   title: z.string().min(1).max(120),
   eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   precision: z.enum(["day", "month", "year"]).default("day"),
@@ -312,6 +323,10 @@ export async function importProfile(data: ProfileExport): Promise<number> {
         tzIana: data.profile.tzIana,
         utcOffsetMinutes: data.profile.utcOffsetMinutes,
         offsetOverridden: data.profile.offsetOverridden,
+        tagsJson:
+          data.profile.tagsJson && data.profile.tagsJson.length > 0
+            ? (data.profile.tagsJson as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
         createdAt: new Date(data.profile.createdAt),
       },
     });
@@ -391,6 +406,17 @@ export async function importProfile(data: ProfileExport): Promise<number> {
             // @db.Date column: UTC midnight, same as birthDate above.
             entryDate: new Date(Date.UTC(ey, em - 1, ed)),
             bodyMd: e.bodyMd,
+            mood: e.mood ?? null,
+            // The lib/journal.ts DbNull idiom: an absent JSON column is
+            // DbNull, never JSON null.
+            tagsJson:
+              e.tagsJson && e.tagsJson.length > 0
+                ? (e.tagsJson as unknown as Prisma.InputJsonValue)
+                : Prisma.DbNull,
+            skyJson:
+              e.skyJson === null || e.skyJson === undefined
+                ? Prisma.DbNull
+                : (e.skyJson as Prisma.InputJsonValue),
             createdAt: new Date(e.createdAt),
             updatedAt: new Date(e.updatedAt),
           };
