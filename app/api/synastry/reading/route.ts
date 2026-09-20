@@ -7,6 +7,10 @@ import {
   llmClientFromEnv,
   LlmUnavailableError,
 } from "@/lib/llm";
+import {
+  consumeGeneration,
+  pairKey,
+} from "@/lib/generationLimiter";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
 import {
   getSynastryReading,
@@ -41,6 +45,21 @@ export async function GET(req: NextRequest) {
     );
   }
   const { a, b } = parsed.data;
+
+  // One cached row per pair, but DELETE frees it — so the pair, not the row,
+  // is what needs a spend cap. pairKey folds the unordered pair into the
+  // same per-key limiter the profile routes use.
+  const retryAfter = consumeGeneration(pairKey(a, b));
+  if (retryAfter !== null) {
+    return NextResponse.json(
+      { error: "generation_rate_limited" },
+      {
+        status: 429,
+        headers: { ...NO_STORE, "Retry-After": String(retryAfter) },
+      },
+    );
+  }
+
   const view = await getSynastryView(a, b);
   if (!view) {
     return NextResponse.json(

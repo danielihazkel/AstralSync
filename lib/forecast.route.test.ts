@@ -2,6 +2,10 @@ import { buildChart } from "@astralsync/astro-core";
 import { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  GENERATION_HOURLY_LIMIT,
+  resetGenerationLimiter,
+} from "./generationLimiter";
 import type { WheelChart } from "./view-types";
 
 // Offline like the other route tests: the Prisma-backed store and snapshot
@@ -183,6 +187,8 @@ function params(id: string) {
 }
 
 beforeEach(() => {
+  // Module-level singleton shared by every route test in this process.
+  resetGenerationLimiter();
   vi.clearAllMocks();
   mockGetLatestNatal.mockResolvedValue({ chart: natalChart(), version: 2 });
   mockGetForecast.mockResolvedValue(null);
@@ -252,6 +258,44 @@ describe("GET /api/profiles/[id]/forecast", () => {
 });
 
 describe("POST /api/profiles/[id]/forecast", () => {
+  it("stops an unbounded discard/regenerate loop with a 429", async () => {
+    // The unique key bounds stored rows, not paid calls — DELETE frees the
+    // slot. Spend the window, then assert the next call is refused before it
+    // reaches the provider.
+    for (let i = 0; i < GENERATION_HOURLY_LIMIT; i++) {
+      const ok = await POST(
+        post({ mode: "western", kind: "day", date: "2026-08-13" }),
+        params("1"),
+      );
+      expect(ok.status).toBe(200);
+    }
+    mockClientFromEnv.mockClear();
+    mockCreateForecast.mockClear();
+    const res = await POST(
+      post({ mode: "western", kind: "day", date: "2026-08-13" }),
+      params("1"),
+    );
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toBe("generation_rate_limited");
+    expect(res.headers.get("Retry-After")).toMatch(/^\d+$/);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(mockCreateForecast).not.toHaveBeenCalled();
+  });
+
+  it("budgets each profile separately", async () => {
+    for (let i = 0; i < GENERATION_HOURLY_LIMIT; i++) {
+      await POST(
+        post({ mode: "western", kind: "day", date: "2026-08-13" }),
+        params("1"),
+      );
+    }
+    const other = await POST(
+      post({ mode: "western", kind: "day", date: "2026-08-13" }),
+      params("2"),
+    );
+    expect(other.status).toBe(200);
+  });
+
   it("generates and stores a western forecast keyed to the period start", async () => {
     const res = await POST(
       post({ mode: "western", kind: "week", date: "2026-08-13" }),

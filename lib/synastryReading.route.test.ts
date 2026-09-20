@@ -1,6 +1,7 @@
 import { buildChart } from "@astralsync/astro-core";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetGenerationLimiter } from "./generationLimiter";
 import type { LlmClient } from "./llm";
 import { computeSynastry, type SynastryInputSide } from "./synastry";
 import type { WheelChart } from "./view-types";
@@ -78,6 +79,8 @@ function request(query: string, method = "GET") {
 }
 
 beforeEach(() => {
+  // Module-level singleton shared by every route test in this process.
+  resetGenerationLimiter();
   mockView.mockReset().mockResolvedValue(VIEW);
   mockReading.mockReset().mockResolvedValue(null);
   mockClient.mockReset().mockReturnValue(client);

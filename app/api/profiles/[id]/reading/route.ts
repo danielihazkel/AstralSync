@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getProfileView } from "@/lib/snapshots";
 import { resolveReading } from "@/lib/content";
 import { listLifeEvents } from "@/lib/lifeEvents";
+import { consumeGeneration } from "@/lib/generationLimiter";
 import { buildReadingPrompt, llmClientFromEnv, LlmUnavailableError } from "@/lib/llm";
 import { birthDataFromProfile } from "@/lib/promptData";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
@@ -37,6 +38,18 @@ export async function POST(
   const client = llmClientFromEnv();
   if (!client) {
     return NextResponse.json({ error: "llm_disabled" }, { status: 409 });
+  }
+
+  // The unique constraint below bounds how many rows exist, not how many
+  // calls are paid for: DELETE frees the slot, so discard-then-regenerate
+  // is otherwise unbounded. Checked after llm_disabled so a disabled
+  // provider never spends budget.
+  const retryAfter = consumeGeneration(id);
+  if (retryAfter !== null) {
+    return NextResponse.json(
+      { error: "generation_rate_limited" },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } },
+    );
   }
 
   const body = await req.json().catch(() => ({}));

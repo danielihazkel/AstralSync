@@ -31,6 +31,7 @@ import {
   LlmUnavailableError,
   type ForecastAspectContext,
 } from "@/lib/llm";
+import { consumeGeneration } from "@/lib/generationLimiter";
 import { birthDataFromProfile } from "@/lib/promptData";
 import { ensureHebrewSnapshot, getProfileView } from "@/lib/snapshots";
 import { streamGenerationResponse } from "@/lib/streamGeneration";
@@ -171,6 +172,22 @@ export async function POST(
       { status: 409, headers: NO_STORE },
     );
   }
+
+  // The (profile, mode, kind, periodStart) unique key bounds rows, not paid
+  // calls: DELETE frees the slot, so discard-then-regenerate is otherwise
+  // unbounded. Checked after llm_disabled so a disabled provider never
+  // spends budget.
+  const retryAfter = consumeGeneration(id);
+  if (retryAfter !== null) {
+    return NextResponse.json(
+      { error: "generation_rate_limited" },
+      {
+        status: 429,
+        headers: { ...NO_STORE, "Retry-After": String(retryAfter) },
+      },
+    );
+  }
+
   const parsed = await parseParams(req, "body");
   if (parsed instanceof NextResponse) return parsed;
 
