@@ -216,6 +216,7 @@ describe("loadContentIndex", () => {
       "point_in_sign/north_node/sagittarius",
       "point_in_sign/north_node/scorpio",
       "point_in_sign/part_of_fortune/virgo",
+      "point_in_sign/part_of_spirit/virgo",
       "point_in_sign/south_node/gemini",
       "point_in_sign/south_node/leo",
       "point_in_sign/south_node/taurus",
@@ -565,9 +566,11 @@ describe("resolveReading", () => {
     expect(mc?.key).toBe("mc_sign/cancer");
     expect(mc?.source).toBe("Midheaven in Cancer — 10°00′");
     const points = reading.sections.filter((s) => s.slot === "point");
-    expect(points).toHaveLength(4);
+    // Fortune and Spirit are the sect pair and both resolve here.
+    expect(points).toHaveLength(5);
     expect(points[3].key).toBe("point_in_sign/part_of_fortune/virgo");
     expect(points[3].source).toBe("Part of Fortune in Virgo — 20°00′");
+    expect(points[4].key).toBe("point_in_sign/part_of_spirit/virgo");
     expect(reading.missingKeys).toEqual([]);
   });
 

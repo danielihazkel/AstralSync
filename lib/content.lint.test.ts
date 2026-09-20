@@ -101,7 +101,7 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1499 entries", () => {
+  it("contains exactly the 1511 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
@@ -110,11 +110,12 @@ describe("content library lint", () => {
     // destiny + 12 soul urge + 105 synastry aspects (21 sorted pairs over
     // 6 planets) + 60 synastry angle aspects (6 planets x ASC/MC x 5
     // types) + 12 MC signs + 5 chart patterns + 8 natal retrogrades + 28
-    // dignities (classical seven x four states) + 48 points in sign + 48
+    // dignities (classical seven x four states) + 60 points in sign
+    // (nodes, Lilith, and the Lots of Fortune and Spirit x 12) + 48
     // composite sign placements (Sun/Moon/Venus/Mars x 12) + 12 profection
     // years + 12 progressed Sun signs + 12 progressed ASC signs + 4 return
     // overviews + 1 solar-arc overview.
-    expect(entries).toHaveLength(1499);
+    expect(entries).toHaveLength(1511);
   });
 
   it("covers every planet in every sign", () => {
@@ -179,7 +180,16 @@ describe("content library lint", () => {
   });
 
   it("covers every point in every sign", () => {
-    const POINTS = ["north_node", "south_node", "lilith", "part_of_fortune"];
+    // The Vertex and East Point are deliberately absent: they are angles,
+    // not points with sign delineations, and lib/content.ts never resolves
+    // them into the reading (see POINT_LABELS there).
+    const POINTS = [
+      "north_node",
+      "south_node",
+      "lilith",
+      "part_of_fortune",
+      "part_of_spirit",
+    ];
     for (const point of POINTS) {
       for (const sign of SIGNS) {
         expect(

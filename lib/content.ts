@@ -7,6 +7,7 @@ import {
   detectPatterns,
   essentialDignity,
   partOfFortunePlacement,
+  partOfSpiritPlacement,
   pointsAt,
   signOf,
   type AngleBody,
@@ -529,11 +530,10 @@ export function resolveReading(
     south_node: "South Node",
     lilith: "Lilith",
     part_of_fortune: "Part of Fortune",
-    // Rendered as a wheel point only — no point_in_sign entries are authored
-    // for Spirit yet, so the reading deliberately skips it. The Vertex and
-    // East Point are angles, not points with sign delineations — they never
-    // enter the reading.
     part_of_spirit: "Part of Spirit",
+    // Wheel points only. The Vertex and East Point are angles, not points
+    // with sign delineations — they never enter the reading, and no
+    // point_in_sign entries are authored for them.
     vertex: "Vertex",
     east_point: "East Point",
   };
@@ -566,8 +566,18 @@ export function resolveReading(
     const sun = chart.placements.find((p) => p.planet === "sun");
     const moon = chart.placements.find((p) => p.planet === "moon");
     if (sun && moon) {
+      // Fortune and Spirit are the sect pair: what befalls you and what you
+      // do about it. Both need an Ascendant, so solar charts get neither.
       takePoint(
         partOfFortunePlacement(
+          chart.houses.ascendant,
+          sun.longitude,
+          moon.longitude,
+          chart.houses.cusps,
+        ),
+      );
+      takePoint(
+        partOfSpiritPlacement(
           chart.houses.ascendant,
           sun.longitude,
           moon.longitude,

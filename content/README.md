@@ -61,7 +61,7 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (1499 entries):** `planet_in_sign` ×120
+**English scope (1511 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
 framing), `planet_in_house` ×120, `aspect` ×199 (39 full pairs across all
 five types plus conjunction-only Sun–Mercury and Sun–Venus and
@@ -93,10 +93,11 @@ the pattern's members ride in the section's source line),
 `natal_retrograde` ×8 (Mercury–Pluto; the luminaries never retrograde),
 `dignity` ×28 (the classical seven × domicile/exaltation/detriment/fall —
 rendered under the reading's "Dignities" heading with the actual sign in
-the source line), `point_in_sign` ×48 (north node, south node, Lilith,
-Part of Fortune × 12
-signs; point segments use the `PointName` identifiers from
-`astro-core/points.ts`), `composite_in_sign` ×48 (the bond's
+the source line), `point_in_sign` ×60 (north node, south node, Lilith,
+and the Lots of Fortune and Spirit × 12 signs; point segments use the
+`PointName` identifiers from `astro-core/points.ts`. The Vertex and East
+Point are deliberately unauthored — they are angles rather than points
+with sign delineations, and `resolveReading` never emits them), `composite_in_sign` ×48 (the bond's
 Sun/Moon/Venus/Mars × 12 signs — relationship-voice prose shared by the
 composite and Davison panels, which re-label the heading for their own
 register), `life_path` / `destiny` / `soul_urge` ×12 each
