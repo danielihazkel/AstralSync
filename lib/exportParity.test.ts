@@ -27,8 +27,11 @@ import {
  * still means deciding, by hand, whether it belongs in the export.
  */
 
-/** Keys the export carries for identification/provenance that the importer
- *  deliberately ignores, because the row is recreated under a new id. */
+/**
+ * Keys the export carries that the importer deliberately does not write.
+ * `id` is read by profileSchema (a bundle needs it to remap relationship
+ * endpoints) but never written — rows are always recreated under fresh ids.
+ */
 const DELIBERATE_DROPS = new Set(["id"]);
 
 function parityOf(

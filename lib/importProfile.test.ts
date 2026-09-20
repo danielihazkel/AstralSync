@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { profileExportSchema, remapReadingRows } from "./importProfile";
+import {
+  profileBundleSchema,
+  profileExportSchema,
+  remapReadingRows,
+  remapRelationshipRows,
+} from "./importProfile";
 
 /**
  * Synthetic export mirroring the real exportProfile() shape (extra row
@@ -365,5 +370,122 @@ describe("profileExportSchema — journal metadata round-trip", () => {
     // The fixture itself has no tagsJson key at all.
     const without = profileExportSchema.safeParse(validExport());
     expect(without.success).toBe(true);
+  });
+});
+
+describe("remapRelationshipRows", () => {
+  const base = {
+    kind: "partner" as const,
+    label: null,
+    note: null,
+    createdAt: "2026-03-01T12:00:00.000Z",
+  };
+
+  it("remaps both endpoints onto the new profile ids", () => {
+    const map = new Map([
+      [7, 101],
+      [9, 102],
+    ]);
+    const rows = remapRelationshipRows([{ ...base, aId: 7, bId: 9 }], map);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].aId).toBe(101);
+    expect(rows[0].bId).toBe(102);
+  });
+
+  it("re-establishes aId < bId when new ids invert the old order", () => {
+    // 7 -> 200 and 9 -> 100: the remap flips the pair's ordering.
+    const map = new Map([
+      [7, 200],
+      [9, 100],
+    ]);
+    const [row] = remapRelationshipRows([{ ...base, aId: 7, bId: 9 }], map);
+    expect(row.aId).toBe(100);
+    expect(row.bId).toBe(200);
+  });
+
+  it("drops a pairing whose partner was not in the bundle", () => {
+    const map = new Map([[7, 101]]);
+    expect(remapRelationshipRows([{ ...base, aId: 7, bId: 9 }], map)).toEqual(
+      [],
+    );
+  });
+
+  it("drops a pair that would collapse onto one profile", () => {
+    const map = new Map([
+      [7, 101],
+      [9, 101],
+    ]);
+    expect(remapRelationshipRows([{ ...base, aId: 7, bId: 9 }], map)).toEqual(
+      [],
+    );
+  });
+
+  it("carries the kind, label and note through", () => {
+    const map = new Map([
+      [1, 10],
+      [2, 20],
+    ]);
+    const [row] = remapRelationshipRows(
+      [{ ...base, aId: 1, bId: 2, kind: "family", label: "my parents", note: "n" }],
+      map,
+    );
+    expect(row.kind).toBe("family");
+    expect(row.label).toBe("my parents");
+    expect(row.note).toBe("n");
+  });
+});
+
+describe("profileBundleSchema", () => {
+  function bundle(extra: Record<string, unknown> = {}) {
+    return {
+      exportVersion: 1,
+      bundle: true,
+      profiles: [validExport()],
+      ...extra,
+    };
+  }
+
+  it("defaults relationships for a pre-relationship bundle", () => {
+    const parsed = profileBundleSchema.safeParse(bundle());
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.relationships).toEqual([]);
+  });
+
+  it("accepts relationships and keeps the exported profile id", () => {
+    const parsed = profileBundleSchema.safeParse(
+      bundle({
+        relationships: [
+          {
+            aId: 12,
+            bId: 13,
+            kind: "friend",
+            label: null,
+            note: null,
+            createdAt: "2026-03-01T12:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.relationships[0].aId).toBe(12);
+    // validExport()'s profile id, needed for the remap.
+    expect(parsed.data.profiles[0].profile.id).toBe(12);
+  });
+
+  it("rejects an unknown relationship kind", () => {
+    const parsed = profileBundleSchema.safeParse(
+      bundle({
+        relationships: [
+          {
+            aId: 1,
+            bId: 2,
+            kind: "nemesis",
+            createdAt: "2026-03-01T12:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(parsed.success).toBe(false);
   });
 });

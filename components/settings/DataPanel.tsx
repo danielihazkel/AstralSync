@@ -8,10 +8,11 @@ import styles from "./settings.module.css";
 
 /**
  * Settings → Your data: whole-installation export/import (every profile in
- * one file, optionally with this browser's preferences) and a settings-only
- * bundle for moving preferences between devices. Profile data comes from
- * the server; preferences never leave the browser except through these
- * files.
+ * one file, plus the saved relationships between them, optionally with this
+ * browser's preferences) and a settings-only bundle for moving preferences
+ * between devices. Profile data comes from the server; preferences never
+ * leave the browser except through these files. Cached AI prose (forecasts,
+ * synastry readings) is deliberately out of scope — it is regenerable.
  */
 export default function DataPanel() {
   const settingsInput = useRef<HTMLInputElement>(null);
@@ -78,6 +79,12 @@ export default function DataPanel() {
           include this browser&rsquo;s settings
         </label>
       </div>
+      <span className={styles.note}>
+        Every profile with all its chart versions, readings, journal notes
+        (with their mood, tags and pinned sky) and life events, plus your
+        saved relationships. Cached AI forecasts are not included — they
+        regenerate.
+      </span>
       <div className={styles.actions}>
         <span className={styles.note} style={{ marginTop: 0 }}>
           Restore a profile or a whole export:

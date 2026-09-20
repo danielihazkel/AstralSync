@@ -1034,11 +1034,26 @@ export async function exportAllProfiles() {
     const data = await exportProfile(id);
     if (data) profiles.push(data);
   }
+  // Saved relationships are a property of a *pair*, so they have no meaning
+  // in a single-profile export and live only at the bundle level. Their
+  // endpoints are exported profile ids, remapped on import.
+  const relationships = await prisma.relationship.findMany({
+    orderBy: { id: "asc" },
+    select: {
+      aId: true,
+      bId: true,
+      kind: true,
+      label: true,
+      note: true,
+      createdAt: true,
+    },
+  });
   return {
     exportVersion: 1 as const,
     bundle: true as const,
     exportedAt: new Date().toISOString(),
     profiles,
+    relationships,
   };
 }
 

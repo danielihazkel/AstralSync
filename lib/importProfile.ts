@@ -20,6 +20,10 @@ const isoDate = z
 const jsonValue = z.unknown();
 
 export const profileSchema = z.object({
+  // The exported id. Never written (rows are recreated under fresh ids) —
+  // it exists so a bundle can remap relationship endpoints onto the new
+  // rows. Optional: single-profile imports and older bundles may lack it.
+  id: z.number().int().optional(),
   displayName: z.string().min(1).max(100),
   fullBirthName: z.string().max(200).nullish(),
   hebrewBirthName: z.string().max(200).nullish(),
@@ -218,10 +222,23 @@ export type ProfileExport = z.infer<typeof profileExportSchema>;
 /** The Settings "Export all" shape: a list of single-profile exports plus,
  *  optionally, the browser settings bundle (applied client-side — the
  *  server never stores preferences). */
+/** A saved pairing. Endpoints are the *exported* profile ids; the importer
+ *  remaps them onto the newly created rows (remapRelationshipRows). */
+export const relationshipSchema = z.object({
+  aId: z.number().int(),
+  bId: z.number().int(),
+  kind: z.enum(["partner", "family", "friend", "colleague", "other"]),
+  label: z.string().max(80).nullish(),
+  note: z.string().max(400).nullish(),
+  createdAt: isoDate,
+});
+
 export const profileBundleSchema = z.object({
   exportVersion: z.literal(1),
   bundle: z.literal(true),
   profiles: z.array(profileExportSchema).max(500),
+  // Absent in pre-relationship bundles.
+  relationships: z.array(relationshipSchema).default([]),
   settings: z.unknown().optional(),
 });
 
@@ -234,6 +251,36 @@ export function isBundle(body: unknown): boolean {
     body !== null &&
     (body as { bundle?: unknown }).bundle === true
   );
+}
+
+/**
+ * Remap saved relationships onto newly created profile ids.
+ *
+ * A pairing only means something when *both* endpoints made it into the
+ * import, so a relationship whose partner was not in the bundle is dropped
+ * rather than half-restored. The model's ordered-pair invariant (aId < bId)
+ * is re-established after remapping, because new ids need not preserve the
+ * old ordering. Self-pairs cannot survive a remap and are dropped too.
+ */
+export function remapRelationshipRows(
+  relationships: z.infer<typeof relationshipSchema>[],
+  profileIdMap: Map<number, number>,
+) {
+  const rows = [];
+  for (const r of relationships) {
+    const a = profileIdMap.get(r.aId);
+    const b = profileIdMap.get(r.bId);
+    if (a === undefined || b === undefined || a === b) continue;
+    rows.push({
+      aId: Math.min(a, b),
+      bId: Math.max(a, b),
+      kind: r.kind,
+      label: r.label ?? null,
+      note: r.note ?? null,
+      createdAt: new Date(r.createdAt),
+    });
+  }
+  return rows;
 }
 
 /** Remap the exported readings' snapshot FKs to the newly created ids. */
@@ -273,13 +320,24 @@ const asJson = (v: unknown) => (v ?? Prisma.JsonNull) as Prisma.InputJsonValue;
  * profile id; importing the same file twice yields two profiles.
  * Returns the new profile id.
  */
-export async function importProfile(data: ProfileExport): Promise<number> {
+/** Prisma transaction client — what $transaction hands its callback. */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/**
+ * Restore one profile inside a caller-supplied transaction, so a bundle can
+ * restore every profile (and their relationships) atomically instead of
+ * leaving a half-imported installation behind when row 7 of 20 fails.
+ */
+export async function importProfileInTx(
+  tx: Tx,
+  data: ProfileExport,
+): Promise<number> {
   // City resolution outside the transaction: keep the FK when the GeoNames
   // row exists locally, recreate it from the export's canonical copy when it
   // doesn't, otherwise drop the FK — coordinates and tz live on the profile.
   let birthCityGeonameId: number | null = data.profile.birthCityGeonameId ?? null;
   if (birthCityGeonameId !== null) {
-    const existing = await prisma.geoCity.findUnique({
+    const existing = await tx.geoCity.findUnique({
       where: { geonameId: birthCityGeonameId },
       select: { geonameId: true },
     });
@@ -306,7 +364,7 @@ export async function importProfile(data: ProfileExport): Promise<number> {
 
   const [y, m, d] = data.profile.birthDate.split("-").map(Number);
 
-  return prisma.$transaction(async (tx) => {
+  {
     const profile = await tx.profile.create({
       data: {
         displayName: data.profile.displayName,
@@ -444,5 +502,36 @@ export async function importProfile(data: ProfileExport): Promise<number> {
     }
 
     return profile.id;
+  }
+}
+
+/** Restore a single profile in its own transaction (the one-file import). */
+export async function importProfile(data: ProfileExport): Promise<number> {
+  return prisma.$transaction((tx) => importProfileInTx(tx, data));
+}
+
+/**
+ * Restore a whole bundle atomically: every profile and every saved
+ * relationship, or nothing. Returns the new ids in the bundle's own order.
+ */
+export async function importBundle(
+  bundle: Pick<ProfileBundle, "profiles" | "relationships">,
+): Promise<number[]> {
+  return prisma.$transaction(async (tx) => {
+    const ids: number[] = [];
+    // Old exported id -> newly created id, for the relationship remap.
+    const profileIdMap = new Map<number, number>();
+    for (const p of bundle.profiles) {
+      const id = await importProfileInTx(tx, p);
+      ids.push(id);
+      // A bundle written before profile ids travelled simply has no
+      // relationships to remap.
+      if (p.profile.id !== undefined) profileIdMap.set(p.profile.id, id);
+    }
+    const rows = remapRelationshipRows(bundle.relationships, profileIdMap);
+    for (const r of rows) {
+      await tx.relationship.create({ data: r });
+    }
+    return ids;
   });
 }

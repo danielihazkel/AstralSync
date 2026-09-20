@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  importBundle,
   importProfile,
   isBundle,
   profileBundleSchema,
   profileExportSchema,
 } from "@/lib/importProfile";
 
-// Generous for a JSON export (the largest real ones are tens of KB); a
-// whole-installation bundle scales with the profile count.
+// Generous for a JSON export; a whole-installation bundle scales with the
+// profile count, and every journal note now carries its pinned sky snapshot
+// (placements + cross-aspects), so real files are larger than they once were.
 const MAX_BODY_BYTES = 50 * 1024 * 1024;
 
 /**
@@ -48,8 +50,10 @@ export async function POST(req: NextRequest) {
       );
     }
     try {
-      const ids: number[] = [];
-      for (const p of parsed.data.profiles) ids.push(await importProfile(p));
+      // One transaction for the whole bundle: a failure partway through used
+      // to leave the earlier profiles imported, 500, and return no ids at
+      // all, so the user could not tell what had landed.
+      const ids = await importBundle(parsed.data);
       return NextResponse.json({ ids }, { status: 201 });
     } catch (e) {
       console.error("[api] profiles import (bundle):", e);
