@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Markdown from "@/components/Markdown";
 import { useStreamedGeneration } from "@/components/useStreamedGeneration";
-import { localNoonIso, todayLocalDate } from "@/components/journal/journalDate";
+import { localNoonIso, todayLocalDate } from "@/components/atDate";
 import styles from "./profile.module.css";
 
 interface ChatMessage {

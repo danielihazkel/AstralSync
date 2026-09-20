@@ -5,7 +5,7 @@
 
 import type { LifeEventPrecision } from "@/lib/lifeEventMeta";
 
-/** Same comfort zone as the Journal date picker (journalDate.ts). */
+/** Same comfort zone as the Journal date picker (components/atDate.ts). */
 export const MIN_EVENT_DATE = "1700-01-01";
 export const MAX_EVENT_DATE = "2199-12-31";
 export const MIN_EVENT_YEAR = 1700;

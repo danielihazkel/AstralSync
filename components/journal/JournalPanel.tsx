@@ -28,12 +28,12 @@ import {
   type TransitProse,
 } from "@/components/transits/TransitTables";
 import {
-  MAX_JOURNAL_DATE,
-  MIN_JOURNAL_DATE,
-  clampJournalDate,
+  MAX_AT_DATE,
+  MIN_AT_DATE,
+  clampAtDate,
   localNoonIso,
   todayLocalDate,
-} from "./journalDate";
+} from "@/components/atDate";
 import styles from "./journal.module.css";
 
 type SkyPayload = TransitData & { prose?: TransitProse };
@@ -76,7 +76,7 @@ export default function JournalPanel({
   // note" links); otherwise today.
   const searchParams = useSearchParams();
   const [date, setDate] = useState(() =>
-    clampJournalDate(searchParams.get("date") ?? "", todayLocalDate()),
+    clampAtDate(searchParams.get("date") ?? "", todayLocalDate()),
   );
   const [sky, setSky] = useState<SkyState>({ kind: "loading" });
   const [entries, setEntries] = useState<EntriesState>({ kind: "loading" });
@@ -246,9 +246,9 @@ export default function JournalPanel({
           id="journal-date"
           type="date"
           value={date}
-          min={MIN_JOURNAL_DATE}
-          max={MAX_JOURNAL_DATE}
-          onChange={(e) => setDate((prev) => clampJournalDate(e.target.value, prev))}
+          min={MIN_AT_DATE}
+          max={MAX_AT_DATE}
+          onChange={(e) => setDate((prev) => clampAtDate(e.target.value, prev))}
         />
         {date !== today && (
           <button onClick={() => setDate(today)}>Today</button>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import AtInstantPicker from "@/components/AtInstantPicker";
+import { localNoonIso } from "@/components/atDate";
 import {
   SIGNS,
   type FirdariaLord,
@@ -161,6 +163,14 @@ export default function CyclesPanel({
   isLatest: boolean;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  // Null = now. Every technique on this tab is a pure function of (natal,
+  // instant), so pinning a past day is meaningful: "what was my profection
+  // year, releasing period and progressed Sun when that happened?"
+  const [atDate, setAtDate] = useState<string | null>(null);
+  // Separate from `state`: a recompute keeps the previous view on screen.
+  // Blanking the panel would unmount the date picker mid-interaction, so a
+  // second nudge of the date would be impossible until the first returned.
+  const [busy, setBusy] = useState(false);
   // Null until localStorage is read post-mount — the first fetch waits so a
   // custom setting doesn't trigger a default-orbs fetch first.
   const [orbs, setOrbs] = useState<OrbSettings | null>(null);
@@ -211,7 +221,10 @@ export default function CyclesPanel({
       setState({ kind: "offline" });
       return;
     }
-    setState({ kind: "loading" });
+    setBusy(true);
+    // Only blank the panel when there is nothing to keep; a refetch (new
+    // date, new orbs, relocation) leaves the old view up and marks it busy.
+    setState((s) => (s.kind === "data" ? s : { kind: "loading" }));
     // Relocate a return when its Home view is active and a home location
     // exists — a whole-payload refetch, same cost model as an orb change
     // (only the relocated chart differs server-side).
@@ -224,20 +237,31 @@ export default function CyclesPanel({
       lrView === "home" && homeLoc
         ? `${orbPart || srPart ? "&" : "?"}lrLat=${homeLoc.lat}&lrLng=${homeLoc.lng}`
         : "";
+    // Pin the whole cycles view to a chosen day. Everything here is a pure
+    // function of (natal, instant), so a past date is as valid as now — the
+    // route has always accepted `at`, nothing in the UI ever sent it.
+    const atPart = atDate
+      ? `${orbPart || srPart || lrPart ? "&" : "?"}at=${encodeURIComponent(localNoonIso(atDate))}`
+      : "";
     let res: Response;
     try {
-      res = await fetch(`/api/cycles/${profileId}${orbPart}${srPart}${lrPart}`);
+      res = await fetch(
+        `/api/cycles/${profileId}${orbPart}${srPart}${lrPart}${atPart}`,
+      );
     } catch {
       // sw.js never intercepts /api/*, so a network failure rejects cleanly.
+      setBusy(false);
       setState({ kind: "offline" });
       return;
     }
     if (!res.ok) {
+      setBusy(false);
       setState({ kind: "error" });
       return;
     }
     setState({ kind: "data", data: await res.json() });
-  }, [profileId, orbs, srView, lrView, homeLoc]);
+    setBusy(false);
+  }, [profileId, orbs, srView, lrView, homeLoc, atDate]);
 
   useEffect(() => {
     void load();
@@ -300,6 +324,12 @@ export default function CyclesPanel({
 
   return (
     <div className={styles.panel}>
+      <AtInstantPicker
+        label="Cycles as of"
+        date={atDate}
+        onChange={setAtDate}
+        busy={busy}
+      />
       <div className={styles.asOfRow}>
         <span className={styles.muted}>
           As of {new Date(data.computedAt).toLocaleString()}

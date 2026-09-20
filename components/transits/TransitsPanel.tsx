@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import AtInstantPicker from "@/components/AtInstantPicker";
+import { localNoonIso } from "@/components/atDate";
 import {
   loadOrbSettings,
   orbQuery,
@@ -59,6 +61,10 @@ export default function TransitsPanel({
   llmEnabled: boolean;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  // Null = live. A pinned day answers "what was hitting my chart then?"
+  // against the same engine the Journal tab's sky view uses.
+  const [atDate, setAtDate] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [view, setView] = useState<(typeof VIEWS)[number]>("now");
   // Null until localStorage is read post-mount — the first fetch waits so a
   // custom setting doesn't trigger a default-orbs fetch first.
@@ -74,21 +80,31 @@ export default function TransitsPanel({
       setState({ kind: "offline" });
       return;
     }
-    setState({ kind: "loading" });
+    setBusy(true);
+    // Keep the previous sky on screen while a new one computes, so the date
+    // picker stays mounted and can be nudged again immediately.
+    setState((s) => (s.kind === "data" ? s : { kind: "loading" }));
+    const orbPart = orbQuery(orbs);
+    const atPart = atDate
+      ? `${orbPart ? "&" : "?"}at=${encodeURIComponent(localNoonIso(atDate))}`
+      : "";
     let res: Response;
     try {
-      res = await fetch(`/api/transits/${profileId}${orbQuery(orbs)}`);
+      res = await fetch(`/api/transits/${profileId}${orbPart}${atPart}`);
     } catch {
       // sw.js never intercepts /api/*, so a network failure rejects cleanly.
+      setBusy(false);
       setState({ kind: "offline" });
       return;
     }
     if (!res.ok) {
+      setBusy(false);
       setState({ kind: "error" });
       return;
     }
     setState({ kind: "data", data: await res.json() });
-  }, [profileId, orbs]);
+    setBusy(false);
+  }, [profileId, orbs, atDate]);
 
   useEffect(() => {
     void load();
@@ -216,6 +232,12 @@ export default function TransitsPanel({
     <div className={styles.panel}>
       {viewSwitch}
       <div {...panelProps} className={styles.tabPanel}>
+      <AtInstantPicker
+        label="Sky as of"
+        date={atDate}
+        onChange={setAtDate}
+        busy={busy}
+      />
       <div className={styles.asOfRow}>
         <span className={styles.muted}>
           As of {new Date(data.computedAt).toLocaleString()}
@@ -233,7 +255,9 @@ export default function TransitsPanel({
       <TransitWheel chart={chart} transits={data} />
 
       <section aria-label="Transiting positions">
-        <h3 className={styles.sectionTitle}>Positions now</h3>
+        <h3 className={styles.sectionTitle}>
+          {atDate ? "Positions that day" : "Positions now"}
+        </h3>
         <TransitPositionsTable
           placements={data.placements}
           showHouses={showHouses}

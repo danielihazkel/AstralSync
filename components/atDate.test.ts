@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAX_JOURNAL_DATE,
-  MIN_JOURNAL_DATE,
-  clampJournalDate,
+  MAX_AT_DATE,
+  MIN_AT_DATE,
+  clampAtDate,
   localNoonIso,
   todayLocalDate,
-} from "./journalDate";
+} from "./atDate";
 
 describe("todayLocalDate", () => {
   it("formats the local civil date with zero padding", () => {
@@ -31,18 +31,18 @@ describe("localNoonIso", () => {
   });
 });
 
-describe("clampJournalDate", () => {
+describe("clampAtDate", () => {
   it("passes in-range dates through", () => {
-    expect(clampJournalDate("2026-08-13", "2026-01-01")).toBe("2026-08-13");
+    expect(clampAtDate("2026-08-13", "2026-01-01")).toBe("2026-08-13");
   });
 
   it("clamps to the ephemeris bounds", () => {
-    expect(clampJournalDate("1500-06-01", "2026-01-01")).toBe(MIN_JOURNAL_DATE);
-    expect(clampJournalDate("2500-06-01", "2026-01-01")).toBe(MAX_JOURNAL_DATE);
+    expect(clampAtDate("1500-06-01", "2026-01-01")).toBe(MIN_AT_DATE);
+    expect(clampAtDate("2500-06-01", "2026-01-01")).toBe(MAX_AT_DATE);
   });
 
   it("keeps the previous date on a cleared or malformed input", () => {
-    expect(clampJournalDate("", "2026-08-13")).toBe("2026-08-13");
-    expect(clampJournalDate("garbage", "2026-08-13")).toBe("2026-08-13");
+    expect(clampAtDate("", "2026-08-13")).toBe("2026-08-13");
+    expect(clampAtDate("garbage", "2026-08-13")).toBe("2026-08-13");
   });
 });

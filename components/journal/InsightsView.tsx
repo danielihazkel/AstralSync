@@ -19,7 +19,7 @@ import {
 } from "@/lib/journalInsights";
 import type { JournalMood } from "@/lib/journalMeta";
 import type { WheelChart } from "@/lib/view-types";
-import { todayLocalDate } from "./journalDate";
+import { todayLocalDate } from "@/components/atDate";
 import { MOOD_LABELS } from "./moodLabels";
 import styles from "./journal.module.css";
 
