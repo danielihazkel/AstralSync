@@ -12,6 +12,7 @@ import {
   type LifeEventCategory,
   type LifeEventPrecision,
 } from "./lifeEventMeta";
+import type { EventLords } from "./eventLords";
 // Type-only: lib/synastry pulls in prisma, which this module must not load.
 import type { SynastryData } from "./synastry";
 import type {
@@ -534,6 +535,10 @@ export interface LifeEventPromptItem {
   precision: LifeEventPrecision;
   category: LifeEventCategory;
   notesMd: string | null;
+  /** The time-lord state on that date (lib/eventLords.ts). Optional: absent
+   *  on a solar chart, where every one of those techniques needs an
+   *  Ascendant, and absent from callers that don't compute it. */
+  lords?: EventLords | null;
 }
 
 /** In-prompt caps — nothing downstream of the builders truncates, so the
@@ -542,8 +547,34 @@ export const MAX_LIFE_EVENTS_IN_PROMPT = 100;
 export const MAX_LIFE_EVENT_NOTE_CHARS_IN_PROMPT = 400;
 
 /**
+ * One compact line of time-lord context per event. Kept to a single line on
+ * purpose: a hundred events times five lines would dominate the prompt, and
+ * this is meant to be background the model can lean on, not the subject.
+ */
+export function renderEventLords(lords: EventLords | null | undefined): string {
+  if (!lords) return "";
+  // Firdaria lords include the lunar nodes, whose keys are snake_case.
+  const lordName = (key: string) => key.split("_").map(cap).join(" ");
+  const parts = [
+    `${ordinal(lords.profection.house)}-house profection year (${cap(lords.profection.sign)}, lord ${cap(lords.profection.lord)})`,
+    `firdaria ${lordName(lords.firdaria.major)}${lords.firdaria.sub ? `/${lordName(lords.firdaria.sub)}` : ""}`,
+  ];
+  if (lords.releasing) {
+    const marks = [
+      lords.releasing.fortunePeak ? "peak" : null,
+      lords.releasing.fortuneLoosedBond ? "loosing of the bond" : null,
+    ].filter(Boolean);
+    parts.push(
+      `releasing from Fortune in ${cap(lords.releasing.fortuneSign)}${marks.length ? ` (${marks.join(", ")})` : ""}`,
+    );
+  }
+  return `Timing: ${parts.join("; ")}.`;
+}
+
+/**
  * Chronological bullets, one per event, dated only as precisely as the user
- * actually knows ("March 2014 (month only)"). Over the cap, the most recent
+ * actually knows ("March 2014 (month only)"). Each carries a one-line
+ * time-lord summary when one was computed. Over the cap, the most recent
  * MAX_LIFE_EVENTS_IN_PROMPT are kept and the omission is stated.
  */
 export function renderLifeEventsData(events: LifeEventPromptItem[]): string {
@@ -561,6 +592,8 @@ export function renderLifeEventsData(events: LifeEventPromptItem[]): string {
     lines.push(
       `- ${formatEventDate(e.eventDate, e.precision)}${approx} — ${LIFE_EVENT_CATEGORY_LABELS[e.category]}: ${e.title}`,
     );
+    const lordLine = renderEventLords(e.lords);
+    if (lordLine) lines.push(`  ${lordLine}`);
     if (e.notesMd) {
       const note = e.notesMd.replace(/\s+/g, " ").trim();
       lines.push(

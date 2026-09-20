@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getProfileView } from "@/lib/snapshots";
+import { computeEventLords } from "@/lib/eventLords";
 import { listLifeEvents } from "@/lib/lifeEvents";
 import {
   buildLifeStoryPrompt,
@@ -77,11 +78,23 @@ export async function POST(
     return NextResponse.json({ error: "no_events" }, { status: 409 });
   }
 
+  // Give each event the time-lord state of its own date, so the reading can
+  // say "in a 10th-house profection year under a Saturn firdaria" instead of
+  // guessing from the calendar. Only the cheap techniques (profection,
+  // firdaria, releasing) — they are calendar arithmetic over the natal
+  // chart, where computeCycles would search for four kinds of return per
+  // event. Null throughout on a solar chart, which has no Ascendant.
+  const natal = toWheelChart(view.astro);
+  const withLords = events.map((e) => ({
+    ...e,
+    lords: computeEventLords(natal, new Date(`${e.eventDate}T12:00:00Z`)),
+  }));
+
   const prompt = buildLifeStoryPrompt(
     birthDataFromProfile(view.profile),
-    toWheelChart(view.astro),
+    natal,
     toNumeroDerivation(view.numero),
-    events,
+    withLords,
   );
 
   // Shared by both paths: persistence semantics are identical.
