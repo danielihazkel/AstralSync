@@ -1,10 +1,13 @@
 import { Prisma } from "@prisma/client";
-import type { CrossAspect, Placement } from "@astralsync/astro-core";
 import { prisma } from "./db";
 import { softDeleteJournalEntry } from "./trash";
 import type { JournalMood } from "./journalMeta";
 import type { TimelineEntryData } from "./journalTimeline";
-import { getTransitView, type TransitData } from "./transits";
+import {
+  pinnedSkyFromTransits,
+  skyForDate,
+  type PinnedSky,
+} from "./pinnedSky";
 
 /**
  * Prisma glue for journal entries — user notes pinned to a civil date
@@ -15,49 +18,17 @@ import { getTransitView, type TransitData } from "./transits";
  * browsable sky view still recomputes via /api/transits/[id]?at=.
  */
 
-/** The sky stored with an entry: a trimmed transit view (majors at the
- *  engine's default transit orbs — exactly what the Journal tab displays). */
-export interface EntrySky {
-  /** ISO instant the transits were computed for (local noon of entryDate). */
-  computedAt: string;
-  /** Natal snapshot version the aspects were cast against. */
-  natalVersion: number;
-  engine: { name: string; version: string };
-  placements: Placement[];
-  crossAspects: CrossAspect[];
-}
+/**
+ * The sky stored with an entry. Aliases the shared PinnedSky (lib/pinnedSky)
+ * — life events keep one too, on the same terms — and the names stay for the
+ * call sites and the stored JSON shape, which is frozen.
+ */
+export type EntrySky = PinnedSky;
 
-/** Pure: full transit view → the slice worth storing per entry. The
- *  read-time extras (applying flags, angle aspects) stay out of skyJson —
- *  the stored shape is the plain cross-aspect list and must not grow with
- *  the live view. */
-export function entrySkyFromTransits(t: TransitData): EntrySky {
-  return {
-    computedAt: t.computedAt,
-    natalVersion: t.natal.version,
-    engine: t.engine,
-    placements: t.placements,
-    crossAspects: t.crossAspects.map(({ applying: _applying, ...c }) => c),
-  };
-}
+export const entrySkyFromTransits = pinnedSkyFromTransits;
 
-/** The entry's sky: the same transit view the Journal tab shows, computed
- *  at the client's local noon (`at`) or UTC noon as a fallback. Null when
- *  the profile has no snapshot or the ephemeris rejects the instant — the
- *  note is always saved regardless. */
-export async function skyForEntry(
-  profileId: number,
-  entryDate: string,
-  at: string | undefined,
-): Promise<EntrySky | null> {
-  const instant = at ? new Date(at) : new Date(`${entryDate}T12:00:00Z`);
-  try {
-    const view = await getTransitView(profileId, instant);
-    return view ? entrySkyFromTransits(view) : null;
-  } catch {
-    return null;
-  }
-}
+/** The entry's sky: the same transit view the Journal tab shows. */
+export const skyForEntry = skyForDate;
 
 export interface JournalEntryView {
   id: number;

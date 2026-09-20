@@ -332,9 +332,15 @@ export const lifeEventCreateSchema = z
     precision: lifeEventPrecision.default("day"),
     category: lifeEventCategory,
     notesMd: z.string().trim().min(1).max(MAX_LIFE_EVENT_NOTES).nullish(),
+    // Local noon of eventDate, like the journal's `at`, so the pinned sky
+    // matches the day the user means.
+    at: journalAt.optional(),
   })
   .refine((v) => isCanonicalEventDate(v.eventDate, v.precision), {
     message: CANONICAL_MESSAGE,
+  })
+  .refine((v) => !v.at || v.at.slice(0, 10) === v.eventDate, {
+    message: "at must fall on eventDate",
   });
 
 export type LifeEventCreateInput = z.infer<typeof lifeEventCreateSchema>;
@@ -355,6 +361,7 @@ export const lifeEventUpdateSchema = z
       .max(MAX_LIFE_EVENT_NOTES)
       .nullable()
       .optional(),
+    at: journalAt.optional(),
   })
   .refine(
     (v) =>

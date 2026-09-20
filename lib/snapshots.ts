@@ -948,6 +948,7 @@ export function exportLifeEvent(e: {
   precision: LifeEvent["precision"];
   category: LifeEvent["category"];
   notesMd: string | null;
+  skyJson: Prisma.JsonValue;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -958,6 +959,7 @@ export function exportLifeEvent(e: {
     precision: e.precision,
     category: e.category,
     notesMd: e.notesMd,
+    skyJson: e.skyJson,
     createdAt: e.createdAt,
     updatedAt: e.updatedAt,
   };

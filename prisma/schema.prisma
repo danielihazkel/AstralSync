@@ -380,6 +380,12 @@ model LifeEvent {
   category  LifeEventCategory
   /// Optional markdown notes.
   notesMd   String?            @map("notes_md") @db.Text
+  /// PinnedSky JSON (lib/pinnedSky.ts): the transits in force on eventDate,
+  /// captured at create and recomputed only when the date changes — the
+  /// JournalEntry.skyJson rule. Null for pre-feature rows, for solar-ish
+  /// failures, and whenever the ephemeris rejects the instant; the event is
+  /// always saved regardless.
+  skyJson   Json?              @map("sky_json")
   /// Soft delete, same contract as JournalEntry.deletedAt.
   deletedAt DateTime?          @map("deleted_at")
   createdAt DateTime           @default(now()) @map("created_at")

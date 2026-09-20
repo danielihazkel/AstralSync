@@ -347,6 +347,7 @@ describe("POST /api/profiles/[id]/forecast", () => {
         precision: "day",
         category: "relocation",
         notesMd: null,
+        sky: null,
         createdAt: new Date("2026-08-01T00:00:00.000Z"),
         updatedAt: new Date("2026-08-01T00:00:00.000Z"),
       },

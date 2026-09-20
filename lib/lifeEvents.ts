@@ -1,4 +1,6 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
+import { skyForDate, type PinnedSky } from "./pinnedSky";
 import { softDeleteLifeEvent } from "./trash";
 import {
   MAX_LIFE_EVENTS_PER_PROFILE,
@@ -23,6 +25,9 @@ export interface LifeEventView {
   category: LifeEventCategory;
   /** Optional markdown notes; null when none. */
   notesMd: string | null;
+  /** The transits in force on eventDate, captured at create. Null for
+   *  pre-feature rows and whenever the ephemeris could not be read. */
+  sky: PinnedSky | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +50,7 @@ function serialize(row: {
   precision: string;
   category: string;
   notesMd: string | null;
+  skyJson?: Prisma.JsonValue;
   createdAt: Date;
   updatedAt: Date;
 }): LifeEventView {
@@ -55,6 +61,7 @@ function serialize(row: {
     precision: row.precision as LifeEventPrecision,
     category: row.category as LifeEventCategory,
     notesMd: row.notesMd,
+    sky: (row.skyJson as unknown as PinnedSky | null) ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -86,6 +93,9 @@ export async function createLifeEvent(args: {
   precision: LifeEventPrecision;
   category: LifeEventCategory;
   notesMd?: string | null;
+  /** Client's local noon for eventDate, so the pinned sky matches the day
+   *  the user means rather than a UTC approximation of it. */
+  at?: string;
 }): Promise<LifeEventView | "limit" | null> {
   const profile = await prisma.profile.findUnique({
     where: { id: args.profileId },
@@ -97,6 +107,8 @@ export async function createLifeEvent(args: {
     where: { profileId: args.profileId },
   });
   if (live >= MAX_LIFE_EVENTS_PER_PROFILE) return "limit";
+  // A missing sky is a missing decoration, not a failed write.
+  const sky = await skyForDate(args.profileId, args.eventDate, args.at);
   const row = await prisma.lifeEvent.create({
     data: {
       profileId: args.profileId,
@@ -105,6 +117,9 @@ export async function createLifeEvent(args: {
       precision: args.precision,
       category: args.category,
       notesMd: args.notesMd ?? null,
+      skyJson: sky
+        ? (sky as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
     },
   });
   return serialize(row);
@@ -124,6 +139,8 @@ export async function updateLifeEvent(
     category?: LifeEventCategory;
     /** Null clears the notes; undefined leaves them untouched. */
     notesMd?: string | null;
+    /** Client's local noon for a changed eventDate. */
+    at?: string;
   },
 ): Promise<LifeEventView | null> {
   const existing = await prisma.lifeEvent.findFirst({
@@ -131,9 +148,23 @@ export async function updateLifeEvent(
     select: { id: true },
   });
   if (!existing) return null;
+  // The journal's rule (lib/journal.ts): a date edit moves the event to a
+  // different sky, so recompute; editing the title or notes does not, so
+  // leave the pinned sky exactly as it was.
+  const sky =
+    patch.eventDate !== undefined
+      ? await skyForDate(profileId, patch.eventDate, patch.at)
+      : undefined;
   const row = await prisma.lifeEvent.update({
     where: { id: eventId },
     data: {
+      ...(sky !== undefined
+        ? {
+            skyJson: sky
+              ? (sky as unknown as Prisma.InputJsonValue)
+              : Prisma.DbNull,
+          }
+        : {}),
       ...(patch.title !== undefined ? { title: patch.title } : {}),
       ...(patch.eventDate !== undefined
         ? { eventDate: dateValue(patch.eventDate) }

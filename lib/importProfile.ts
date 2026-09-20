@@ -179,6 +179,9 @@ export const lifeEventSchema = z.object({
     "other",
   ]),
   notesMd: z.string().max(5_000).nullish(),
+  // Same passthrough stance as the journal's skyJson: a restore, not
+  // re-entry, so an older engine's shape is not re-validated.
+  skyJson: jsonValue.nullish(),
   createdAt: isoDate,
   updatedAt: isoDate,
 });
@@ -529,6 +532,10 @@ export async function importProfileInTx(
             precision: e.precision,
             category: e.category,
             notesMd: e.notesMd ?? null,
+            skyJson:
+              e.skyJson === null || e.skyJson === undefined
+                ? Prisma.DbNull
+                : (e.skyJson as Prisma.InputJsonValue),
             createdAt: new Date(e.createdAt),
             updatedAt: new Date(e.updatedAt),
           };

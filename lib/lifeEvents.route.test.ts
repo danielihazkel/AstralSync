@@ -34,6 +34,7 @@ const event = {
   precision: "day" as const,
   category: "relocation" as const,
   notesMd: null,
+  sky: null,
   createdAt: new Date("2026-08-01T20:00:00.000Z"),
   updatedAt: new Date("2026-08-01T20:00:00.000Z"),
 };
@@ -252,12 +253,15 @@ describe("PUT /api/profiles/[id]/life-events/[eventId]", () => {
           precision: "month",
           category: "career",
           notesMd: null,
+          sky: null,
         }),
       }),
       eventParams("1", "3"),
     );
     expect(res.status).toBe(200);
     expect((await res.json()).event.title).toBe("Edited");
+    // The patch is what the client sent; the pinned sky is the store's
+    // business, recomputed there only because eventDate changed.
     expect(mockUpdate).toHaveBeenCalledWith(1, 3, {
       title: "Edited",
       eventDate: "2015-06-01",

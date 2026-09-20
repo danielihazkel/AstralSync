@@ -91,6 +91,7 @@ describe("export/import field parity", () => {
       precision: "day",
       category: "relocation",
       notesMd: null,
+      skyJson: { computedAt: DATE.toISOString() },
       createdAt: DATE,
       updatedAt: DATE,
     });
@@ -145,6 +146,7 @@ describe("export/import field parity", () => {
           precision: "year",
           category: "other",
           notesMd: null,
+          skyJson: null,
           createdAt: DATE,
           updatedAt: DATE,
         }),

@@ -24,6 +24,7 @@ import {
   type EventDateInputs,
 } from "./eventDateInput";
 import EmptyState from "@/components/EmptyState";
+import { localNoonIso } from "@/components/atDate";
 import EventSky from "./EventSky";
 import LifeArc, { type LifeArcPeriods } from "./LifeArc";
 import Markdown from "@/components/Markdown";
@@ -204,6 +205,9 @@ export default function LifeEventsPanel({
           eventDate,
           precision,
           category,
+          // Local noon of the event's day, so the pinned sky is the one the
+          // user's own calendar means (the journal's `at` contract).
+          at: localNoonIso(eventDate),
           ...(note !== "" ? { notesMd: note } : {}),
         }),
       });
@@ -498,6 +502,7 @@ function EventRow({
             precision,
             category,
             notesMd: note === "" ? null : note,
+            at: localNoonIso(eventDate),
           }),
         },
       );
