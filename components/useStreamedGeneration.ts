@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { ensureLlmDisclosed } from "@/components/llm/disclosureBus";
 import { LineBuffer, sseData } from "@/lib/sse";
 
 export interface StreamOutcome {
@@ -27,6 +28,11 @@ export function useStreamedGeneration() {
 
   const generate = useCallback(
     async (url: string, body: unknown): Promise<StreamOutcome> => {
+      // Every stored AI generation funnels through here, so this is the one
+      // place the first-run disclosure has to live. Declining is a real
+      // answer: nothing is sent, and the caller sees an ordinary
+      // "didn't happen" outcome rather than an error.
+      if (!(await ensureLlmDisclosed())) return { ok: false };
       setBusy(true);
       setStreamText(null);
       try {

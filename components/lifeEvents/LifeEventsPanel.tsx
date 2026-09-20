@@ -411,10 +411,10 @@ export default function LifeEventsPanel({
                   )}
                 </div>
                 <p className={styles.muted}>
-                  Unlike other readings, the Life Story prompt shares your
-                  exact birth date, time and place with the language model,
-                  together with the events above. Discard and regenerate any
-                  time to fold in new events.
+                  Like every personal reading, this shares your exact birth
+                  date, time and place with the language model — together
+                  with the events above. Discard and regenerate any time to
+                  fold in new events.
                 </p>
                 {genError && <p className={styles.error}>{genError}</p>}
               </div>
