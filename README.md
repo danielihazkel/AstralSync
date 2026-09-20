@@ -14,7 +14,7 @@ viewed remain readable with no network at all.
 Everything runs on your machine: the ephemeris math (`astronomy-engine`), the
 Hebrew calendar (`@hebcal/core`), city search (imported GeoNames data),
 timezone resolution (`geo-tz` + the IANA database), and the interpretation
-library (1234 Markdown files in this repo). The only optional network feature
+library (1561 Markdown files in this repo). The only optional network feature
 is the AI synthesis layer, which is **off by default** and can point at a
 local Ollama server.
 
@@ -87,7 +87,7 @@ picker.
    and the Mazal reading. Either, both, or neither.
 6. **Review & create** — the chart is computed **exactly once**, here.
 
-### Viewing a profile — nine tabs
+### Viewing a profile — ten tabs
 
 - **Chart** — an interactive SVG wheel: houses, signs, planetary glyphs,
   aspect chords, retrograde markers, plus the calculated points (lunar nodes
@@ -136,10 +136,14 @@ picker.
   filterable by transiting planet or aspect — plus an **Insights** view that
   correlates your entries against a long-run baseline with honest minimum
   sample sizes.
+- **Life events** — the milestones you choose to record (marriage, children,
+  career, moves, losses…), each dated to the precision you actually
+  remember: a day, a month, or just a year. They feed the **Life Story**
+  reading, which reads them against the chart.
 - **Details** — birth data, engine metadata, version history, house-system
-  selector, reading coverage (which interpretation keys this chart wants but
-  the library hasn't authored), JSON export, the printable report, and
-  delete.
+  selector, profile tags, "this is me", reading coverage (which
+  interpretation keys this chart wants but the library hasn't authored),
+  JSON export, the printable report, and delete.
 
 There is also a per-profile **chat** ("ask about your chart") when the AI
 layer is enabled — ephemeral, rate-limited, never stored.
@@ -148,8 +152,16 @@ layer is enabled — ephemeral, rate-limited, never stored.
 
 Pick any two profiles (home page or `/synastry`): a bi-wheel with cross
 aspects at natal orbs, per-pair interpretation prose, mutual house-overlay
-tables, a midpoint composite chart, and a cached AI relationship reading.
-The page prints cleanly — use the print button to save it as a PDF.
+tables, angle and Vertex contacts, a midpoint **composite** chart and a
+**Davison** (a real chart for the midpoint in time and space), and a cached
+AI relationship reading. The page prints cleanly — use the print button to
+save it as a PDF.
+
+A pair can be **saved as a relationship** (partner, family, friend,
+colleague) with a label and a note, which the synastry landing page lists and
+filters. With three or more charts, `/synastry/group` is a grid of every
+pair, ranked by how many contacts they make — deliberately a contact count,
+not a compatibility score.
 
 ### The Sky Calendar and day almanac
 
@@ -183,12 +195,29 @@ Eight house systems are supported — Placidus, Whole Sign, Equal, Porphyry,
 Koch, Regiomontanus, Campanus, Alcabitius — with an automatic Whole Sign
 fallback where a quadrant system degenerates at extreme latitude.
 
-Two more sections live there. **Your data** exports every profile in one
-bundle (optionally with this browser's settings), imports a single export
-or a bundle, and moves settings alone between devices. **Trash** holds
-every deleted profile, deleted journal note, and discarded AI reading until
-you restore it or delete it for good — the Undo toast that appears after a
+Three more sections live there. **Your data** exports every profile in one
+bundle — all chart versions, readings, journal notes with their mood, tags
+and pinned sky, life events, and the saved relationships between profiles —
+optionally with this browser's settings; it also imports a single export or
+a bundle, and moves settings alone between devices. (Cached AI forecasts are
+not included: they regenerate.) **Trash** holds every deleted profile,
+deleted journal note, deleted life event, and discarded AI reading until you
+restore it or delete it for good — the Undo toast that appears after a
 delete is the same restore, offered for thirty seconds.
+**Notifications** are opt-in and entirely local: no push server is involved,
+no account exists to push to. When enabled, the app scans the next 26 hours
+for exact transits to the charts you pick and raises a local notification;
+where the browser supports periodic background sync, it can fire while the
+app is closed.
+
+### Keyboard
+
+`Ctrl`/`Cmd` + `K` opens a command palette over pages, profile tabs and
+saved charts. `?` shows the full shortcut list, `/` jumps to the search
+box, `g` followed by a letter goes to a section (`h` home, `y` synastry,
+`j` journal, `c` calendar, `e` ephemeris, `n` new profile, `s` settings),
+digits `1`–`9` switch profile tabs, and `[` / `]` page any month view
+backwards and forwards.
 
 ### Your chart
 
@@ -235,8 +264,23 @@ without a key the feature stays off. `READING_LLM` can also be `ollama`
 `READING_LLM_BASE_URL`. When enabled it powers: the natal reading synthesis
 (once per snapshot, stored permanently, enforced by a database constraint),
 the Mazal synthesis, day/week/month forecasts, the synastry reading, and the
-chart chat. Birth instants and coordinates are never sent to the model. LLM
-failures never degrade the rest of the app.
+chart chat, and the Life Story reading. LLM failures never degrade the rest
+of the app.
+
+**What is sent.** Every *personal* prompt — natal reading, Mazal reading,
+Life Story, both forecast modes, and the chart chat — carries your raw birth
+date, time and place, your complete chart and numerology derivations, and any
+life events you have recorded. That is a deliberate choice: the model is
+meant to be grounded in the whole person, not an anonymized chart. It is also
+near-identifying personal data, and the shipped default points at OpenAI — so
+if you would rather it never leave the machine, set `READING_LLM=ollama` and
+run a local model, or leave the API key blank and the feature off entirely.
+The app shows this once, in-app, before your first generation.
+
+Synastry prompts are the one exception: they carry no birth details for
+either person, and a test asserts it. The authoritative statement of this
+policy lives in the header of `lib/promptData.ts`, and `lib/llm.test.ts`
+checks it per prompt builder.
 
 ### Installing as a PWA / offline use
 

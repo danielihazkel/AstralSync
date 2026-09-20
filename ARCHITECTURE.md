@@ -58,7 +58,7 @@ AstralSync/
 
 ## 5. Data model (MySQL, PRD §6)
 
-Nine models; access pattern is "fetch profile and its snapshots by ID" — standard PK/FK indexing only.
+Twelve models; access pattern is "fetch profile and its snapshots by ID" — standard PK/FK indexing only.
 
 - **`profile`** — display name, optional full birth name + script (`latin|hebrew|other`), birth date, nullable birth time, time certainty, city FK, lat/lng, IANA tz, UTC offset minutes, `offset_overridden`
 - **`geo_city`** — imported once from GeoNames `cities15000` (~30k cities: name, ascii_name, country, admin1, lat/lng, population)
@@ -68,7 +68,14 @@ Nine models; access pattern is "fetch profile and its snapshots by ID" — stand
 - **`reading`** — optional synthesis, generated once per snapshot pair; `generator` (`template|llm`), nullable model name
 - **`forecast`** — AI period forecasts, unique per `(profile_id, mode, kind, period_start)` with `mode` (`western|hebrew`), `kind` (`day|week|month`); `natal_version` records the snapshot generated against (staleness flag, not part of the key). Not write-once: discard frees the slot for regeneration, like `reading`.
 - **`synastry_reading`** — cached AI relationship reading, one slot per ordered profile pair; discardable like `forecast`.
-- **`journal_entry`** — freely editable dated notes with `mood`, `tags_json`, and `sky_json` (the transit snapshot captured at save; body edits never recompute it, date edits do).
+- **`journal_entry`** — freely editable dated notes with `mood`, `tags_json`, and `sky_json` (the transit snapshot captured at save; body edits never recompute it, date edits do). Soft-deleted into the Trash.
+- **`life_event`** — recorded milestones (`title`, `event_date`, `date_precision` day/month/year, `category`, `notes_md`), the input to the Life Story reading. The `journal_entry` stance: the user's own words, freely editable, soft-deleted.
+- **`relationship`** — a saved pairing of two profiles (ordered `a_id < b_id` like `synastry_reading`), with a `kind`, optional label and note. Annotation, never a computed artifact; hard-deleted.
+- **`reading_archive`** — a discarded `reading`, kept so "Discard" is undoable until the Trash is purged.
+
+The `profile` row also carries installation-level state that is deliberately **not** versioned and **not** exported: `is_primary` ("this is me"), `tags_json`, `last_viewed_at` (which bounds the Today strip's per-profile scan), and `deleted_at`.
+
+**Soft delete** is structural, not a convention: a Prisma client extension in `lib/db.ts` hides trashed `profile` and `journal_entry`/`life_event` rows from every ordinary read. It narrows a top-level `where` only — it never reaches a nested `include`, so an `include` that must exclude trashed rows spells the filter out (see `exportProfile`, and `lib/exportParity.test.ts` for the guard that keeps the export and import sides of that seam honest).
 
 ORM: **Prisma** (first-class MySQL support; schema-as-migrations keeps a clean path to hosted MySQL/Postgres in Phase 3).
 
@@ -114,8 +121,8 @@ The math is solved; the text is the product (PRD §5). Content is a first-class,
 
 ## 10. Non-goals & phase gates
 
-**Since shipped (originally Phase 2+ cuts):** synastry (bi-wheel, overlays, composite, AI reading), daily transits, secondary progressions, solar/lunar/Jupiter/Saturn returns, annual profections, eclipses, chart patterns, the Part of Fortune, opt-in minor aspects with per-browser orb settings, the Hebrew/Mazal layer, forecasts, the journal, chart chat, the Today dashboard, and a printable report.
+**Since shipped (originally Phase 2+ cuts):** synastry (bi-wheel, overlays, composite, Davison, group grid, saved relationships, AI reading), daily transits (plus the exactitude calendar, orb-window graph and "when is my next X" search), secondary/tertiary progressions and solar arc, solar/lunar/Jupiter/Saturn returns, annual profections, zodiacal releasing, firdaria, eclipses, chart patterns and whole-chart statistics, the Parts of Fortune and Spirit, Vertex/East Point, declinations and antiscia, essential dignities, eight house systems, opt-in minor aspects with per-browser orb settings, the Hebrew/Mazal layer, forecasts, the journal, life events and the Life Story reading, chart chat, the Today dashboard, the sky calendar and day almanac, the electional day picker, local notifications, a command palette, Trash/undo, and printable reports.
 
 **Still out of scope (deliberate cuts):** React Native, user accounts/auth, cloud hosting/CDN, asteroids/Chiron/fixed stars (see `packages/astro-core/src/points.ts` for the Chiron rationale), sidereal zodiacs, UI localization (content structure must not preclude it).
 
-**Phase 4 (public deployment gate):** authentication, hosted database, `@hebcal/core` GPL-2.0 license review, privacy hardening (encryption at rest, retention, GDPR-style deletion), per-route rate limiting, client-side calculation re-evaluation. Privacy section §4.6 of the PRD must be revisited before any public deployment — exact birth data is near-identifying personal data; v1 stores it only on the local machine, names are optional, and every profile supports full JSON export and hard delete.
+**Phase 4 (public deployment gate):** authentication, hosted database, `@hebcal/core` GPL-2.0 license review, privacy hardening (encryption at rest, retention, GDPR-style deletion), per-route rate limiting, CI, error monitoring, security headers/CSP, client-side calculation re-evaluation. The AI generation routes carry an in-memory, single-process spend cap (`lib/generationLimiter.ts`); a multi-instance deployment needs a shared store. Privacy section §4.6 of the PRD must be revisited before any public deployment — exact birth data is near-identifying personal data; v1 stores it only on the local machine, names are optional, and every profile supports full JSON export and hard delete.
