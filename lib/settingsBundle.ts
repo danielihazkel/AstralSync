@@ -65,20 +65,26 @@ export function collectSettingsBundle(): SettingsBundle {
  */
 export const SETTINGS_VERSION = 1;
 
+/** The recognised parts of a bundle. `chart` is per field: a file that
+ *  names only some chart preferences must not reset the others. */
+export type ParsedSettingsBundle = Omit<Partial<SettingsBundle>, "chart"> & {
+  chart?: Partial<ChartDisplaySettings>;
+};
+
 /** Pure: unknown JSON → the recognised, sanitized parts of a bundle. Null
  *  when it isn't a settings document at all, or is a version this build
  *  cannot read. */
-export function parseSettingsBundle(raw: unknown): Partial<SettingsBundle> | null {
+export function parseSettingsBundle(raw: unknown): ParsedSettingsBundle | null {
   if (typeof raw !== "object" || raw === null) return null;
   const r = raw as Record<string, unknown>;
   if (r.settingsVersion !== SETTINGS_VERSION) return null;
-  const out: Partial<SettingsBundle> = { settingsVersion: SETTINGS_VERSION };
+  const out: ParsedSettingsBundle = { settingsVersion: SETTINGS_VERSION };
   if ("theme" in r) out.theme = sanitizeThemePreference(r.theme);
   if ("orbs" in r) out.orbs = sanitizeOrbSettings(r.orbs);
   if (typeof r.chart === "object" && r.chart !== null) {
     const c = r.chart as Record<string, unknown>;
     // The chart store keeps strings; coerce the bundle's typed values.
-    out.chart = sanitizeChartSettings({
+    const full = sanitizeChartSettings({
       showPoints: c.showPoints === false ? "false" : null,
       nodeVariant: c.nodeVariant === "mean" ? "mean" : null,
       showMinorAspects: c.showMinorAspects === true ? "true" : null,
@@ -86,6 +92,10 @@ export function parseSettingsBundle(raw: unknown): Partial<SettingsBundle> | nul
       defaultHouseSystem:
         typeof c.defaultHouseSystem === "string" ? c.defaultHouseSystem : null,
     });
+    // Only the fields the document names — saveChartSettings merges.
+    out.chart = Object.fromEntries(
+      Object.entries(full).filter(([key]) => key in c),
+    ) as Partial<ChartDisplaySettings>;
   }
   if ("homeLocation" in r) {
     const l = r.homeLocation as Record<string, unknown> | null;

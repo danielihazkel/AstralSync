@@ -25,10 +25,10 @@ describe("parseSettingsBundle", () => {
       settingsVersion: 1,
       theme: "light",
       orbs: { luminary: 12, default: 2, minor: 2, includeMinors: true },
+      // showMinorAspects was not in the file, so it is not applied.
       chart: {
         showPoints: false,
         nodeVariant: "mean",
-        showMinorAspects: false,
         chartView: "table",
         defaultHouseSystem: "whole_sign",
       },
@@ -56,6 +56,14 @@ describe("parseSettingsBundle", () => {
       parseSettingsBundle({ settingsVersion: 1, homeLocation: { lat: "1" } })!
         .homeLocation,
     ).toBeNull();
+  });
+
+  it("applies only the chart preferences a file names", () => {
+    // A hand-trimmed file must not reset the minor-aspect opt-in, the node
+    // variant or the house system to their defaults.
+    expect(
+      parseSettingsBundle({ settingsVersion: 1, chart: { chartView: "table" } })!.chart,
+    ).toEqual({ chartView: "table" });
   });
 
   it("falls back to defaults for unknown values", () => {
