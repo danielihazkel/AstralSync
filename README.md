@@ -13,8 +13,9 @@ viewed remain readable with no network at all.
 
 Everything runs on your machine: the ephemeris math (`astronomy-engine`), the
 Hebrew calendar (`@hebcal/core`), city search (imported GeoNames data),
-timezone resolution (`geo-tz` + the IANA database), and the interpretation
-library (1573 Markdown files in this repo). The only optional network feature
+timezone resolution (`geo-tz` + the IANA database), the astrocartography
+world map (Natural Earth, public domain, baked into the repo), and the
+interpretation library (1645 Markdown files in this repo). The only optional network feature
 is the AI synthesis layer, which is **off by default** and can point at a
 local Ollama server.
 
@@ -63,8 +64,11 @@ works offline and survives midnight): current Moon sign, phase and
 void-of-course status, the Hebrew date and month mazal, the current planetary
 hour (set a home location once), planets stationing this week, eclipses
 peaking in the next five weeks, and the tightest live transits to each saved
-profile. Below it: the profile list (search + sort) and the synastry pair
-picker.
+profile — with the Moon phase's reading folded under it, the day's Jewish
+observances (rolling over at sunset with the Hebrew date), and any Hebrew
+anniversary or yahrzeit of a recorded life event. Chart names, dates and the
+upcoming week link straight into that chart's Transits tab for the day.
+Below it: the profile list (search + sort) and the synastry pair picker.
 
 ### Creating a profile (onboarding)
 
@@ -154,7 +158,9 @@ picker.
   the Moon, Sun, Mercury, Venus and Mars and says why: they move too far in
   a year for their positions to mean anything. Each also carries its
   numerology timing: the personal year, and the pinnacle when the date is
-  precise enough to know it. Above the list, a **life arc** lays your events
+  precise enough to know it. A day-dated event also shows its Hebrew date
+  and its next Hebrew anniversary — a yahrzeit, by the mourning rules, for a
+  loss — and the next ten years of them export as a calendar. Above the list, a **life arc** lays your events
   against those periods — and the pinnacles and personal years — on one
   timeline. All of it
   feeds the **Life Story** reading, which now gets each event's timing
@@ -166,6 +172,12 @@ picker.
   progressed angles and slow transits to the angles, with a clear /
   suggestive / inconclusive verdict and every contact shown. It never edits
   the profile.
+- **Relocation** (`/profiles/[id]/relocation`, linked from Details) — an
+  astrocartography map of where on Earth each planet was rising, setting,
+  culminating or anti-culminating at your birth, and the chart recast for
+  any place you pick on the map or by city: the lines within 700 km, the new
+  Ascendant and MC, the planets on an angle there, and which planets change
+  house.
 - **Details** — birth data, engine metadata, version history, house-system
   selector, profile tags, "this is me", reading coverage (which
   interpretation keys this chart wants but the library hasn't authored),
@@ -202,7 +214,17 @@ rules — each window lists exactly which factors moved it. Any day deep-links
 to `/calendar/[date]`, a full almanac page (mundane aspects, ingresses,
 stations, the Jewish calendar, planetary hours, electional windows). Months, days, and electional
 windows all export as `.ics` files with stable UIDs, so re-imports update
-instead of duplicating.
+instead of duplicating — and the Jewish calendar exports on its own, holidays
+as all-day events.
+
+### Chart of the moment
+
+`/chart` casts a chart for any date, time and place with no profile behind
+it — an event, a question, the sky right now — computed in the browser.
+It lists the horary tradition's considerations before judgment (an early
+or late Ascendant, a void-of-course Moon, Saturn in the 1st or 7th, the
+Moon in the via combusta) as cautions, keeps the moment in the URL, and can
+hand it to the onboarding wizard as a new profile.
 
 ### Ephemeris
 
@@ -245,7 +267,8 @@ app is closed.
 `Ctrl`/`Cmd` + `K` opens a command palette over pages, profile tabs and
 saved charts. `?` shows the full shortcut list, `/` jumps to the search
 box, `g` followed by a letter goes to a section (`h` home, `y` synastry,
-`j` journal, `c` calendar, `e` ephemeris, `n` new profile, `s` settings),
+`j` journal, `c` calendar, `e` ephemeris, `m` chart of the moment, `n` new
+profile, `s` settings),
 digits `1`–`9` switch profile tabs, and `[` / `]` page any month view
 backwards and forwards.
 
