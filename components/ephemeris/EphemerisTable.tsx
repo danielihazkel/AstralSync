@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MONTH_SHIFT_EVENT } from "@/lib/shortcuts";
 import { PLANETS } from "@astralsync/astro-core";
@@ -164,7 +165,11 @@ export default function EphemerisTable() {
                   key={d.date}
                   className={d.date === todayKey ? styles.today : undefined}
                 >
-                  <th scope="row">{d.date.slice(8)}</th>
+                  <th scope="row">
+                    <Link href={`/calendar/${d.date}`} title="This day's almanac">
+                      {d.date.slice(8)}
+                    </Link>
+                  </th>
                   {PLANETS.map((p) => (
                     <td
                       key={p}

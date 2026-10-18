@@ -89,3 +89,10 @@ export function momentHref(
 ): string {
   return `/profiles/${profileId}?tab=${tab}&at=${date}`;
 }
+
+/** The /chart page cast for a day — local noon unless a time is given; the
+ *  page supplies the home location (or asks for a place). The general sky
+ *  where momentHref is one chart's view of it. */
+export function skyHref(date: string, time = "12:00"): string {
+  return `/chart?date=${date}&time=${time}`;
+}

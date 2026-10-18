@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import DayProfileLinks from "@/components/DayProfileLinks";
+import { skyHref } from "@/components/atDate";
 import MoonPhaseProse from "@/components/MoonPhaseProse";
 import type { EntryProse } from "@/lib/content";
 import { useSearchParams } from "next/navigation";
@@ -184,6 +185,9 @@ export default function AlmanacPanel({
         </span>
       </div>
       <DayProfileLinks date={date} />
+      <p className={styles.muted}>
+        <Link href={skyHref(date)}>Cast the full chart for noon this day →</Link>
+      </p>
 
       {almanac === null ? (
         <p className={styles.muted}>Computing the day’s sky…</p>

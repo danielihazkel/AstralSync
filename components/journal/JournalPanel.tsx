@@ -40,6 +40,7 @@ import {
   MIN_AT_DATE,
   clampAtDate,
   momentHref,
+  skyHref,
   localNoonIso,
   todayLocalDate,
 } from "@/components/atDate";
@@ -678,6 +679,14 @@ function EntryRow({
               title="Open this day on the Transits tab"
             >
               Transits
+            </Link>
+          )}
+          {!editing && (
+            <Link
+              href={skyHref(entry.entryDate)}
+              title="Cast the full chart for noon that day"
+            >
+              Sky
             </Link>
           )}
           {!editing && (

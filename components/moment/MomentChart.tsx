@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { HouseSystem } from "@astralsync/astro-core";
 import LazyChartWheel from "@/components/chart/LazyChartWheel";
+import DayProfileLinks from "@/components/DayProfileLinks";
 import CitySearch from "@/components/onboarding/CitySearch";
 import { loadChartSettings } from "@/lib/chartSettings";
 import { loadHomeLocation } from "@/lib/homeLocation";
@@ -209,6 +210,7 @@ export default function MomentChart() {
               <Link href={saveHref}>Save this moment as a profile →</Link>
             </p>
           )}
+          {date !== null && <DayProfileLinks date={date} />}
         </>
       )}
     </div>

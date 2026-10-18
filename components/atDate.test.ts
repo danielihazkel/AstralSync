@@ -5,6 +5,7 @@ import {
   MIN_AT_DATE,
   clampAtDate,
   momentHref,
+  skyHref,
   parseAtParam,
   localNoonIso,
   todayLocalDate,
@@ -129,5 +130,14 @@ describe("momentHref", () => {
     expect(momentHref(28, "transits", "2015-06-01")).toBe(
       "/profiles/28?tab=transits&at=2015-06-01",
     );
+  });
+});
+
+describe("skyHref", () => {
+  it("casts /chart for local noon by default, and round-trips through its parser", async () => {
+    expect(skyHref("2015-06-01")).toBe("/chart?date=2015-06-01&time=12:00");
+    const { momentFromQuery } = await import("@/lib/momentQuery");
+    const q = new URLSearchParams(skyHref("2015-06-01", "07:30").split("?")[1]);
+    expect(momentFromQuery(q)).toMatchObject({ date: "2015-06-01", time: "07:30", place: null });
   });
 });
