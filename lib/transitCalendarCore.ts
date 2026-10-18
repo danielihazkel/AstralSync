@@ -11,6 +11,11 @@ import {
   type Placement,
   type Planet,
 } from "@astralsync/astro-core";
+import {
+  eclipseContacts,
+  natalEclipsePoints,
+  type EclipseContact,
+} from "./eclipseContacts";
 import type { WheelChart } from "./view-types";
 
 /**
@@ -82,6 +87,8 @@ export interface CalendarEclipseEvent {
   kind: "eclipse";
   utc: string;
   eclipse: EclipseEvent;
+  /** Natal points the eclipse falls on or across from, tightest first. */
+  contacts: EclipseContact[];
 }
 
 export type TransitCalendarEvent =
@@ -206,9 +213,15 @@ export function computeTransitCalendar(
   }
 
   const horizonDays = Math.ceil((to.getTime() - from.getTime()) / DAY_MS);
+  const points = natalEclipsePoints(natal);
   for (const eclipse of upcomingEclipses(from, horizonDays)) {
     if (new Date(eclipse.peakUtc).getTime() <= to.getTime()) {
-      events.push({ kind: "eclipse", utc: eclipse.peakUtc, eclipse });
+      events.push({
+        kind: "eclipse",
+        utc: eclipse.peakUtc,
+        eclipse,
+        contacts: eclipseContacts(eclipse.longitude, points),
+      });
     }
   }
 

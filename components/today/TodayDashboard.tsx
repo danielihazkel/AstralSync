@@ -23,6 +23,11 @@ import MoonPhaseProse from "@/components/MoonPhaseProse";
 import { buildIcs, type IcsEvent } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
 import { momentHref, todayLocalDate } from "@/components/atDate";
+import {
+  describeEclipseContacts,
+  eclipseContacts,
+  natalEclipsePoints,
+} from "@/lib/eclipseContacts";
 import styles from "./today.module.css";
 
 export interface TodayAnniversaryEvent extends AnniversaryEvent {
@@ -400,19 +405,37 @@ export default function TodayDashboard({
         <div className={styles.transits} aria-label="Upcoming eclipses">
           <h3 className={styles.cardTitle}>Eclipses ahead</h3>
           <ul className={styles.transitList}>
-            {sky.eclipses.map((e) => (
-              <li key={e.peakUtc}>
-                {e.type[0].toUpperCase() + e.type.slice(1)} {e.kind} eclipse ·{" "}
-                <span className={styles.glyph} aria-hidden="true">
-                  {SIGN_GLYPH_CHARS[e.sign] + "︎"}
-                </span>
-                {Math.floor(e.degreeInSign)}° {SIGN_NAMES[e.sign]} on{" "}
-                {new Date(e.peakUtc).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </li>
-            ))}
+            {sky.eclipses.map((e) => {
+              // Whose chart it lands on: planets only — the strip carries
+              // no houses.
+              const hits = profiles
+                .map((p) => ({
+                  p,
+                  contacts: eclipseContacts(e.longitude, natalEclipsePoints(p)),
+                }))
+                .filter((h) => h.contacts.length > 0);
+              return (
+                <li key={e.peakUtc}>
+                  {e.type[0].toUpperCase() + e.type.slice(1)} {e.kind} eclipse ·{" "}
+                  <span className={styles.glyph} aria-hidden="true">
+                    {SIGN_GLYPH_CHARS[e.sign] + "︎"}
+                  </span>
+                  {Math.floor(e.degreeInSign)}° {SIGN_NAMES[e.sign]} on{" "}
+                  {new Date(e.peakUtc).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                  {hits.map((h) => (
+                    <span key={h.p.id} className={styles.eclipseHit}>
+                      {" "}
+                      —{" "}
+                      <Link href={`/profiles/${h.p.id}?tab=transits`}>{h.p.displayName}</Link>
+                      : {describeEclipseContacts(h.contacts)}
+                    </span>
+                  ))}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

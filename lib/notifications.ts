@@ -11,7 +11,9 @@
  * node-env tests cover it without a DOM.
  */
 
+import type { EclipseEvent } from "@astralsync/astro-core";
 import type { CalendarAspectEvent } from "@/lib/transitCalendarCore";
+import { describeEclipseContacts, type EclipseContact } from "@/lib/eclipseContacts";
 import { ASPECT_NAMES, PLANET_NAMES } from "@/components/format";
 
 // --- settings ---------------------------------------------------------------
@@ -112,6 +114,8 @@ export interface ProfileEvents {
   profileId: number;
   displayName: string;
   events: CalendarAspectEvent[];
+  /** Eclipses landing on this chart (eclipseContacts non-empty). */
+  eclipses?: Array<{ eclipse: EclipseEvent; contacts: EclipseContact[] }>;
 }
 
 /** Exact hits inside (now, now + windowHours] → notification payloads,
@@ -143,6 +147,24 @@ export function buildNotifications(
           e.pass.of > 1 ? ` (pass ${e.pass.n} of ${e.pass.of})` : ""
         }`,
         atUtc: e.utc,
+      });
+    }
+    for (const { eclipse, contacts } of p.eclipses ?? []) {
+      const t = Date.parse(eclipse.peakUtc);
+      if (!(t > lo && t <= hi) || contacts.length === 0) continue;
+      const kind = eclipse.kind === "solar" ? "Solar" : "Lunar";
+      out.push({
+        // Same five-part shape as an aspect key, so alreadyFired applies.
+        key: `${p.profileId}:eclipse:${eclipse.kind}:${contacts[0].point}:${eclipse.peakUtc}`,
+        title: `${kind} eclipse ${describeEclipseContacts(contacts.slice(0, 1))} — ${p.displayName}`,
+        body: `Peak ${new Date(t).toLocaleString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`,
+        atUtc: eclipse.peakUtc,
       });
     }
   }

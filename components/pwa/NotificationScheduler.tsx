@@ -67,14 +67,26 @@ export function NotificationScheduler() {
         );
         if (wanted.length === 0) return;
 
-        const { scanAspectEvents } = await import("@/lib/transitCalendarCore");
+        const [{ scanAspectEvents }, { upcomingEclipses }, { eclipseContacts, natalEclipsePoints }] =
+          await Promise.all([
+            import("@/lib/transitCalendarCore"),
+            import("@astralsync/astro-core"),
+            import("@/lib/eclipseContacts"),
+          ]);
         const now = new Date();
         const to = new Date(now.getTime() + WINDOW_HOURS * 3_600_000);
-        const perProfile: ProfileEvents[] = wanted.map((p) => ({
-          profileId: p.id,
-          displayName: p.displayName,
-          events: scanAspectEvents(p.placements!, now, to),
-        }));
+        const eclipses = upcomingEclipses(now, 2);
+        const perProfile: ProfileEvents[] = wanted.map((p) => {
+          const points = natalEclipsePoints({ placements: p.placements! });
+          return {
+            profileId: p.id,
+            displayName: p.displayName,
+            events: scanAspectEvents(p.placements!, now, to),
+            eclipses: eclipses
+              .map((eclipse) => ({ eclipse, contacts: eclipseContacts(eclipse.longitude, points) }))
+              .filter((x) => x.contacts.length > 0),
+          };
+        });
         const notifications = buildNotifications(perProfile, now, WINDOW_HOURS);
         if (!live()) return;
 

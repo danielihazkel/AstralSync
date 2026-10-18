@@ -3,6 +3,7 @@ import { SIGNS } from "@astralsync/astro-core";
 import type { TransitCalendarData } from "@/lib/transitCalendar";
 import type { IcsEvent } from "@/lib/ics";
 import { icsUtcStamp } from "@/lib/ics";
+import { describeEclipseContacts } from "@/lib/eclipseContacts";
 import {
   ASPECT_NAMES,
   PLANET_NAMES,
@@ -48,6 +49,9 @@ export function transitMonthIcsEvents(data: TransitCalendarData): IcsEvent[] {
           uid: `eclipse-${icsUtcStamp(ec.peakUtc)}`,
           summary: `${ec.type[0].toUpperCase() + ec.type.slice(1)} ${ec.kind} eclipse at ${formatDegreeInSign(ec.degreeInSign)} ${SIGN_NAMES[ec.sign]}`,
           start: ec.peakUtc,
+          ...(e.contacts.length > 0
+            ? { description: `Falls ${describeEclipseContacts(e.contacts)}.` }
+            : {}),
         };
       }
     }

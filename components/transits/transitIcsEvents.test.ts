@@ -81,6 +81,7 @@ describe("transitMonthIcsEvents", () => {
             degreeInSign: 12.25,
             obscuration: null,
           },
+          contacts: [{ point: "sun", type: "conjunction", orb: 1.25 }],
         },
       ]),
     );

@@ -19,6 +19,7 @@ import {
 } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import { buildIcs } from "@/lib/ics";
+import { describeEclipseContacts } from "@/lib/eclipseContacts";
 import { downloadIcs } from "@/components/downloadIcs";
 import { transitMonthIcsEvents } from "./transitIcsEvents";
 import styles from "./transits.module.css";
@@ -103,6 +104,9 @@ function eventLine(e: TransitCalendarEvent): React.ReactNode {
         <>
           {ec.type[0].toUpperCase() + ec.type.slice(1)} {label} at{" "}
           {formatDegreeInSign(ec.degreeInSign)} {SIGN_NAMES[ec.sign]}
+          {e.contacts.length > 0 && (
+            <strong> — {describeEclipseContacts(e.contacts)}</strong>
+          )}
         </>
       );
     }

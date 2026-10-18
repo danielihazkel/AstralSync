@@ -100,6 +100,8 @@ describe("computeTransitCalendar", () => {
     const eclipse = data.events.find((e) => e.kind === "eclipse");
     expect(eclipse).toBeDefined();
     expect(eclipse!.utc.slice(0, 10)).toBe("2024-04-08");
+    // Every eclipse event says which natal points it lands on (maybe none).
+    expect(Array.isArray(eclipse!.kind === "eclipse" && eclipse!.contacts)).toBe(true);
     // Mercury stationed direct on 2024-04-25.
     const station = data.events.find(
       (e) =>

@@ -176,3 +176,54 @@ describe("alreadyFired", () => {
     expect(alreadyFired("odd", [key])).toBe(false);
   });
 });
+
+describe("eclipse notifications", () => {
+  const eclipse = {
+    kind: "lunar" as const,
+    type: "total" as const,
+    peakUtc: "2026-08-31T20:00:00.000Z",
+    longitude: 157,
+    sign: "virgo" as const,
+    degreeInSign: 7,
+    obscuration: 1,
+  };
+
+  it("fires for an eclipse on a natal point inside the window", () => {
+    const out = buildNotifications(
+      [
+        {
+          profileId: 5,
+          displayName: "Dana",
+          events: [],
+          eclipses: [{ eclipse, contacts: [{ point: "sun", type: "conjunction", orb: 0.4 }] }],
+        },
+      ],
+      NOW,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].title).toBe("Lunar eclipse on natal Sun (0.4°) — Dana");
+    expect(out[0].key).toBe("5:eclipse:lunar:sun:2026-08-31T20:00:00.000Z");
+    expect(alreadyFired(out[0].key, ["5:eclipse:lunar:sun:2026-08-31T20:00:00.900Z"])).toBe(true);
+  });
+
+  it("stays quiet for an eclipse that touches nothing, or falls outside the window", () => {
+    const quiet = buildNotifications(
+      [
+        { profileId: 5, displayName: "Dana", events: [], eclipses: [{ eclipse, contacts: [] }] },
+        {
+          profileId: 6,
+          displayName: "Yoav",
+          events: [],
+          eclipses: [
+            {
+              eclipse: { ...eclipse, peakUtc: "2026-09-03T20:00:00.000Z" },
+              contacts: [{ point: "moon", type: "opposition", orb: 1 }],
+            },
+          ],
+        },
+      ],
+      NOW,
+    );
+    expect(quiet).toEqual([]);
+  });
+});
