@@ -13,7 +13,8 @@
   --accent: #d4af6a;
   --accent-bright: #e8c987;
   --accent-dim: rgba(212, 175, 106, 0.16);
-  --danger: #c96a6a;
+  /* Lifted from #c96a6a: 4.3:1 on --surface-raised fell short of AA. */
+  --danger: #d47878;
   --warn: #d9a03f;
   --warn-bg: rgba(217, 160, 63, 0.12);
   --ok: #6aa98a;
@@ -34,7 +35,9 @@
 
 /* Light screen palette (opt-in via <html data-theme="light">, stamped
    pre-paint by ThemeScript). Same token-swap trick as the print block, but
-   tuned for screen: warm paper ground, darker accent for contrast. */
+   tuned for screen: warm paper ground, darker accent for contrast. Every
+   ink below clears WCAG AA (4.5:1) on --bg, --surface and --surface-raised;
+   lib/themeContrast.test.ts holds the line. */
 :root[data-theme="light"] {
   --bg: #f4f1e8;
   --surface: #fbf9f3;
@@ -44,13 +47,13 @@
   --text: #2b2833;
   --text-muted: #6c6580;
   --heading: #4c4370;
-  --accent: #a07d33;
-  --accent-bright: #8a6b2f;
+  --accent: #846525;
+  --accent-bright: #7a5e27;
   --accent-dim: rgba(160, 125, 51, 0.14);
   --danger: #b04343;
-  --warn: #9a742a;
+  --warn: #7d6022;
   --warn-bg: rgba(154, 116, 42, 0.12);
-  --ok: #35785a;
+  --ok: #2f6e51;
 
   --aspect-conjunction: #a07d33;
   --aspect-trine: #2e7a58;
@@ -319,6 +322,7 @@ select {
 }
 
 input:focus-visible,
+textarea:focus-visible,
 select:focus-visible,
 button:focus-visible,
 a:focus-visible,
