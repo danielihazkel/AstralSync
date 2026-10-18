@@ -85,6 +85,7 @@ export default function JournalPanel({
   const [draftMood, setDraftMood] = useState<JournalMood | null>(null);
   const [draftTags, setDraftTags] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   // Client-side filters over the loaded entries.
   const [filterPlanet, setFilterPlanet] = useState<Planet | "">("");
   const [filterAspect, setFilterAspect] = useState<AspectType | "">("");
@@ -164,6 +165,7 @@ export default function JournalPanel({
     const bodyMd = draft.trim();
     if (bodyMd === "" || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const tags = parseTagsInput(draftTags);
       const res = await fetch(`/api/profiles/${profileId}/journal`, {
@@ -184,9 +186,14 @@ export default function JournalPanel({
         setDraftMood(null);
         setDraftTags("");
         await loadEntries();
+      } else {
+        // A refused save used to look exactly like a button that did
+        // nothing; the draft stays put either way.
+        setSaveError("Could not save the note.");
       }
     } catch {
       // Leave the draft intact; the entries list keeps its current state.
+      setSaveError("Could not save the note — check your connection.");
     } finally {
       setSaving(false);
     }
@@ -333,6 +340,11 @@ export default function JournalPanel({
             {saving ? "Saving…" : "Add note"}
           </button>
         </div>
+        {saveError && (
+          <p className={styles.error} role="alert">
+            {saveError}
+          </p>
+        )}
 
         {entries.kind === "loading" && (
           <p className={styles.muted}>Loading notes…</p>

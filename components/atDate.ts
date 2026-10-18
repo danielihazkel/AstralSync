@@ -28,10 +28,23 @@ export function todayLocalDate(now: Date = new Date()): string {
  * for /api/transits/[id]?at=. Noon keeps the sky representative of the whole
  * civil day: slow transiters barely move within a day, and the Moon lands
  * mid-course rather than at either midnight edge.
+ *
+ * Written with the local offset ("2026-01-15T12:00:00+13:00"), never as UTC:
+ * the journal and life-event schemas check that `at` falls on the civil date
+ * by its first ten characters, which only holds in offset form. As a `Z`
+ * string, local noon east of UTC+12 is the previous UTC day, so every save
+ * from New Zealand in summer, Samoa, Tonga or Kiribati was refused.
  */
 export function localNoonIso(date: string): string {
   const [y, m, d] = date.split("-").map(Number);
-  return new Date(y, m - 1, d, 12, 0, 0).toISOString();
+  const noon = new Date(y, m - 1, d, 12, 0, 0);
+  // Rounded: historical local-mean-time zones carry second-level offsets
+  // that an ISO offset cannot express; a sub-minute shift is immaterial.
+  const east = -Math.round(noon.getTimezoneOffset());
+  const sign = east >= 0 ? "+" : "-";
+  const abs = Math.abs(east);
+  const offset = `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+  return `${date}T12:00:00${offset}`;
 }
 
 /** Clamp a picker value into the ephemeris range; "" (cleared input) and
