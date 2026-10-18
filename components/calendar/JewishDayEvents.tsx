@@ -32,7 +32,7 @@ export default function JewishDayEvents({ day }: { day: JewishDay }) {
             </li>
           ))}
           {timed.map((e) => (
-            <li key={`${e.kind}-${e.time}`}>{e.title}</li>
+            <li key={`${e.kind}-${e.title}-${e.time}`}>{e.title}</li>
           ))}
         </ul>
       )}
