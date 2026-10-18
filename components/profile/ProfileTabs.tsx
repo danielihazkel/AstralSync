@@ -161,6 +161,7 @@ export default function ProfileTabs({
         <div {...panelProps}>
           <NumerologyPanel
             numero={numero}
+            birthDate={profile.birthDate}
             prose={numeroProse}
             profileId={profile.id}
           />

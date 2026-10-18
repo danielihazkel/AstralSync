@@ -6,6 +6,7 @@ import { toNumeroDerivation } from "@/lib/view-types";
 import Markdown from "@/components/Markdown";
 import LifePathDerivation from "./LifePathDerivation";
 import NameDerivation from "./NameDerivation";
+import NumerologyCycles, { type CyclesProse } from "./NumerologyCycles";
 import styles from "./numerology.module.css";
 
 export interface NumeroProseEntry {
@@ -15,8 +16,10 @@ export interface NumeroProseEntry {
 
 /** Interpretation prose resolved server-side (the content loader reads disk). */
 export interface NumeroProse {
+  lifePath: NumeroProseEntry | null;
   destiny: NumeroProseEntry | null;
   soulUrge: NumeroProseEntry | null;
+  cycles: CyclesProse;
 }
 
 /**
@@ -27,10 +30,13 @@ export default function NumerologyPanel({
   numero,
   prose,
   profileId,
+  birthDate,
 }: {
   numero: NumeroView;
   prose: NumeroProse;
   profileId: number;
+  /** Civil "YYYY-MM-DD" — the cycles' input. */
+  birthDate: string;
 }) {
   const derivation = toNumeroDerivation(numero);
   const isGematria = numero.system === "gematria";
@@ -112,6 +118,12 @@ export default function NumerologyPanel({
         />
       )}
 
+      {prose.lifePath && (
+        <section className={styles.derivation} aria-label={prose.lifePath.title}>
+          <h3>{prose.lifePath.title}</h3>
+          <Markdown md={prose.lifePath.bodyMd} />
+        </section>
+      )}
       {prose.destiny && (
         <section className={styles.derivation} aria-label={prose.destiny.title}>
           <h3>{prose.destiny.title}</h3>
@@ -131,6 +143,8 @@ export default function NumerologyPanel({
           doesn&apos;t mark vowels, so a vowels-only number would be guesswork.
         </p>
       )}
+
+      <NumerologyCycles birthDate={birthDate} prose={prose.cycles} />
 
       {derivation.destiny === null && (
         <p className={styles.note}>

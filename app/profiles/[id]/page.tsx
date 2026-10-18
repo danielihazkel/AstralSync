@@ -23,6 +23,7 @@ import {
   vertex,
   type Planet,
 } from "@astralsync/astro-core";
+import { personalYear, pinnacles } from "@astralsync/numero-core";
 import { buildAspectMotion } from "@/lib/aspectMotion";
 import { computeChartStats } from "@/lib/chartStats";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
@@ -187,7 +188,39 @@ export default async function ProfilePage({
     const entry = key === null ? null : getEntry(contentIndex, key);
     return entry ? { title: entry.title, bodyMd: entry.bodyMd } : null;
   };
+  // Cycles prose: the four pinnacles and challenges are fixed by the birth
+  // date; the personal year is the client's (it computes "today"), so send
+  // the years either side of the server's too — a browser across New Year
+  // from the server still finds its year.
+  const [by, bm, bd] = view.profile.birthDate.split("-").map(Number);
+  const birth = { year: by, month: bm, day: bd };
+  const thisYear = new Date().getFullYear();
+  const byNumber = (category: string, numbers: number[]) =>
+    Object.fromEntries(
+      [...new Set(numbers)].flatMap((n) => {
+        const entry = prose(`${category}/${n}`);
+        return entry ? [[n, entry]] : [];
+      }),
+    );
+  const pinnacleList = pinnacles(birth);
   const numeroProse = {
+    lifePath: prose(`life_path/${view.numero.lifePath}`),
+    cycles: {
+      personalYear: byNumber(
+        "personal_year",
+        [thisYear - 1, thisYear, thisYear + 1].map(
+          (y) => personalYear(birth, y).value,
+        ),
+      ),
+      pinnacle: byNumber(
+        "pinnacle",
+        pinnacleList.map((p) => p.number.value),
+      ),
+      challenge: byNumber(
+        "challenge",
+        pinnacleList.map((p) => p.challenge),
+      ),
+    },
     destiny: prose(
       numeroInput.destiny ? `destiny/${numeroInput.destiny.value}` : null,
     ),
