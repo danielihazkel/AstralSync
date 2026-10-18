@@ -160,6 +160,19 @@ describe("dueNotifications", () => {
     ]);
   });
 
+  it("treats a re-scanned hit a second off as already fired", () => {
+    const d = {
+      notifications: [
+        { key: "5:mars:square:sun:2026-08-31T15:00:01.087Z", atUtc: "2026-08-31T15:00:01.087Z" },
+        { key: "5:venus:trine:sun:2026-08-31T16:00:00.000Z", atUtc: "2026-08-31T16:00:00.000Z" },
+      ],
+      fired: ["5:mars:square:sun:2026-08-31T15:00:00.412Z"],
+    };
+    expect(testables.dueNotifications(d, NOW).map((n) => n.key)).toEqual([
+      "5:venus:trine:sun:2026-08-31T16:00:00.000Z",
+    ]);
+  });
+
   it("tolerates a malformed digest", () => {
     expect(testables.dueNotifications(null, NOW)).toEqual([]);
     expect(testables.dueNotifications({}, NOW)).toEqual([]);

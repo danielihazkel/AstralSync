@@ -6,6 +6,7 @@ import {
   DIGEST_CACHE,
   DIGEST_SYNC_TAG,
   DIGEST_URL,
+  alreadyFired,
   buildNotifications,
   clearNotificationDigest,
   loadFiredKeys,
@@ -43,6 +44,10 @@ export function NotificationScheduler() {
       return;
     }
     let cancelled = false;
+    // Settings can switch off while the scan runs (Settings is a tab away):
+    // re-read before every side effect so a late scan never re-arms what the
+    // switch just cleared.
+    const live = () => !cancelled && loadNotifySettings().enabled;
     (async () => {
       try {
         const res = await fetch("/api/profiles");
@@ -71,7 +76,7 @@ export function NotificationScheduler() {
           events: scanAspectEvents(p.placements!, now, to),
         }));
         const notifications = buildNotifications(perProfile, now, WINDOW_HOURS);
-        if (cancelled) return;
+        if (!live()) return;
 
         // Keys the worker fired while the app was closed live only in the
         // digest — fold them in before deciding what is fresh.
@@ -85,7 +90,8 @@ export function NotificationScheduler() {
         } catch {
           // No readable digest — the ledger alone decides.
         }
-        const fresh = notifications.filter((n) => !(n.key in fired));
+        const firedKeys = Object.keys(fired);
+        const fresh = notifications.filter((n) => !alreadyFired(n.key, firedKeys));
         // `ready` never rejects and never resolves when no worker is
         // registered (dev) — race a timeout instead of hanging.
         const reg =
@@ -95,6 +101,7 @@ export function NotificationScheduler() {
                 new Promise<null>((r) => setTimeout(() => r(null), 3000)),
               ]).catch(() => null)
             : null;
+        if (!live()) return;
         for (const n of fresh.slice(0, MAX_PER_OPEN)) {
           try {
             if (reg) {
@@ -112,6 +119,7 @@ export function NotificationScheduler() {
           }
         }
         saveFiredKeys(fired);
+        if (!live()) return;
 
         // Leave the digest for the SW's periodicsync handler.
         try {
@@ -144,6 +152,8 @@ export function NotificationScheduler() {
         } catch {
           // Periodic Background Sync is a progressive enhancement.
         }
+        // Switched off between the last check and these writes: undo them.
+        if (!loadNotifySettings().enabled) await clearNotificationDigest();
       } catch {
         // Offline or the server is down — nothing to notify about.
       }

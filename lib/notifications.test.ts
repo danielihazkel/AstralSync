@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarAspectEvent } from "./transitCalendarCore";
 import {
+  alreadyFired,
   mergeFiredKeys,
   notifiedProfileIds,
   usesDefaultPick,
@@ -152,5 +153,26 @@ describe("mergeFiredKeys", () => {
   it("ignores a malformed digest list", () => {
     expect(mergeFiredKeys({ a: 1 }, "nope", 5)).toEqual({ a: 1 });
     expect(mergeFiredKeys({}, [3, null, "k"], 5)).toEqual({ k: 5 });
+  });
+});
+
+describe("alreadyFired", () => {
+  const key = "5:mars:square:sun:2026-08-31T15:00:00.412Z";
+
+  it("matches the same hit refined to a different millisecond by a later scan", () => {
+    expect(alreadyFired("5:mars:square:sun:2026-08-31T15:00:01.087Z", [key])).toBe(true);
+    expect(alreadyFired("5:mars:square:sun:2026-08-31T14:59:59.731Z", [key])).toBe(true);
+  });
+
+  it("keeps a different profile, pair, aspect or pass apart", () => {
+    expect(alreadyFired("6:mars:square:sun:2026-08-31T15:00:00.412Z", [key])).toBe(false);
+    expect(alreadyFired("5:mars:trine:sun:2026-08-31T15:00:00.412Z", [key])).toBe(false);
+    // A retrograde re-pass is weeks later.
+    expect(alreadyFired("5:mars:square:sun:2026-10-20T03:00:00.000Z", [key])).toBe(false);
+  });
+
+  it("still dedupes an exact match of an unparseable key", () => {
+    expect(alreadyFired("odd", ["odd"])).toBe(true);
+    expect(alreadyFired("odd", [key])).toBe(false);
   });
 });

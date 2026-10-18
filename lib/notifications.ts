@@ -151,6 +151,33 @@ export function buildNotifications(
 
 // --- fired-keys ledger ------------------------------------------------------
 
+/** How far apart two keys' instants may be and still be one hit. The scan
+ *  refines each exact instant to about a second from a bracket that starts
+ *  at "now", so the same hit lands on a slightly different millisecond on
+ *  every open; and no pair repeats an aspect within hours (the Moon is not
+ *  scanned). sw.src.js's dueNotifications mirrors this rule. */
+export const SAME_HIT_MS = 3_600_000;
+
+/** Split a key into its "profile:a:type:b" identity and its instant. */
+function keyParts(key: string): { id: string; t: number } | null {
+  const parts = key.split(":");
+  if (parts.length < 5) return null;
+  const t = Date.parse(parts.slice(4).join(":"));
+  return Number.isFinite(t) ? { id: parts.slice(0, 4).join(":"), t } : null;
+}
+
+/** Whether `key` names a hit already in `fired` — the same key, or the same
+ *  profile, pair and aspect within SAME_HIT_MS. Pure. */
+export function alreadyFired(key: string, fired: Iterable<string>): boolean {
+  const k = keyParts(key);
+  for (const f of fired) {
+    if (f === key) return true;
+    const p = k && keyParts(f);
+    if (p && p.id === k.id && Math.abs(p.t - k.t) < SAME_HIT_MS) return true;
+  }
+  return false;
+}
+
 /** Drop entries older than `maxAgeMs` — keys embed the exact instant, so a
  *  week-old entry can never match a future notification. Pure. */
 export function pruneFired(
