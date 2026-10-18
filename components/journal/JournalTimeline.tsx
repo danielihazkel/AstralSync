@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { momentHref } from "@/components/atDate";
 import type { JournalMood } from "@/lib/journalMeta";
 import { JOURNAL_MOODS } from "@/lib/journalMeta";
 import {
@@ -158,8 +159,14 @@ export default function JournalTimeline({
                       { dateStyle: "medium" },
                     )}
                   </span>
-                  <Link href={`/profiles/${e.profileId}?tab=Journal`}>
+                  <Link href={`/profiles/${e.profileId}?tab=journal&date=${e.entryDate}`}>
                     {e.displayName}
+                  </Link>
+                  <Link
+                    href={momentHref(e.profileId, "transits", e.entryDate)}
+                    title="Open this day on the Transits tab"
+                  >
+                    Transits
                   </Link>
                 </div>
                 {(e.mood !== null || e.tags.length > 0) && (

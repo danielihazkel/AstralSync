@@ -90,3 +90,9 @@
   color: var(--accent-bright);
   font-weight: 600;
 }
+
+.cardLink {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+}

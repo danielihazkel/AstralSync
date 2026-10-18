@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HomeLocation, TodayProfile, TodaySky } from "@/lib/today";
 // Type-only: the value import stays dynamic so the scan engine loads only
@@ -18,6 +19,7 @@ import { loadHomeLocation } from "@/lib/homeLocation";
 import type { JewishEvent } from "@astralsync/hebrew-core";
 import { buildIcs, type IcsEvent } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
+import { momentHref, todayLocalDate } from "@/components/atDate";
 import styles from "./today.module.css";
 
 interface UpcomingProfile {
@@ -140,7 +142,10 @@ export default function TodayDashboard({
   const transitItems = (items: typeof sky.transits) =>
     items.map((t) => (
       <li key={t.profileId}>
-        <span className={styles.who}>{t.displayName}:</span>{" "}
+        <Link className={styles.who} href={`/profiles/${t.profileId}?tab=transits`}>
+          {t.displayName}
+        </Link>
+        :{" "}
         {t.aspects.map((a, i) => (
           <span key={`${a.a}-${a.b}-${a.type}`}>
             {i > 0 && ", "}
@@ -155,7 +160,11 @@ export default function TodayDashboard({
   const upcomingItems = (items: UpcomingProfile[]) =>
     items.map((u) => (
       <div key={u.profileId}>
-        <p className={styles.who}>{u.displayName}</p>
+        <p>
+          <Link className={styles.who} href={`/profiles/${u.profileId}?tab=transits`}>
+            {u.displayName}
+          </Link>
+        </p>
         {u.events.length === 0 ? (
           <p className={styles.muted}>
             No exact transit this week (the Moon is not scanned here).
@@ -164,11 +173,15 @@ export default function TodayDashboard({
           <ul className={styles.transitList}>
             {u.events.map((e) => (
               <li key={`${e.a}-${e.b}-${e.type}-${e.utc}`}>
-                {new Date(e.utc).toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
+                <Link
+                  href={momentHref(u.profileId, "transits", todayLocalDate(new Date(e.utc)))}
+                >
+                  {new Date(e.utc).toLocaleDateString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </Link>
                 : {PLANET_NAMES[e.a]} {ASPECT_NAMES[e.type].toLowerCase()}{" "}
                 natal {PLANET_NAMES[e.b]}
                 {e.retrograde && " ℞"}
@@ -214,6 +227,9 @@ export default function TodayDashboard({
               → enters {SIGN_NAMES[sky.moon.voidOfCourse.nextSign]}
             </p>
           )}
+          <Link className={styles.cardLink} href={`/calendar/${sky.hebrew.civilDate}`}>
+            Today’s almanac →
+          </Link>
         </div>
 
         <div className={styles.card}>
@@ -243,6 +259,11 @@ export default function TodayDashboard({
               After sunset the next Hebrew day begins — set a location to
               account for it.
             </p>
+          )}
+          {primaryId !== null && (
+            <Link className={styles.cardLink} href={`/profiles/${primaryId}?tab=mazal`}>
+              Your mazal →
+            </Link>
           )}
         </div>
 

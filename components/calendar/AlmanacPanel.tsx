@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import DayProfileLinks from "@/components/DayProfileLinks";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { AlmanacDay } from "@/lib/almanac";
@@ -171,6 +172,7 @@ export default function AlmanacPanel({ date }: { date: string }) {
           )}
         </span>
       </div>
+      <DayProfileLinks date={date} />
 
       {almanac === null ? (
         <p className={styles.muted}>Computing the day’s sky…</p>

@@ -4,6 +4,8 @@ import {
   MAX_AT_DATE,
   MIN_AT_DATE,
   clampAtDate,
+  momentHref,
+  parseAtParam,
   localNoonIso,
   todayLocalDate,
 } from "./atDate";
@@ -105,3 +107,27 @@ function restoreTz(original: string | undefined) {
   if (original === undefined) delete process.env.TZ;
   else process.env.TZ = original;
 }
+
+describe("parseAtParam", () => {
+  it("accepts a real day inside the ephemeris range", () => {
+    expect(parseAtParam("2015-06-01")).toBe("2015-06-01");
+    expect(parseAtParam("1700-01-01")).toBe("1700-01-01");
+  });
+
+  it("treats anything else as now", () => {
+    expect(parseAtParam(null)).toBeNull();
+    expect(parseAtParam("")).toBeNull();
+    expect(parseAtParam("2015-6-1")).toBeNull();
+    expect(parseAtParam("2015-02-30")).toBeNull();
+    expect(parseAtParam("1699-12-31")).toBeNull();
+    expect(parseAtParam("2200-01-01")).toBeNull();
+  });
+});
+
+describe("momentHref", () => {
+  it("links a profile tab pinned to a day", () => {
+    expect(momentHref(28, "transits", "2015-06-01")).toBe(
+      "/profiles/28?tab=transits&at=2015-06-01",
+    );
+  });
+});

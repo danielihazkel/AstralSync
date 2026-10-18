@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { CrossAspect, Placement } from "@astralsync/astro-core";
-import { localNoonIso } from "@/components/atDate";
+import Link from "next/link";
+import { localNoonIso, momentHref } from "@/components/atDate";
 import { PLANET_NAMES, POINT_NAMES, SIGN_NAMES } from "@/components/format";
 import Markdown from "@/components/Markdown";
 import {
@@ -217,6 +218,11 @@ export default function EventSky({
   return (
     <div className={styles.eventSky}>
       {caveat && <p className={styles.muted}>{caveat}</p>}
+      <p className={styles.muted}>
+        Open this day in{" "}
+        <Link href={momentHref(profileId, "transits", eventDate)}>Transits</Link>{" "}
+        or <Link href={momentHref(profileId, "cycles", eventDate)}>Cycles</Link>
+      </p>
 
       <section aria-label="Time lords at this event">
         <h4 className={styles.skyHeading}>Who was in charge</h4>

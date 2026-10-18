@@ -37,6 +37,7 @@ import NumerologyPanel, {
   type NumeroProse,
 } from "@/components/numerology/NumerologyPanel";
 import CyclesPanel from "@/components/cycles/CyclesPanel";
+import { parseAtParam } from "@/components/atDate";
 import JournalPanel from "@/components/journal/JournalPanel";
 import LifeEventsPanel from "@/components/lifeEvents/LifeEventsPanel";
 import type { LifeArcPeriods } from "@/components/lifeEvents/LifeArc";
@@ -106,6 +107,16 @@ export default function ProfileTabs({
   function setTab(t: Tab) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", paramFromTab(t));
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  }
+  // ?at=YYYY-MM-DD pins Transits and Cycles to a day — the deep link other
+  // pages use, kept in step with the pickers so the view stays bookmarkable
+  // and the pinned day carries across the two tabs.
+  const atDate = parseAtParam(searchParams.get("at"));
+  function setAtDate(date: string | null) {
+    const params = new URLSearchParams(window.location.search);
+    if (date === null) params.delete("at");
+    else params.set("at", date);
     window.history.replaceState(null, "", `?${params.toString()}`);
   }
 
@@ -188,6 +199,8 @@ export default function ProfileTabs({
             chart={chart}
             isLatest={isLatest}
             llmEnabled={llmEnabled}
+            initialAtDate={atDate}
+            onAtDateChange={setAtDate}
           />
         </div>
       )}
@@ -197,6 +210,8 @@ export default function ProfileTabs({
             profileId={profile.id}
             chart={chart}
             isLatest={isLatest}
+            initialAtDate={atDate}
+            onAtDateChange={setAtDate}
           />
         </div>
       )}

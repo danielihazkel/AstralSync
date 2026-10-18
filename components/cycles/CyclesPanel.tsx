@@ -152,16 +152,21 @@ export default function CyclesPanel({
   profileId,
   chart,
   isLatest,
+  initialAtDate = null,
+  onAtDateChange,
 }: {
   profileId: number;
   chart: WheelChart;
   isLatest: boolean;
+  /** A day pinned by the URL (`?at=`); null = now. */
+  initialAtDate?: string | null;
+  onAtDateChange?: (date: string | null) => void;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   // Null = now. Every technique on this tab is a pure function of (natal,
   // instant), so pinning a past day is meaningful: "what was my profection
   // year, releasing period and progressed Sun when that happened?"
-  const [atDate, setAtDate] = useState<string | null>(null);
+  const [atDate, setAtDate] = useState<string | null>(initialAtDate);
   // Separate from `state`: a recompute keeps the previous view on screen.
   // Blanking the panel would unmount the date picker mid-interaction, so a
   // second nudge of the date would be impossible until the first returned.
@@ -322,7 +327,10 @@ export default function CyclesPanel({
       <AtInstantPicker
         label="Cycles as of"
         date={atDate}
-        onChange={setAtDate}
+        onChange={(date) => {
+          setAtDate(date);
+          onAtDateChange?.(date);
+        }}
         busy={busy}
       />
       <div className={styles.asOfRow}>

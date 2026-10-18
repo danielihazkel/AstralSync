@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JournalEntryView } from "@/lib/journal";
@@ -31,6 +32,7 @@ import {
   MAX_AT_DATE,
   MIN_AT_DATE,
   clampAtDate,
+  momentHref,
   localNoonIso,
   todayLocalDate,
 } from "@/components/atDate";
@@ -655,6 +657,14 @@ function EntryRow({
           {formatBirthDate(entry.entryDate)}
         </button>
         <span className={styles.entryActions}>
+          {!editing && (
+            <Link
+              href={momentHref(profileId, "transits", entry.entryDate)}
+              title="Open this day on the Transits tab"
+            >
+              Transits
+            </Link>
+          )}
           {!editing && (
             <button
               onClick={() => {

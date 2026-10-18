@@ -54,16 +54,21 @@ export default function TransitsPanel({
   chart,
   isLatest,
   llmEnabled,
+  initialAtDate = null,
+  onAtDateChange,
 }: {
   profileId: number;
   chart: WheelChart;
   isLatest: boolean;
   llmEnabled: boolean;
+  /** A day pinned by the URL (`?at=`); null = now. */
+  initialAtDate?: string | null;
+  onAtDateChange?: (date: string | null) => void;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   // Null = live. A pinned day answers "what was hitting my chart then?"
   // against the same engine the Journal tab's sky view uses.
-  const [atDate, setAtDate] = useState<string | null>(null);
+  const [atDate, setAtDate] = useState<string | null>(initialAtDate);
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState<(typeof VIEWS)[number]>("now");
   // Null until localStorage is read post-mount — the first fetch waits so a
@@ -235,7 +240,10 @@ export default function TransitsPanel({
       <AtInstantPicker
         label="Sky as of"
         date={atDate}
-        onChange={setAtDate}
+        onChange={(date) => {
+          setAtDate(date);
+          onAtDateChange?.(date);
+        }}
         busy={busy}
       />
       <div className={styles.asOfRow}>

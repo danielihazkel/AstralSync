@@ -67,3 +67,25 @@ export function clampAtDate(raw: string, previous: string): string {
   if (raw > MAX_AT_DATE) return MAX_AT_DATE;
   return raw;
 }
+
+/** A `?at=` URL value → a pinned day, or null (now) when missing,
+ *  malformed, not a real calendar date, or outside the ephemeris range. */
+export function parseAtParam(raw: string | null): string | null {
+  if (raw === null || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const [y, m, d] = raw.split("-").map(Number);
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  if (probe.getUTCMonth() !== m - 1 || probe.getUTCDate() !== d) return null;
+  if (raw < MIN_AT_DATE || raw > MAX_AT_DATE) return null;
+  return raw;
+}
+
+/** A link into a profile's Transits or Cycles tab pinned to a day — the
+ *  way Today, the almanac, life events and the journal hand off "what was
+ *  the sky doing for me then". */
+export function momentHref(
+  profileId: number,
+  tab: "transits" | "cycles",
+  date: string,
+): string {
+  return `/profiles/${profileId}?tab=${tab}&at=${date}`;
+}
