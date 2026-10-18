@@ -21,6 +21,13 @@ import {
 import { MOOD_LABELS } from "./moodLabels";
 import { announceUndo, restoreFromTrash } from "@/components/undo/undoBus";
 import { useTabList } from "@/components/useTabList";
+import { useDraft } from "@/components/useDraft";
+import {
+  EMPTY_JOURNAL_DRAFT,
+  draftKey,
+  isJournalDraftEmpty,
+  parseJournalDraft,
+} from "@/lib/drafts";
 import InsightsView from "./InsightsView";
 import Markdown from "@/components/Markdown";
 import {
@@ -82,10 +89,18 @@ export default function JournalPanel({
   );
   const [sky, setSky] = useState<SkyState>({ kind: "loading" });
   const [entries, setEntries] = useState<EntriesState>({ kind: "loading" });
-  // The add form's draft; editing state lives per-row in EntryRow.
-  const [draft, setDraft] = useState("");
-  const [draftMood, setDraftMood] = useState<JournalMood | null>(null);
-  const [draftTags, setDraftTags] = useState("");
+  // The add form's draft, kept per profile across tab switches and reloads;
+  // editing state lives per-row in EntryRow.
+  const [composer, setComposer] = useDraft(
+    draftKey("journal", profileId),
+    EMPTY_JOURNAL_DRAFT,
+    parseJournalDraft,
+    isJournalDraftEmpty,
+  );
+  const { body: draft, mood: draftMood, tags: draftTags } = composer;
+  const setDraft = (body: string) => setComposer((c) => ({ ...c, body }));
+  const setDraftMood = (mood: JournalMood | null) => setComposer((c) => ({ ...c, mood }));
+  const setDraftTags = (tags: string) => setComposer((c) => ({ ...c, tags }));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   // Client-side filters over the loaded entries.
@@ -184,9 +199,7 @@ export default function JournalPanel({
         }),
       });
       if (res.ok) {
-        setDraft("");
-        setDraftMood(null);
-        setDraftTags("");
+        setComposer(EMPTY_JOURNAL_DRAFT);
         await loadEntries();
       } else {
         // A refused save used to look exactly like a button that did

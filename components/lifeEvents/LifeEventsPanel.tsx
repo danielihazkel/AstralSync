@@ -35,6 +35,13 @@ import Markdown from "@/components/Markdown";
 import DiscardReadingButton from "@/components/profile/DiscardReadingButton";
 import { announceUndo, restoreFromTrash } from "@/components/undo/undoBus";
 import { useStreamedGeneration } from "@/components/useStreamedGeneration";
+import { useDraft } from "@/components/useDraft";
+import {
+  EMPTY_LIFE_EVENT_DRAFT,
+  draftKey,
+  isLifeEventDraftEmpty,
+  parseLifeEventDraft,
+} from "@/lib/drafts";
 import styles from "./lifeEvents.module.css";
 
 /** Serialized over JSON: Date fields arrive as strings. */
@@ -140,12 +147,22 @@ export default function LifeEventsPanel({
 }) {
   const router = useRouter();
   const [events, setEvents] = useState<EventsState>({ kind: "loading" });
-  // The add form's draft; editing state lives per-row in EventRow.
-  const [title, setTitle] = useState("");
-  const [precision, setPrecision] = useState<LifeEventPrecision>("day");
-  const [dateInputs, setDateInputs] = useState<EventDateInputs>(EMPTY_INPUTS);
-  const [category, setCategory] = useState<LifeEventCategory>("other");
-  const [notes, setNotes] = useState("");
+  // The add form's draft, kept per profile across tab switches and reloads;
+  // editing state lives per-row in EventRow.
+  const [composer, setComposer] = useDraft(
+    draftKey("life-event", profileId),
+    EMPTY_LIFE_EVENT_DRAFT,
+    parseLifeEventDraft,
+    isLifeEventDraftEmpty,
+  );
+  const { title, precision, date: dateInputs, category, notes } = composer;
+  const setTitle = (title: string) => setComposer((c) => ({ ...c, title }));
+  const setPrecision = (precision: LifeEventPrecision) =>
+    setComposer((c) => ({ ...c, precision }));
+  const setDateInputs = (date: EventDateInputs) => setComposer((c) => ({ ...c, date }));
+  const setCategory = (category: LifeEventCategory) =>
+    setComposer((c) => ({ ...c, category }));
+  const setNotes = (notes: string) => setComposer((c) => ({ ...c, notes }));
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
@@ -250,9 +267,8 @@ export default function LifeEventsPanel({
         return;
       }
       if (res.ok) {
-        setTitle("");
-        setDateInputs(EMPTY_INPUTS);
-        setNotes("");
+        // Precision and category stay put for the next event.
+        setComposer((c) => ({ ...c, title: "", date: EMPTY_INPUTS, notes: "" }));
         await loadEvents();
       } else {
         setFormError("Could not save the event.");
