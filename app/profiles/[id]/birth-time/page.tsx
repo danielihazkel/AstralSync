@@ -14,6 +14,7 @@ import {
   scoreCandidates,
   sensitivity,
   sweepCandidates,
+  sweepNotes,
   topCandidates,
   usableEventCount,
   type CandidateChart,
@@ -197,7 +198,14 @@ export default async function BirthTimePage({
     lng: profile.birthLng,
     overrideOffsetMinutes: profile.offsetOverridden ? profile.utcOffsetMinutes : null,
   };
-  const candidates = sweepCandidates(place, from, to, win.step);
+  const candidates = sweepCandidates(
+    place,
+    from,
+    to,
+    win.step,
+    recorded === null ? [] : [recorded],
+  );
+  const notes = sweepNotes(place, from, to);
   const sens = sensitivity(candidates);
   const byMinute = new Map<number, CandidateChart>(candidates.map((c) => [c.minutes, c]));
 
@@ -238,6 +246,24 @@ export default async function BirthTimePage({
           ),
         )}
       </nav>
+      {notes.clipped && (
+        <p className={styles.muted}>
+          This window stops at midnight: a birth time is only tested on its
+          recorded date, so the hours past the date line are left out.
+        </p>
+      )}
+      {notes.clockChange === "forward" && (
+        <p className={styles.muted}>
+          The clocks went forward inside this window. The skipped hour never
+          happened on this date, so it is not tested.
+        </p>
+      )}
+      {notes.clockChange === "back" && (
+        <p className={styles.muted}>
+          The clocks went back inside this window, so one hour happened twice;
+          only its first pass (before the change) is tested.
+        </p>
+      )}
 
       <section className={styles.section} aria-labelledby="sensitivity">
         <h2 id="sensitivity">What changes from {hhmm(candidates[0].minutes)} to {hhmm(candidates[candidates.length - 1].minutes)}</h2>

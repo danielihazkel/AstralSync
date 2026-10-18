@@ -13,7 +13,7 @@ import {
   type Sign,
 } from "@astralsync/astro-core";
 import type { LifeEventCategory, LifeEventPrecision } from "./lifeEventMeta";
-import { resolveBirthMoment } from "./tz";
+import { offsetMinutesAt, resolveBirthMoment } from "./tz";
 
 /**
  * Birth-time sensitivity and rectification.
@@ -63,7 +63,10 @@ function anglesAt(utc: Date, lat: number, lng: number) {
   return { ascendant: ascendant(ramc, lat, eps), mc: midheaven(ramc, eps), ramc };
 }
 
-function utcFor(place: BirthPlace, minutes: number): Date {
+/** The wall time's instant, or null for a time a spring-forward gap
+ *  skipped — it never happened, and resolving it would duplicate an
+ *  instant later in the sweep. */
+function utcFor(place: BirthPlace, minutes: number): Date | null {
   const wall = {
     ...place.birthDate,
     hour: Math.floor(minutes / 60),
@@ -75,22 +78,32 @@ function utcFor(place: BirthPlace, minutes: number): Date {
         place.overrideOffsetMinutes * 60_000,
     );
   }
-  return resolveBirthMoment(place.tzIana, wall).utc;
+  const resolved = resolveBirthMoment(place.tzIana, wall);
+  return resolved.warnings.includes("dst_gap") ? null : resolved.utc;
 }
 
+const LAST_MINUTE = 24 * 60 - 1;
+
 /** Candidates from `fromMinutes` to `toMinutes` (clamped to the birth
- *  day) every `stepMinutes`. */
+ *  day) every `stepMinutes`, plus each of `always` inside the window (the
+ *  recorded time should be scored even when the grid steps past it). Wall
+ *  times a clock change skipped are left out. */
 export function sweepCandidates(
   place: BirthPlace,
   fromMinutes: number,
   toMinutes: number,
   stepMinutes: number,
+  always: readonly number[] = [],
 ): CandidateChart[] {
   const from = Math.max(0, fromMinutes);
-  const to = Math.min(24 * 60 - 1, toMinutes);
+  const to = Math.min(LAST_MINUTE, toMinutes);
+  const grid = new Set<number>();
+  for (let minutes = from; minutes <= to; minutes += stepMinutes) grid.add(minutes);
+  for (const m of always) if (m >= from && m <= to) grid.add(m);
   const out: CandidateChart[] = [];
-  for (let minutes = from; minutes <= to; minutes += stepMinutes) {
+  for (const minutes of [...grid].sort((a, b) => a - b)) {
     const utc = utcFor(place, minutes);
+    if (utc === null) continue;
     const angles = anglesAt(utc, place.lat, place.lng);
     const planets = Object.fromEntries(
       positionsAt(utc).map((p) => [p.planet, p.longitude]),
@@ -98,6 +111,39 @@ export function sweepCandidates(
     out.push({ minutes, utc, ...angles, planets });
   }
   return out;
+}
+
+export interface SweepNotes {
+  /** The requested window ran past the birth date's midnight and was cut
+   *  there (a birth time is never moved to another date). */
+  clipped: boolean;
+  /** The clocks changed inside the window: "forward" skipped an hour (those
+   *  wall times never happened and are not tested), "back" repeated one
+   *  (only its first pass is tested). */
+  clockChange: "forward" | "back" | null;
+}
+
+/** What the page should say about a sweep's window. */
+export function sweepNotes(
+  place: BirthPlace,
+  fromMinutes: number,
+  toMinutes: number,
+): SweepNotes {
+  const clipped = fromMinutes < 0 || toMinutes > LAST_MINUTE;
+  if (place.overrideOffsetMinutes !== null) return { clipped, clockChange: null };
+  const at = (minutes: number) =>
+    resolveBirthMoment(place.tzIana, {
+      ...place.birthDate,
+      hour: Math.floor(minutes / 60),
+      minute: minutes % 60,
+    });
+  const start = at(Math.max(0, fromMinutes));
+  const end = at(Math.min(LAST_MINUTE, toMinutes));
+  const before = offsetMinutesAt(place.tzIana, start.utc);
+  const after = offsetMinutesAt(place.tzIana, end.utc);
+  const clockChange =
+    after > before ? "forward" : after < before ? "back" : null;
+  return { clipped, clockChange };
 }
 
 // --- sensitivity -----------------------------------------------------------

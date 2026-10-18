@@ -6,6 +6,7 @@ import {
   scoreCandidates,
   sensitivity,
   sweepCandidates,
+  sweepNotes,
   topCandidates,
   usableEventCount,
   type RectifyEvent,
@@ -192,6 +193,43 @@ describe("rectification", () => {
       PLACE,
     )[0];
     expect(before.hits).toHaveLength(0);
+  });
+});
+
+describe("sweep edges", () => {
+  it("always scores the recorded time, even off the grid", () => {
+    const c = sweepCandidates(PLACE, 0, 240, 3, [61]);
+    expect(c.some((x) => x.minutes === 61)).toBe(true);
+    expect(c.map((x) => x.minutes)).toEqual([...c.map((x) => x.minutes)].sort((a, b) => a - b));
+    // Outside the window it is not forced in.
+    expect(sweepCandidates(PLACE, 0, 60, 3, [500]).some((x) => x.minutes === 500)).toBe(false);
+  });
+
+  it("says when the window is cut at midnight", () => {
+    expect(sweepNotes(PLACE, 23 * 60 - 120, 23 * 60 + 120).clipped).toBe(true);
+    expect(sweepNotes(PLACE, 600, 840).clipped).toBe(false);
+  });
+
+  const NY = {
+    tzIana: "America/New_York",
+    lat: 40.71,
+    lng: -74.01,
+    overrideOffsetMinutes: null,
+  };
+
+  it("skips the wall times a spring-forward gap never had", () => {
+    const place = { ...NY, birthDate: { year: 2026, month: 3, day: 8 } };
+    const c = sweepCandidates(place, 60, 240, 30);
+    expect(c.map((x) => x.minutes)).toEqual([60, 90, 180, 210, 240]);
+    // No two candidates share an instant.
+    expect(new Set(c.map((x) => x.utc.getTime())).size).toBe(c.length);
+    expect(sweepNotes(place, 60, 240).clockChange).toBe("forward");
+  });
+
+  it("notes a fall-back fold", () => {
+    const place = { ...NY, birthDate: { year: 2026, month: 11, day: 1 } };
+    expect(sweepNotes(place, 0, 240).clockChange).toBe("back");
+    expect(sweepNotes(place, 600, 840).clockChange).toBeNull();
   });
 });
 
