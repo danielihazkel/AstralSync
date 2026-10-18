@@ -111,7 +111,16 @@ Below it: the profile list (search + sort) and the synastry pair picker.
    and the Mazal reading. Either, both, or neither.
 6. **Review & create** — the chart is computed **exactly once**, here.
 
-### Viewing a profile — ten tabs
+### Viewing a profile — ten tabs in four sections
+
+The tab bar opens on four sections — **Natal** (Chart, Reading, Details),
+**Names & Mazal** (Numerology, Mazal), **Timing** (Transits, Cycles,
+Forecast) and **Personal** (Journal, Life events) — and shows the open
+section's tabs beneath. `?tab=` links and the `1`–`9` keys still reach
+every tab directly. Unsent journal and life-event drafts are kept per
+profile in the browser, so switching tabs never loses them. A new chart
+opens with a one-time pointer to the Reading, Transits and Forecast tabs,
+and the first chart on an installation is marked primary automatically.
 
 - **Chart** — an interactive SVG wheel: houses, signs, planetary glyphs,
   aspect chords, retrograde markers, plus the calculated points (lunar nodes
@@ -237,14 +246,16 @@ windows all export as `.ics` files with stable UIDs, so re-imports update
 instead of duplicating — and the Jewish calendar exports on its own, holidays
 as all-day events.
 
-### Chart of the moment
+### Sky now (chart of the moment)
 
-`/chart` casts a chart for any date, time and place with no profile behind
+`/chart` — **Sky now** in the header — casts a chart for any date, time and place with no profile behind
 it — an event, a question, the sky right now — computed in the browser.
 It lists the horary tradition's considerations before judgment (an early
 or late Ascendant, a void-of-course Moon, Saturn in the 1st or 7th, the
 Moon in the via combusta) as cautions, keeps the moment in the URL, and can
-hand it to the onboarding wizard as a new profile.
+hand it to the onboarding wizard as a new profile. The almanac, journal
+entries, day-dated life events and the ephemeris link into it for their
+day, and it links back to each saved chart's Transits, Cycles and Journal.
 
 ### Ephemeris
 
@@ -286,7 +297,8 @@ app is closed.
 ### Keyboard
 
 `Ctrl`/`Cmd` + `K` opens a command palette over pages, profile tabs and
-saved charts. `?` shows the full shortcut list, `/` jumps to the search
+saved charts — on a profile, its own pages too (relocation, birth time,
+the two print reports, edit), plus the group synastry grid. `?` shows the full shortcut list, `/` jumps to the search
 box, `g` followed by a letter goes to a section (`h` home, `y` synastry,
 `j` journal, `c` calendar, `e` ephemeris, `m` chart of the moment, `n` new
 profile, `s` settings),
@@ -391,7 +403,7 @@ content has moved on since.
 app/                  Next.js App Router pages + API routes (incl. app/sw.js/route.ts,
                       the service worker route, and /profiles/[id]/print)
 components/           React components (wizard, chart wheel, panels, Today dashboard)
-content/en/           English interpretation library (1583 Markdown entries)
+content/en/           English interpretation library (1676 Markdown entries)
 content/he/           Hebrew interpretation library (62 Markdown entries)
 lib/                  App services: snapshots, timezone, content, forecasts, LLM, PWA
 packages/astro-core/  Framework-free chart engine (ephemeris, houses, aspects,
