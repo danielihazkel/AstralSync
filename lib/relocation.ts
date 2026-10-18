@@ -9,6 +9,7 @@ import {
   type Planet,
   type Sign,
 } from "@astralsync/astro-core";
+import { natalAngleAspectKey } from "./contentKeys";
 import type { WheelChart } from "./view-types";
 
 /**
@@ -84,6 +85,20 @@ export function relocateChart(natal: WheelChart, place: RelocationPlace): Reloca
     houseChanges,
     angular,
   };
+}
+
+/**
+ * The content key for living under a line. A planet on the MC or ASC line
+ * is conjunct that angle there; on the IC or DSC line it is opposite the
+ * MC or ASC — exactly the natal `angle_aspect` archetypes, which describe
+ * a planet on that angle.
+ */
+export function lineProseKey(planet: Planet, angle: AcgAngle): string {
+  return natalAngleAspectKey(
+    planet,
+    angle === "mc" || angle === "ic" ? "mc" : "ascendant",
+    angle === "mc" || angle === "asc" ? "conjunction" : "opposition",
+  );
 }
 
 /** Signed difference a − b in degrees, folded into (−180, 180]. */

@@ -206,3 +206,18 @@
   display: grid;
   gap: 0.2rem;
 }
+
+.prose {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.proseItem {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+}
+
+.proseItem summary {
+  cursor: pointer;
+}

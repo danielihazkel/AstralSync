@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import RelocationPanel from "@/components/relocation/RelocationPanel";
+import { resolveRelocationProse } from "@/lib/relocationProse";
 import { getProfileName, getProfileView } from "@/lib/snapshots";
 import { toWheelChart } from "@/lib/view-types";
 
@@ -28,9 +29,9 @@ export async function generateMetadata({
 
 /**
  * Relocation and astrocartography: the natal chart's angles drawn across a
- * world map, and the chart recast for any chosen place. The server only
- * hands over the stored chart; lines and relocated charts compute in the
- * browser.
+ * world map, and the chart recast for any chosen place. The server hands
+ * over the stored chart and the line and angle prose; lines and relocated
+ * charts compute in the browser.
  */
 export default async function RelocationPage({
   params,
@@ -57,7 +58,7 @@ export default async function RelocationPage({
         </p>
       ) : (
         <Suspense>
-          <RelocationPanel profileId={id} chart={chart} />
+          <RelocationPanel profileId={id} chart={chart} prose={resolveRelocationProse()} />
         </Suspense>
       )}
     </main>

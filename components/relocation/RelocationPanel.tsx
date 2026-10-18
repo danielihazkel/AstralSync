@@ -7,7 +7,9 @@ import LazyChartWheel from "@/components/chart/LazyChartWheel";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import { PLANET_NAMES, SIGN_NAMES, ordinalHouse } from "@/components/format";
 import CitySearch from "@/components/onboarding/CitySearch";
+import Markdown from "@/components/Markdown";
 import type { LineNear, Relocated, RelocationPlace } from "@/lib/relocation";
+import type { RelocationProse } from "@/lib/relocationProse";
 import type { WheelChart } from "@/lib/view-types";
 import styles from "./relocation.module.css";
 
@@ -69,9 +71,12 @@ function parsePlace(params: URLSearchParams | ReturnType<typeof useSearchParams>
 export default function RelocationPanel({
   profileId,
   chart,
+  prose,
 }: {
   profileId: number;
   chart: WheelChart;
+  /** Line and angle-sign prose, resolved on the server. */
+  prose: RelocationProse;
 }) {
   const searchParams = useSearchParams();
   const [computed, setComputed] = useState<Computed | null>(null);
@@ -305,6 +310,27 @@ export default function RelocationPanel({
                 </table>
               </div>
             )}
+            {relocated.near.some((n) => prose.lines[`${n.planet}-${n.angle}`]) && (
+              <div className={styles.prose}>
+                <p className={styles.muted}>
+                  Under a line, its planet sits on that angle here — the same as
+                  having it there in a birth chart, so the natal reading applies.
+                </p>
+                {relocated.near.map((n) => {
+                  const entry = prose.lines[`${n.planet}-${n.angle}`];
+                  return (
+                    entry && (
+                      <details key={`${n.planet}-${n.angle}`} className={styles.proseItem}>
+                        <summary>
+                          {PLANET_NAMES[n.planet]} {ANGLE_WORDS[n.angle]}
+                        </summary>
+                        <Markdown md={entry.bodyMd} />
+                      </details>
+                    )
+                  );
+                })}
+              </div>
+            )}
 
             {relocated.result && (
               <>
@@ -331,6 +357,30 @@ export default function RelocationPanel({
                     </li>
                   ))}
                 </ul>
+                {(() => {
+                  const here = relocated.result;
+                  const asc = here.ascendant.here !== here.ascendant.natal
+                    ? prose.ascendant[here.ascendant.here]
+                    : undefined;
+                  const mc = here.mc.here !== here.mc.natal ? prose.mc[here.mc.here] : undefined;
+                  if (!asc && !mc) return null;
+                  return (
+                    <div className={styles.prose}>
+                      {asc && (
+                        <details className={styles.proseItem}>
+                          <summary>{asc.title} — the face this place brings out</summary>
+                          <Markdown md={asc.bodyMd} />
+                        </details>
+                      )}
+                      {mc && (
+                        <details className={styles.proseItem}>
+                          <summary>{mc.title} — the work and standing it favours</summary>
+                          <Markdown md={mc.bodyMd} />
+                        </details>
+                      )}
+                    </div>
+                  );
+                })()}
                 <LazyChartWheel
                   chart={relocated.result.chart}
                   downloadName={`relocated chart ${place.label}`}
