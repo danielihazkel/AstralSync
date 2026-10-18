@@ -32,7 +32,7 @@ const ChartWheel = dynamic(() => import("@/components/chart/ChartWheel"), {
   loading: () => <WheelSkeleton />,
 });
 import ForecastPanel from "@/components/forecast/ForecastPanel";
-import MazalPanel from "@/components/mazal/MazalPanel";
+import MazalPanel, { type HebrewBirthday } from "@/components/mazal/MazalPanel";
 import NumerologyPanel, {
   type NumeroProse,
 } from "@/components/numerology/NumerologyPanel";
@@ -67,6 +67,7 @@ export default function ProfileTabs({
   reading,
   hebrew,
   hebrewReading,
+  hebrewBirthday,
   llmEnabled,
 }: {
   profile: ProfileData;
@@ -92,6 +93,7 @@ export default function ProfileTabs({
   reading: ResolvedReading;
   hebrew: HebrewView | null;
   hebrewReading: ResolvedHebrewReading | null;
+  hebrewBirthday: HebrewBirthday | null;
   llmEnabled: boolean;
 }) {
   // Tab state lives in ?tab= so views are bookmarkable and survive reloads.
@@ -172,6 +174,7 @@ export default function ProfileTabs({
           <MazalPanel
             hebrew={hebrew}
             reading={hebrewReading}
+            hebrewBirthday={hebrewBirthday}
             profileId={profile.id}
             version={astro.version}
             llmEnabled={llmEnabled}

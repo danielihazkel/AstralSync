@@ -24,10 +24,12 @@ import {
   type Planet,
 } from "@astralsync/astro-core";
 import { personalYear, pinnacles } from "@astralsync/numero-core";
+import { nextHebrewBirthday } from "@astralsync/hebrew-core";
 import { buildAspectMotion } from "@/lib/aspectMotion";
 import { computeChartStats } from "@/lib/chartStats";
 import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
 import { computeArcPeriods } from "@/lib/eventLords";
+import { civilFromDate } from "@/lib/forecast";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
 import { llmClientFromEnv } from "@/lib/llm";
 import {
@@ -237,6 +239,15 @@ export default async function ProfilePage({
         view.hebrew.contentVersion,
       )
     : null;
+  // From the sunset-adjusted Hebrew date of birth, as the snapshot stores
+  // it. Computed here, on the server's today, so hebcal stays out of the
+  // profile page's client bundle.
+  const hebrewBirthday = view.hebrew
+    ? nextHebrewBirthday(
+        toStoredMazal(view.hebrew).hebrewDate.effective,
+        civilFromDate(new Date()),
+      )
+    : null;
 
   return (
     <main>
@@ -314,6 +325,7 @@ export default async function ProfilePage({
         reading={reading}
         hebrew={view.hebrew}
         hebrewReading={hebrewReading}
+        hebrewBirthday={hebrewBirthday}
         llmEnabled={llmEnabled}
       />
     </main>

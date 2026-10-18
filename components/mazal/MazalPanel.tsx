@@ -24,15 +24,26 @@ function dateOnly(value: Date | string): string {
  * Reading tab). `hebrew` is null only for historical versions computed
  * before the feature — the latest version is lazily backfilled on view.
  */
+/** The next Hebrew birthday, computed server-side (hebrew-core). */
+export interface HebrewBirthday {
+  civil: { year: number; month: number; day: number };
+  /** The Hebrew date it falls on, rendered in Hebrew letters. */
+  hebrew: string;
+  /** The age it completes. */
+  age: number;
+}
+
 export default function MazalPanel({
   hebrew,
   reading,
+  hebrewBirthday = null,
   profileId,
   version,
   llmEnabled,
 }: {
   hebrew: HebrewView | null;
   reading: ResolvedHebrewReading | null;
+  hebrewBirthday?: HebrewBirthday | null;
   profileId: number;
   version: number;
   llmEnabled: boolean;
@@ -105,6 +116,31 @@ export default function MazalPanel({
               </span>
             )}
           </dd>
+
+          {hebrewBirthday && (
+            <>
+              <dt>Hebrew birthday</dt>
+              <dd>
+                <span className={styles.hebrewDate} lang="he">
+                  {hebrewBirthday.hebrew}
+                </span>
+                <span className={styles.muted}>
+                  next on{" "}
+                  {new Date(
+                    hebrewBirthday.civil.year,
+                    hebrewBirthday.civil.month - 1,
+                    hebrewBirthday.civil.day,
+                  ).toLocaleDateString(undefined, {
+                    weekday: "short",
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  — turning {hebrewBirthday.age}
+                </span>
+              </dd>
+            </>
+          )}
 
           <dt>Month mazal</dt>
           <dd>
