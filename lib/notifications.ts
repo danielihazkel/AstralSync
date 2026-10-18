@@ -29,6 +29,26 @@ export const DEFAULT_NOTIFY_SETTINGS: NotifySettings = {
   profileIds: [],
 };
 
+/**
+ * Which charts notify. An explicit pick wins. With none picked, the primary
+ * chart — or, when no chart is marked primary, the oldest one (lowest id).
+ * Nothing marks a primary automatically and trashing the primary clears the
+ * mark, so "primary only" used to mean "nobody": notifications switched on
+ * and silently never fired.
+ */
+export function notifiedProfileIds(
+  profiles: ReadonlyArray<{ id: number; isPrimary: boolean }>,
+  picked: readonly number[],
+): number[] {
+  if (picked.length > 0) {
+    return profiles.filter((p) => picked.includes(p.id)).map((p) => p.id);
+  }
+  const primary = profiles.find((p) => p.isPrimary);
+  if (primary) return [primary.id];
+  if (profiles.length === 0) return [];
+  return [Math.min(...profiles.map((p) => p.id))];
+}
+
 export const NOTIFY_SETTINGS_KEY = "notify.settings";
 export const NOTIFY_FIRED_KEY = "notify.fired";
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   loadNotifySettings,
+  notifiedProfileIds,
   saveNotifySettings,
   type NotifySettings,
 } from "@/lib/notifications";
@@ -67,11 +68,19 @@ export default function NotificationsPanel() {
 
   function toggleProfile(id: number, on: boolean) {
     if (!settings) return;
+    // Start from what the boxes show, not the stored list: with nothing
+    // picked, the default chart is shown ticked, so ticking a second one
+    // must keep it, and unticking it must actually drop it.
+    const current = notifiedProfileIds(profiles, settings.profileIds);
     const ids = on
-      ? [...settings.profileIds, id]
-      : settings.profileIds.filter((p) => p !== id);
+      ? [...new Set([...current, id])]
+      : current.filter((p) => p !== id);
     update({ ...settings, profileIds: ids });
   }
+
+  const shownIds = settings
+    ? notifiedProfileIds(profiles, settings.profileIds)
+    : [];
 
   if (settings === null) return null;
 
@@ -108,11 +117,7 @@ export default function NotificationsPanel() {
             <label key={p.id} className={styles.check}>
               <input
                 type="checkbox"
-                checked={
-                  settings.profileIds.length > 0
-                    ? settings.profileIds.includes(p.id)
-                    : p.isPrimary
-                }
+                checked={shownIds.includes(p.id)}
                 onChange={(e) => toggleProfile(p.id, e.target.checked)}
               />{" "}
               {p.displayName}
@@ -121,7 +126,8 @@ export default function NotificationsPanel() {
           ))}
           {settings.profileIds.length === 0 && (
             <p className={styles.note}>
-              No charts picked — the primary chart is notified by default.
+              No charts picked — the primary chart (or, with none marked, the
+              first chart) is notified by default.
             </p>
           )}
         </div>

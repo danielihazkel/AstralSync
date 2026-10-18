@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarAspectEvent } from "./transitCalendarCore";
 import {
+  notifiedProfileIds,
   DEFAULT_NOTIFY_SETTINGS,
   buildNotifications,
   pruneFired,
@@ -93,5 +94,31 @@ describe("pruneFired", () => {
       junk: Number.NaN,
     };
     expect(pruneFired(fired, now)).toEqual({ fresh: now - 1000 });
+  });
+});
+
+describe("notifiedProfileIds", () => {
+  const charts = [
+    { id: 4, isPrimary: false },
+    { id: 2, isPrimary: false },
+    { id: 7, isPrimary: true },
+  ];
+
+  it("honours an explicit pick, dropping ids that no longer exist", () => {
+    expect(notifiedProfileIds(charts, [2, 99])).toEqual([2]);
+  });
+
+  it("defaults to the primary chart", () => {
+    expect(notifiedProfileIds(charts, [])).toEqual([7]);
+  });
+
+  it("falls back to the oldest chart when none is primary", () => {
+    // Nothing marks a primary automatically — this used to notify nobody.
+    const none = charts.map((c) => ({ ...c, isPrimary: false }));
+    expect(notifiedProfileIds(none, [])).toEqual([2]);
+  });
+
+  it("is empty with no charts at all", () => {
+    expect(notifiedProfileIds([], [])).toEqual([]);
   });
 });

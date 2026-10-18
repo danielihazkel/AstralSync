@@ -8,6 +8,7 @@ import {
   buildNotifications,
   loadFiredKeys,
   loadNotifySettings,
+  notifiedProfileIds,
   saveFiredKeys,
   type NotificationDigest,
   type ProfileEvents,
@@ -45,12 +46,11 @@ export function NotificationScheduler() {
             placements: Placement[] | null;
           }>;
         };
-        // Empty selection = "the primary chart only" (the settings default).
-        const wanted = (
-          settings.profileIds.length > 0
-            ? profiles.filter((p) => settings.profileIds.includes(p.id))
-            : profiles.filter((p) => p.isPrimary)
-        ).filter((p) => p.placements !== null);
+        // Empty selection = the primary chart, or the oldest when none is.
+        const ids = notifiedProfileIds(profiles, settings.profileIds);
+        const wanted = profiles.filter(
+          (p) => ids.includes(p.id) && p.placements !== null,
+        );
         if (wanted.length === 0) return;
 
         const { scanAspectEvents } = await import("@/lib/transitCalendarCore");
