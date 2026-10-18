@@ -21,6 +21,7 @@ const PLACE = {
 };
 
 const TRUE_MINUTES = 14 * 60 + 20; // 14:20
+const LAST = 24 * 60 - 1;
 
 describe("sensitivity", () => {
   const day = sweepCandidates(PLACE, 0, 24 * 60 - 1, 10);
@@ -230,6 +231,32 @@ describe("sweep edges", () => {
     const place = { ...NY, birthDate: { year: 2026, month: 11, day: 1 } };
     expect(sweepNotes(place, 0, 240).clockChange).toBe("back");
     expect(sweepNotes(place, 600, 840).clockChange).toBeNull();
+  });
+
+  it("notices a window that starts inside a gap", () => {
+    // Santiago, 3 Sep 2023: 00:00 jumped to 01:00 — "Whole day" starts in it.
+    const place = {
+      tzIana: "America/Santiago",
+      lat: -33.45,
+      lng: -70.67,
+      overrideOffsetMinutes: null,
+      birthDate: { year: 2023, month: 9, day: 3 },
+    };
+    expect(sweepNotes(place, 0, LAST).clockChange).toBe("forward");
+    expect(sweepCandidates(place, 0, 120, 30).map((x) => x.minutes)).toEqual([60, 90, 120]);
+  });
+
+  it("notices a window that ends inside a fold", () => {
+    // New York, 1 Nov 2026: 01:00–01:59 happened twice; ±30 around 01:00.
+    const place = { ...NY, birthDate: { year: 2026, month: 11, day: 1 } };
+    expect(sweepNotes(place, 30, 90).clockChange).toBe("back");
+  });
+
+  it("stays quiet on an ordinary day, and under a manual offset", () => {
+    const place = { ...NY, birthDate: { year: 2026, month: 6, day: 1 } };
+    expect(sweepNotes(place, 0, LAST).clockChange).toBeNull();
+    const fixed = { ...NY, birthDate: { year: 2026, month: 3, day: 8 }, overrideOffsetMinutes: -300 };
+    expect(sweepNotes(fixed, 0, LAST).clockChange).toBeNull();
   });
 });
 

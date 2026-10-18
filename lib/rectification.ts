@@ -13,7 +13,7 @@ import {
   type Sign,
 } from "@astralsync/astro-core";
 import type { LifeEventCategory, LifeEventPrecision } from "./lifeEventMeta";
-import { offsetMinutesAt, resolveBirthMoment } from "./tz";
+import { resolveBirthMoment } from "./tz";
 
 /**
  * Birth-time sensitivity and rectification.
@@ -123,7 +123,15 @@ export interface SweepNotes {
   clockChange: "forward" | "back" | null;
 }
 
-/** What the page should say about a sweep's window. */
+/** Wall-time spacing for the clock-change probe: every gap and fold in the
+ *  tz database is at least half an hour long, so a quarter-hour grid (plus
+ *  the window's own ends) cannot step over one. */
+const CLOCK_PROBE_MINUTES = 15;
+
+/** What the page should say about a sweep's window. Each probed wall time
+ *  is classified directly — skipped by a gap, or repeated by a fold — so a
+ *  window that starts inside a gap or ends inside a fold is still noticed
+ *  (comparing the offsets at its two ends missed both). */
 export function sweepNotes(
   place: BirthPlace,
   fromMinutes: number,
@@ -131,19 +139,20 @@ export function sweepNotes(
 ): SweepNotes {
   const clipped = fromMinutes < 0 || toMinutes > LAST_MINUTE;
   if (place.overrideOffsetMinutes !== null) return { clipped, clockChange: null };
-  const at = (minutes: number) =>
-    resolveBirthMoment(place.tzIana, {
+  const from = Math.max(0, fromMinutes);
+  const to = Math.min(LAST_MINUTE, toMinutes);
+  const probes = new Set([from, to]);
+  for (let m = from; m <= to; m += CLOCK_PROBE_MINUTES) probes.add(m);
+  for (const minutes of probes) {
+    const { warnings } = resolveBirthMoment(place.tzIana, {
       ...place.birthDate,
       hour: Math.floor(minutes / 60),
       minute: minutes % 60,
     });
-  const start = at(Math.max(0, fromMinutes));
-  const end = at(Math.min(LAST_MINUTE, toMinutes));
-  const before = offsetMinutesAt(place.tzIana, start.utc);
-  const after = offsetMinutesAt(place.tzIana, end.utc);
-  const clockChange =
-    after > before ? "forward" : after < before ? "back" : null;
-  return { clipped, clockChange };
+    if (warnings.includes("dst_gap")) return { clipped, clockChange: "forward" };
+    if (warnings.includes("dst_ambiguous")) return { clipped, clockChange: "back" };
+  }
+  return { clipped, clockChange: null };
 }
 
 // --- sensitivity -----------------------------------------------------------
