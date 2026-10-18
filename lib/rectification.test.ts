@@ -1,4 +1,5 @@
-import { PLANETS, norm360, positionsAt } from "@astralsync/astro-core";
+import { PLANETS, buildChart, norm360, positionsAt } from "@astralsync/astro-core";
+import { computeProgressions } from "./cycles";
 import { describe, expect, it } from "vitest";
 import {
   decisiveness,
@@ -129,6 +130,46 @@ describe("rectification", () => {
       expect(h.orb).toBeLessThanOrEqual(2.5);
       expect(h.weight).toBeGreaterThan(0);
     }
+  });
+
+  it("progresses the angles exactly as the Cycles tab does", () => {
+    // Plant one event where the Cycles tab's progressed MC (solar arc in RA)
+    // reaches a natal planet; the scorer's progressed hit must land on it.
+    // Casting the angles at the progressed instant would miss: that clock
+    // turns the MC ~361° per year of age.
+    const natal = {
+      ...buildChart({ utc: truth.utc, latitude: PLACE.lat, longitude: PLACE.lng }),
+      tzWarnings: [],
+    };
+    const progMc = (age: number) =>
+      computeProgressions(natal, new Date(birthMs + age * 365.2422 * 86_400_000))
+        .chart.houses!.mc;
+    // The first hard aspect to a natal planet the progressed MC perfects
+    // after age 5.
+    const ahead = (lon: number) => norm360(lon - natal.houses!.mc);
+    const target = PLANETS.flatMap((p) =>
+      [0, 90, 180, 270].map((a) => ({ p, d: ahead(truth.planets[p] - a) })),
+    )
+      .filter((x) => x.d > 5 && x.d < 60)
+      .sort((a, b) => a.d - b.d)[0];
+    let lo = 0;
+    let hi = 70;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (ahead(progMc(mid)) < target.d) lo = mid;
+      else hi = mid;
+    }
+    const at = new Date(birthMs + lo * 365.2422 * 86_400_000);
+    const [scored] = scoreCandidates(
+      [truth],
+      [{ id: 1, title: "x", eventDate: at.toISOString().slice(0, 10), precision: "day", category: "other" }],
+      PLACE,
+    );
+    const hit = scored.hits.find(
+      (h) => h.technique === "progressed" && h.mover === "mc" && h.target === target.p,
+    );
+    expect(hit).toBeDefined();
+    expect(hit!.orb).toBeLessThan(0.05);
   });
 
   it("weighs a year-only date less, and gives it no transits", () => {

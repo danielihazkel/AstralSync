@@ -1,11 +1,12 @@
 import {
   PLANETS,
   ascendant,
-  astronomyEngineProvider,
+  eclipticToRightAscension,
   meanObliquity,
   midheaven,
   norm360,
   positionsAt,
+  ramcAt,
   separation,
   signOf,
   type Planet,
@@ -40,6 +41,9 @@ export interface CandidateChart {
   utc: Date;
   ascendant: number;
   mc: number;
+  /** The candidate's RAMC — the progressed angles advance it by solar arc
+   *  in right ascension. */
+  ramc: number;
   /** Natal longitudes at this candidate (only the Moon moves noticeably). */
   planets: Record<Planet, number>;
 }
@@ -55,8 +59,8 @@ export interface BirthPlace {
 
 function anglesAt(utc: Date, lat: number, lng: number) {
   const eps = meanObliquity(utc);
-  const ramc = norm360(astronomyEngineProvider.siderealTimeDeg(utc) + lng);
-  return { ascendant: ascendant(ramc, lat, eps), mc: midheaven(ramc, eps) };
+  const ramc = ramcAt(utc, lng);
+  return { ascendant: ascendant(ramc, lat, eps), mc: midheaven(ramc, eps), ramc };
 }
 
 function utcFor(place: BirthPlace, minutes: number): Date {
@@ -241,6 +245,11 @@ interface EventSky {
   ageYears: number;
   /** Solar arc: progressed Sun − natal Sun, from the reference instant. */
   arc: number;
+  /** The same arc in right ascension — what the progressed RAMC advances
+   *  by. */
+  raArc: number;
+  /** Obliquity at the reference instant, for the progressed angles. */
+  eps: number;
   /** Slow transiting longitudes at the event. */
   transits: Partial<Record<Planet, number>>;
 }
@@ -270,11 +279,16 @@ export function scoreCandidates(
         if (SLOW.includes(p.planet)) transits[p.planet] = p.longitude;
       }
     }
+    const eps = meanObliquity(reference.utc);
     return {
       event,
       at,
       ageYears,
       arc: norm360(progSun.longitude - reference.planets.sun),
+      raArc:
+        eclipticToRightAscension(progSun.longitude, meanObliquity(progressed)) -
+        eclipticToRightAscension(reference.planets.sun, eps),
+      eps,
       transits,
     };
   });
@@ -324,9 +338,13 @@ export function scoreCandidates(
         }
       }
 
-      // Progressed angles (day-for-a-year at the birthplace) to natal planets.
-      const progressedUtc = new Date(c.utc.getTime() + sky.ageYears * DAY_MS);
-      const prog = anglesAt(progressedUtc, place.lat, place.lng);
+      // Progressed angles (solar arc in right ascension on the candidate's
+      // RAMC, at the birthplace) to natal planets.
+      const progRamc = norm360(c.ramc + sky.raArc);
+      const prog = {
+        ascendant: ascendant(progRamc, place.lat, sky.eps),
+        mc: midheaven(progRamc, sky.eps),
+      };
       for (const angle of ["ascendant", "mc"] as const) {
         for (const planet of PLANETS) {
           const f = bestAspect(prog[angle], c.planets[planet], DIRECTION_ORB);

@@ -93,6 +93,28 @@ describe("computeProgressions", () => {
     expect(motion).toBeLessThan(35);
   });
 
+  it("keeps the progressed MC near one degree a year between birthdays", () => {
+    // Half a year past a birthday the progressed instant sits half a day past
+    // the birth clock time; casting the angles from that instant's own
+    // sidereal time would put the MC ~180° away. Solar arc in RA keeps it
+    // ~30.5° from natal, and a day of real time moves it by arc-seconds.
+    const base = Date.UTC(1990, 2, 4, 10, 30, 0) + 30.5 * 365.2425 * 86_400_000;
+    const prog = computeProgressions(NATAL, new Date(base));
+    const motion = separation(prog.chart.houses!.mc, NATAL.houses!.mc);
+    expect(motion).toBeGreaterThan(27);
+    expect(motion).toBeLessThan(34);
+    const nextDay = computeProgressions(NATAL, new Date(base + 86_400_000));
+    expect(
+      separation(nextDay.chart.houses!.mc, prog.chart.houses!.mc),
+    ).toBeLessThan(0.01);
+    expect(
+      separation(
+        nextDay.chart.houses!.ascendant,
+        prog.chart.houses!.ascendant,
+      ),
+    ).toBeLessThan(0.05);
+  });
+
   it("degrades the progressed chart to solar against a solar natal", () => {
     const solar = chartOf(new Date(Date.UTC(1990, 2, 4, 12, 0, 0)), "unknown");
     const prog = computeProgressions(solar, new Date(Date.UTC(2026, 7, 13)));

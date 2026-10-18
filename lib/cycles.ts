@@ -16,6 +16,7 @@ import {
   partOfFortune,
   partOfSpirit,
   positionsAt,
+  progressedRamc,
   signOf,
   zodiacalReleasing,
   type AngleAspect,
@@ -66,11 +67,11 @@ export interface CyclesData {
     placements: Placement[];
     /** Progressed (a) vs natal (b), sorted by orb ascending. */
     crossAspects: CrossAspect[];
-    /** The progressed chart in its own right: cast at the progressed instant
-     *  for the birth place, giving progressed ASC/MC/cusps (the simplest
-     *  progressed-house convention; quotidian variants could layer on
-     *  later). Houses are null when the natal chart is solar — the
-     *  progressed instant inherits the birth time's uncertainty. */
+    /** The progressed chart in its own right: planets at the progressed
+     *  instant, angles and cusps from the natal RAMC advanced by solar arc
+     *  in right ascension (~1°/year) at the birth place. Houses are null
+     *  when the natal chart is solar — the progressed chart inherits the
+     *  birth time's uncertainty. */
     chart: WheelChart;
     /** The progressed Sun–Moon cycle: phase now and its next turning points
      *  in real time (a progressed lunation lasts ~29½ years). */
@@ -310,6 +311,9 @@ export function computeProgressions(
     // natal degrades to a houseless solar progressed chart. Internal aspects
     // stay at chart-default orbs like every other full chart in this view.
     timeCertainty: natal.input.timeCertainty,
+    // Not the progressed instant's own sidereal time: that turns ~361° per
+    // progressed day, i.e. a full circle per year of age.
+    ramc: progressedRamc(natalUtc, progressedUtc, natal.input.longitude),
   });
   const chart: WheelChart = { ...snapshot, tzWarnings: [] };
   return {

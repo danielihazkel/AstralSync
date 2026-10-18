@@ -48,7 +48,9 @@ export function buildChart(
   let houses = null;
   if (!isSolarChart) {
     const eps = meanObliquity(input.utc);
-    const ramc = norm360(provider.siderealTimeDeg(input.utc) + input.longitude);
+    const ramc =
+      input.ramc ??
+      norm360(provider.siderealTimeDeg(input.utc) + input.longitude);
     houses = computeHouses(houseSystem, ramc, input.latitude, eps);
     if (houses.fallbackApplied) {
       uncertainties.push({

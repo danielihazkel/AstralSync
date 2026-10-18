@@ -42,6 +42,11 @@ export {
   circularMidpoint,
   meanObliquity,
 } from "./angles";
+export {
+  eclipticToRightAscension,
+  progressedRamc,
+  ramcAt,
+} from "./progressed";
 export { compositeChart } from "./composite";
 export type { CompositeChartData } from "./composite";
 export { upcomingEclipses } from "./eclipses";

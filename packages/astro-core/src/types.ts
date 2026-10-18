@@ -101,6 +101,12 @@ export interface ChartInput {
   houseSystem?: HouseSystem;
   timeCertainty?: TimeCertainty;
   orbs?: OrbConfig;
+  /**
+   * Cast the houses from this RAMC (degrees) instead of the instant's
+   * sidereal time — a progressed chart's angles move by solar arc, not with
+   * the progressed instant's clock (see `progressedRamc`).
+   */
+  ramc?: number;
 }
 
 export interface Placement {

@@ -508,7 +508,7 @@ export default function CyclesPanel({
             <p className={styles.muted}>
               The progressed chart in its own right
               {progressions.chart.houses
-                ? `: progressed Ascendant ${anglePosition(progressions.chart.houses.ascendant)}, Midheaven ${anglePosition(progressions.chart.houses.mc)}. Houses are cast for the progressed moment at the birth place.`
+                ? `: progressed Ascendant ${anglePosition(progressions.chart.houses.ascendant)}, Midheaven ${anglePosition(progressions.chart.houses.mc)}. The angles advance by the Sun's arc in right ascension, about a degree a year, and the houses are cast from them at the birth place.`
                 : ". Without a birth time it is a solar chart — no progressed houses or Ascendant."}
             </p>
             <ChartWheel
