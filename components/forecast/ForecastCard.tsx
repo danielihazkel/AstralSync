@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Markdown from "@/components/Markdown";
+import { todayLocalDate } from "@/components/atDate";
 import { useStreamedGeneration } from "@/components/useStreamedGeneration";
 import discardStyles from "@/components/profiles/DeleteProfileButton.module.css";
 import styles from "./forecast.module.css";
@@ -39,6 +40,12 @@ function fmtCivil(d: CivilDate): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+/** CivilDate → "YYYY-MM-DD", the route's `date` param. */
+function civilParam(d: CivilDate): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.year}-${pad(d.month)}-${pad(d.day)}`;
 }
 
 function periodLabel(p: ForecastResponse["period"]): string {
@@ -90,7 +97,11 @@ export default function ForecastCard({
     setConfirming(false);
     let res: Response;
     try {
-      res = await fetch(`/api/profiles/${profileId}/forecast?${query}`);
+      // The browser's today, not the server's: the period is the user's
+      // day/week/month wherever the server happens to keep its clock.
+      res = await fetch(
+        `/api/profiles/${profileId}/forecast?${query}&date=${todayLocalDate()}`,
+      );
     } catch {
       setState({ kind: "offline" });
       return;
@@ -117,11 +128,17 @@ export default function ForecastCard({
     return () => window.removeEventListener("online", onOnline);
   }, [load]);
 
+  // Generate and discard act on the period on screen, never on whatever
+  // "today" is by the time the button is pressed — across midnight (or a
+  // week/month boundary) those used to be different periods.
+  const shownDate =
+    state.kind === "data" ? civilParam(state.data.period.start) : todayLocalDate();
+
   async function generate() {
     setActionError(null);
     const result = await streamGenerate(
       `/api/profiles/${profileId}/forecast?stream=1`,
-      { mode, kind },
+      { mode, kind, date: shownDate },
     );
     if (result.ok || result.status === 409 || result.errorCode === "already_generated") {
       // 409 ⇒ generated concurrently or hook toggled — reload shows reality.
@@ -140,9 +157,10 @@ export default function ForecastCard({
   async function discard() {
     setDiscarding(true);
     setActionError(null);
-    const res = await fetch(`/api/profiles/${profileId}/forecast?${query}`, {
-      method: "DELETE",
-    }).catch(() => null);
+    const res = await fetch(
+      `/api/profiles/${profileId}/forecast?${query}&date=${shownDate}`,
+      { method: "DELETE" },
+    ).catch(() => null);
     setDiscarding(false);
     // 404 ⇒ discarded concurrently — reload shows reality either way.
     if (!res || (!res.ok && res.status !== 404)) {
