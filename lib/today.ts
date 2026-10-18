@@ -89,6 +89,12 @@ export interface TodaySky {
     /** True when no location is known: after sunset the next Hebrew day has
      *  already begun, and without a sunset we can't tell. */
     approximate: boolean;
+    /** Today's civil date ("YYYY-MM-DD") in the home location's zone (the
+     *  browser's without one) — the day the Jewish events key off. */
+    civilDate: string;
+    /** True once today's sunset has passed at the home location: the Hebrew
+     *  date above already belongs to tomorrow's civil date. */
+    afterSunset: boolean;
   };
   /** Null without a home location (or during polar day/night). */
   hour: PlanetaryHourResult | null;
@@ -263,6 +269,11 @@ function afterSunset(now: Date, location: HomeLocation): boolean | null {
   );
 }
 
+function isoCivil(civil: { year: number; month: number; day: number }): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${civil.year}-${pad(civil.month)}-${pad(civil.day)}`;
+}
+
 /** Advance a civil date by one day (via Date arithmetic, DST-safe in UTC). */
 function nextDay(civil: { year: number; month: number; day: number }) {
   const d = new Date(Date.UTC(civil.year, civil.month - 1, civil.day + 1));
@@ -292,10 +303,12 @@ export function computeToday(
   const civilToday = civilDateIn(now, location?.tzIana ?? null);
   let hebrewCivil = civilToday;
   let approximate = true;
+  let pastSunset = false;
   if (location) {
     const after = afterSunset(now, location);
     if (after !== null) {
       if (after) hebrewCivil = nextDay(civilToday);
+      pastSunset = after;
       approximate = false;
     }
   }
@@ -341,7 +354,13 @@ export function computeToday(
     },
     stations: computeStations(now),
     eclipses: upcomingEclipses(now, 35),
-    hebrew: { parts, mazal, approximate },
+    hebrew: {
+      parts,
+      mazal,
+      approximate,
+      civilDate: isoCivil(civilToday),
+      afterSunset: pastSunset,
+    },
     hour,
     transits,
   };

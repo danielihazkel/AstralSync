@@ -58,6 +58,39 @@ export function jewishMonth(
   return days;
 }
 
+/**
+ * The Jewish events for the Today strip at `now`, keyed to the same day as
+ * its Hebrew date. Before sunset: today's observances and the times still
+ * ahead (a passed candle-lighting drops off). After sunset the next Hebrew
+ * day has begun, so the strip shows tomorrow's observances — on Erev Yom
+ * Kippur evening, Yom Kippur — plus tonight's times still ahead (havdalah,
+ * a fast's end). The omer count and the molad stay off the strip.
+ */
+export function jewishEventsNow(
+  now: Date,
+  day: { civilDate: string; afterSunset: boolean },
+  opts: JewishCalendarOptions,
+): JewishEvent[] {
+  const [y, m, d] = day.civilDate.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + 1));
+  const tomorrow = {
+    year: t.getUTCFullYear(),
+    month: t.getUTCMonth() + 1,
+    day: t.getUTCDate(),
+  };
+  const ahead = (e: JewishEvent) =>
+    e.time !== null && Date.parse(e.time) >= now.getTime();
+  return jewishEvents({ year: y, month: m, day: d }, tomorrow, opts).filter(
+    (e) => {
+      if (e.kind === "omer" || e.kind === "molad") return false;
+      if (e.date === day.civilDate) {
+        return day.afterSunset ? ahead(e) : e.time === null || ahead(e);
+      }
+      return day.afterSunset && e.time === null;
+    },
+  );
+}
+
 /** The browser's current options: the chosen schedule and, for times, the
  *  home location (never a birth city). */
 export function currentJewishOptions(): JewishCalendarOptions {

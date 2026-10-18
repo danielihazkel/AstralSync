@@ -93,24 +93,18 @@ export default function TodayDashboard({
         import("@/lib/orbSettings"),
         import("@/lib/jewishMonth"),
       ]);
-      // Today's civil day in the browser — the day the user is living.
       const now = new Date();
-      const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      const day = jewish.jewishMonth(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        jewish.currentJewishOptions(),
-      )[key];
-      setJewishToday(
-        (day?.events ?? []).filter((e) => e.kind !== "omer" && e.kind !== "molad"),
-      );
       const orbs = loadOrbSettings();
-      setSky(
-        computeToday(new Date(), loc, profiles, {
-          luminary: orbs.luminary,
-          default: orbs.default,
-        }),
+      const next = computeToday(now, loc, profiles, {
+        luminary: orbs.luminary,
+        default: orbs.default,
+      });
+      // Keyed to the strip's own Hebrew day: the home zone's civil date,
+      // rolled to tomorrow's observances after sunset.
+      setJewishToday(
+        jewish.jewishEventsNow(now, next.hebrew, jewish.currentJewishOptions()),
       );
+      setSky(next);
     },
     [profiles],
   );

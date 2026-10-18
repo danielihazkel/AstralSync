@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { headlineEvent, jewishMonth } from "./jewishMonth";
+import { headlineEvent, jewishEventsNow, jewishMonth } from "./jewishMonth";
 
 describe("jewishMonth", () => {
   const sept = jewishMonth(2026, 9, { il: true });
@@ -38,5 +38,43 @@ describe("headlineEvent", () => {
   it("never headlines a time", () => {
     // A plain Friday: candle-lighting only.
     expect(headlineEvent(sept["2026-09-18"].events)).toBeNull();
+  });
+});
+
+describe("jewishEventsNow", () => {
+  const opts = {
+    il: true,
+    location: { lat: 32.08, lng: 34.78, tzIana: "Asia/Jerusalem" },
+  };
+  const titles = (now: string, afterSunset: boolean) =>
+    jewishEventsNow(
+      new Date(now),
+      { civilDate: "2026-09-20", afterSunset },
+      opts,
+    ).map((e) => e.title);
+
+  it("shows the eve and its candle-lighting in the afternoon", () => {
+    // 15:00 in Tel Aviv on Erev Yom Kippur.
+    const t = titles("2026-09-20T12:00:00Z", false);
+    expect(t).toContain("Erev Yom Kippur");
+    expect(t.some((x) => /candle/i.test(x))).toBe(true);
+    expect(t).not.toContain("Yom Kippur");
+  });
+
+  it("rolls to Yom Kippur after sunset and drops the passed candles", () => {
+    // 20:00 in Tel Aviv: the Hebrew date already reads 10 Tishrei.
+    const t = titles("2026-09-20T17:00:00Z", true);
+    expect(t).toContain("Yom Kippur");
+    expect(t).not.toContain("Erev Yom Kippur");
+    expect(t.some((x) => /candle/i.test(x))).toBe(false);
+  });
+
+  it("never lists the omer or the molad", () => {
+    const all = jewishEventsNow(
+      new Date("2026-04-10T09:00:00Z"),
+      { civilDate: "2026-04-10", afterSunset: false },
+      { ...opts, omer: true, molad: true },
+    );
+    expect(all.some((e) => e.kind === "omer" || e.kind === "molad")).toBe(false);
   });
 });
