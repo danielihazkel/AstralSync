@@ -182,21 +182,23 @@ export default function JournalTimeline({
               </li>
             ))}
           </ul>
-          {cursor !== null && (
-            <p className={styles.loadMoreRow}>
-              <button
-                className={styles.loadMore}
-                onClick={() => void loadMore()}
-                disabled={loadingMore}
-              >
-                {loadingMore ? "Loading…" : "Load older entries"}
-              </button>
-              {loadError && (
-                <span className={styles.muted}> Could not load more.</span>
-              )}
-            </p>
-          )}
         </>
+      )}
+      {/* Outside the matches branch: a filter whose entries are all older
+          than the loaded page must still be able to reach them. */}
+      {cursor !== null && (
+        <p className={styles.loadMoreRow}>
+          <button
+            className={styles.loadMore}
+            onClick={() => void loadMore()}
+            disabled={loadingMore}
+          >
+            {loadingMore ? "Loading…" : "Load older entries"}
+          </button>
+          {loadError && (
+            <span className={styles.muted}> Could not load more.</span>
+          )}
+        </p>
       )}
     </div>
   );
