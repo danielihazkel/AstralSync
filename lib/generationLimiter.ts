@@ -55,11 +55,13 @@ export function consumeGeneration(key: number): number | null {
 
 /**
  * A stable numeric key for an unordered profile pair, so the synastry route
- * can share the per-profile limiter. Cantor pairing over the ordered pair —
- * collision-free for non-negative ids, which is what matters here.
+ * can share the per-profile limiter. Cantor pairing over the ordered pair is
+ * collision-free between pairs; negating it keeps every pair out of the
+ * positive key space the profile routes spend from — unsigned, the pair
+ * (1, 2) and profile 8 drew on one budget.
  */
 export function pairKey(a: number, b: number): number {
   const lo = Math.min(a, b);
   const hi = Math.max(a, b);
-  return ((lo + hi) * (lo + hi + 1)) / 2 + hi;
+  return -(((lo + hi) * (lo + hi + 1)) / 2 + hi);
 }

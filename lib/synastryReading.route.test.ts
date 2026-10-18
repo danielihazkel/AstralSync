@@ -1,7 +1,10 @@
 import { buildChart } from "@astralsync/astro-core";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resetGenerationLimiter } from "./generationLimiter";
+import {
+  GENERATION_HOURLY_LIMIT,
+  resetGenerationLimiter,
+} from "./generationLimiter";
 import type { LlmClient } from "./llm";
 import { computeSynastry, type SynastryInputSide } from "./synastry";
 import type { WheelChart } from "./view-types";
@@ -119,6 +122,18 @@ describe("GET /api/synastry/reading", () => {
     expect(body.stale).toBe(true);
   });
 
+  it("never spends the generation budget — looking is free", async () => {
+    // The cap used to live here, so ~20 page views an hour 429'd the read
+    // while the paid POST loop ran unbounded.
+    for (let i = 0; i < GENERATION_HOURLY_LIMIT + 5; i++) {
+      expect((await GET(request("?a=1&b=2"))).status).toBe(200);
+    }
+    mockCreate.mockImplementation((async (args: {
+      data: Record<string, unknown>;
+    }) => ({ ...args.data, id: 1, createdAt: new Date() })) as never);
+    expect((await POST(request("?a=1&b=2", "POST"))).status).toBe(200);
+  });
+
   it("maps versions through the sorted pair for reversed query order", async () => {
     mockReading.mockResolvedValue(STORED);
     // Query b-first: view sides arrive reversed relative to the stored pair.
@@ -141,6 +156,34 @@ describe("POST /api/synastry/reading", () => {
     const res = await POST(request("?a=1&b=2", "POST"));
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("already_generated");
+  });
+
+  it("stops an unbounded discard/regenerate loop with a 429", async () => {
+    mockCreate.mockImplementation((async (args: {
+      data: Record<string, unknown>;
+    }) => ({ ...args.data, id: 1, createdAt: new Date() })) as never);
+    for (let i = 0; i < GENERATION_HOURLY_LIMIT; i++) {
+      expect((await POST(request("?a=1&b=2", "POST"))).status).toBe(200);
+    }
+    mockCreate.mockClear();
+    const res = await POST(request("?a=2&b=1", "POST"));
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toBe("generation_rate_limited");
+    expect(res.headers.get("Retry-After")).toMatch(/^\d+$/);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("spends nothing while the provider is off", async () => {
+    mockClient.mockReturnValue(null);
+    for (let i = 0; i < GENERATION_HOURLY_LIMIT + 1; i++) {
+      expect((await POST(request("?a=1&b=2", "POST"))).status).toBe(409);
+    }
+    mockClient.mockReturnValue(client);
+    mockCreate.mockImplementation((async (args: {
+      data: Record<string, unknown>;
+    }) => ({ ...args.data, id: 1, createdAt: new Date() })) as never);
+    expect((await POST(request("?a=1&b=2", "POST"))).status).toBe(200);
   });
 
   it("generates and persists under the sorted pair with per-side versions", async () => {

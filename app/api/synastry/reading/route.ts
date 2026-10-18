@@ -45,21 +45,6 @@ export async function GET(req: NextRequest) {
     );
   }
   const { a, b } = parsed.data;
-
-  // One cached row per pair, but DELETE frees it — so the pair, not the row,
-  // is what needs a spend cap. pairKey folds the unordered pair into the
-  // same per-key limiter the profile routes use.
-  const retryAfter = consumeGeneration(pairKey(a, b));
-  if (retryAfter !== null) {
-    return NextResponse.json(
-      { error: "generation_rate_limited" },
-      {
-        status: 429,
-        headers: { ...NO_STORE, "Retry-After": String(retryAfter) },
-      },
-    );
-  }
-
   const view = await getSynastryView(a, b);
   if (!view) {
     return NextResponse.json(
@@ -100,6 +85,22 @@ export async function POST(req: NextRequest) {
     );
   }
   const { a, b } = parsed.data;
+
+  // One cached row per pair, but DELETE frees it — so the pair, not the row,
+  // is what needs a spend cap. Spent here, on the call that pays, after
+  // llm_disabled like the profile routes; GET only reads the cache and must
+  // never be refused for being looked at.
+  const retryAfter = consumeGeneration(pairKey(a, b));
+  if (retryAfter !== null) {
+    return NextResponse.json(
+      { error: "generation_rate_limited" },
+      {
+        status: 429,
+        headers: { ...NO_STORE, "Retry-After": String(retryAfter) },
+      },
+    );
+  }
+
   const view = await getSynastryView(a, b);
   if (!view) {
     return NextResponse.json(

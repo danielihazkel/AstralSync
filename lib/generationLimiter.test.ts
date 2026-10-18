@@ -15,11 +15,13 @@ describe("pairKey", () => {
     expect(seen.size).toBe((30 * 29) / 2);
   });
 
-  it("does not collide with a plain profile id used by the other routes", () => {
-    // Cantor pairing of two positive ids always exceeds either id, so a
-    // pair key can never be mistaken for one of its own endpoints.
-    expect(pairKey(4, 7)).toBeGreaterThan(7);
-    expect(pairKey(1, 2)).toBeGreaterThan(2);
+  it("never collides with any profile id the other routes spend from", () => {
+    // Profile ids are positive and every pair key is negative. The unsigned
+    // Cantor value of (1, 2) is 8, which used to share profile 8's budget.
+    for (let a = 1; a <= 30; a++) {
+      for (let b = a + 1; b <= 30; b++) expect(pairKey(a, b)).toBeLessThan(0);
+    }
+    expect(pairKey(1, 2)).not.toBe(8);
   });
 });
 
