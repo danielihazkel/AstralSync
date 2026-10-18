@@ -3,6 +3,7 @@ import { listDayEventsForProfiles } from "@/lib/lifeEvents";
 import { listProfiles } from "@/lib/snapshots";
 import { capTodayProfiles } from "@/lib/todayCap";
 import EmptyState from "@/components/EmptyState";
+import BackupReminder from "@/components/settings/BackupReminder";
 import ImportProfileButton from "@/components/profiles/ImportProfileButton";
 import ProfileList from "@/components/profiles/ProfileList";
 import PairPicker from "@/components/synastry/PairPicker";
@@ -35,6 +36,8 @@ export default async function Home() {
         Natal charts and numerology — computed once, stored forever, fully
         offline.
       </p>
+
+      {profiles.length > 0 && <BackupReminder />}
 
       <TodayDashboard
         profiles={todayScan.shown.map((p) => ({

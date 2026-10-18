@@ -169,3 +169,27 @@
     display: none;
   }
 }
+
+/* The home page's backup nudge (BackupReminder). */
+.backupReminder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin: 0 0 1.25rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+}
+
+.backupReminder p {
+  flex: 1 1 20rem;
+}
+
+.backupActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}

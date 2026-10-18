@@ -1,9 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { downloadJson } from "@/components/downloadJson";
 import ImportProfileButton from "@/components/profiles/ImportProfileButton";
+import {
+  BACKUP_INTERVALS,
+  loadBackupState,
+  saveBackupState,
+  type BackupInterval,
+  type BackupState,
+} from "@/lib/backupReminder";
 import { applySettingsBundle, collectSettingsBundle } from "@/lib/settingsBundle";
+import { exportAllToFile } from "./exportAll";
 import styles from "./settings.module.css";
 
 /**
@@ -11,25 +19,32 @@ import styles from "./settings.module.css";
  * one file, plus the saved relationships between them, optionally with this
  * browser's preferences) and a settings-only bundle for moving preferences
  * between devices. Profile data comes from the server; preferences never
- * leave the browser except through these files. Cached AI prose (forecasts,
- * synastry readings) is deliberately out of scope — it is regenerable.
+ * leave the browser except through these files. The backup reminder's
+ * interval and the date of the last export live here too.
  */
 export default function DataPanel() {
   const settingsInput = useRef<HTMLInputElement>(null);
   const [withSettings, setWithSettings] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [backup, setBackup] = useState<BackupState | null>(null);
+
+  useEffect(() => {
+    setBackup(loadBackupState());
+  }, []);
+
+  function changeInterval(intervalDays: BackupInterval) {
+    const next = { ...(backup ?? loadBackupState()), intervalDays, snoozedUntil: null };
+    saveBackupState(next);
+    setBackup(next);
+  }
 
   async function exportAll() {
     setBusy(true);
     setNotice(null);
     try {
-      const res = await fetch("/api/profiles/export");
-      if (!res.ok) throw new Error();
-      const bundle = (await res.json()) as Record<string, unknown>;
-      if (withSettings) bundle.settings = collectSettingsBundle();
-      const stamp = new Date().toISOString().slice(0, 10);
-      downloadJson(bundle, `astralsync-all-profiles-${stamp}`);
+      await exportAllToFile(withSettings);
+      setBackup(loadBackupState());
     } catch {
       setNotice("Export failed — is the server running?");
     } finally {
@@ -82,9 +97,31 @@ export default function DataPanel() {
       <span className={styles.note}>
         Every profile with all its chart versions, readings, journal notes
         (with their mood, tags and pinned sky) and life events, plus your
-        saved relationships. Cached AI forecasts are not included — they
-        regenerate.
+        saved relationships and the AI text you paid for: cached forecasts,
+        synastry readings, and discarded readings still in the Trash.
       </span>
+      {backup && (
+        <div className={styles.actions}>
+          <span className={styles.note} style={{ marginTop: 0 }}>
+            {backup.lastBackupAt
+              ? `Last backup from this browser: ${new Date(backup.lastBackupAt).toLocaleDateString(undefined, { dateStyle: "medium" })}.`
+              : "No backup from this browser yet."}
+          </span>
+          <label className={styles.check} style={{ flexBasis: "auto" }}>
+            Remind me on the home page{" "}
+            <select
+              value={backup.intervalDays}
+              onChange={(e) => changeInterval(Number(e.target.value) as BackupInterval)}
+            >
+              {BACKUP_INTERVALS.map((d) => (
+                <option key={d} value={d}>
+                  {d === 0 ? "never" : `every ${d} days`}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
       <div className={styles.actions}>
         <span className={styles.note} style={{ marginTop: 0 }}>
           Restore a profile or a whole export:
