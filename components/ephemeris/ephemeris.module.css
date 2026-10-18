@@ -71,6 +71,19 @@
   font-weight: 500;
 }
 
+/* Eleven columns scroll sideways on a phone: the date column stays put so
+   a row never loses its day. */
+.table tbody th,
+.table thead th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+}
+
+.table thead th:first-child {
+  z-index: 1;
+}
+
 .today th,
 .today td {
   background: var(--accent-dim);

@@ -47,6 +47,24 @@
   vertical-align: top;
 }
 
+/* The row label (Ascendant / MC / Moon) stays in view while the spans
+   scroll sideways on a phone. */
+.table th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+}
+
+@media (max-width: 34rem) {
+  .section {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .table {
+    font-size: 0.85rem;
+  }
+}
+
 .recordedSpan {
   color: var(--accent-bright);
   font-weight: 600;
