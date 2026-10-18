@@ -560,8 +560,15 @@ export async function createProfile(input: ProfileInput): Promise<ProfileView> {
   const hebrew = computeHebrew(d);
 
   const id = await prisma.$transaction(async (tx) => {
+    // The first chart is almost always the user's own: mark it primary so
+    // the Today strip and notifications personalize from the start, rather
+    // than waiting on a Details-tab button nobody knows to press.
+    const isFirst = (await tx.profile.count()) === 0;
     const profile = await tx.profile.create({
-      data: profileColumns(input, tz, astro.offsetMinutes),
+      data: {
+        ...profileColumns(input, tz, astro.offsetMinutes),
+        ...(isFirst ? { isPrimary: true } : {}),
+      },
     });
     const { astroRow, numeroRow, hebrewRow } = buildSnapshotRows(
       profile.id,

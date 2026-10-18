@@ -202,7 +202,11 @@ export default function OnboardingWizard({
     }
     if (res.ok) {
       const view = await res.json();
-      router.push(`/profiles/${view.profile.id}`);
+      router.push(
+        mode === "edit"
+          ? `/profiles/${view.profile.id}`
+          : `/profiles/${view.profile.id}?welcome=1`,
+      );
       router.refresh();
       return;
     }

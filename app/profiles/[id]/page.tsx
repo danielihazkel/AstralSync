@@ -58,6 +58,8 @@ import {
   formatOffset,
 } from "@/components/format";
 import ProfileTabs from "@/components/profile/ProfileTabs";
+import WelcomeStrip from "@/components/profile/WelcomeStrip";
+import { Suspense } from "react";
 import BigThree from "@/components/profile/BigThree";
 import styles from "./page.module.css";
 
@@ -319,6 +321,10 @@ export default async function ProfilePage({
           </Link>
         </p>
       )}
+
+      <Suspense>
+        <WelcomeStrip profileId={profile.id} />
+      </Suspense>
 
       <BigThree chart={chart} />
 
