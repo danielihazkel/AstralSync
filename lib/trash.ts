@@ -1,6 +1,9 @@
 import { Prisma, type ReadingGenerator } from "@prisma/client";
 import { prisma } from "./db";
-import type { LifeEventPrecision } from "./lifeEventMeta";
+import {
+  MAX_LIFE_EVENTS_PER_PROFILE,
+  type LifeEventPrecision,
+} from "./lifeEventMeta";
 
 /**
  * The Trash: undo for the destructive actions the app has. Profiles,
@@ -12,6 +15,9 @@ import type { LifeEventPrecision } from "./lifeEventMeta";
  */
 
 const TRASHED = { deletedAt: { not: null } } as const;
+
+/** The extended client's interactive-transaction handle (lib/importProfile.ts). */
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 // --- profiles ---------------------------------------------------------------
 
@@ -84,12 +90,43 @@ export async function softDeleteLifeEvent(
   return count > 0;
 }
 
-export async function restoreLifeEvent(eventId: number): Promise<boolean> {
-  const { count } = await prisma.lifeEvent.updateMany({
-    where: { id: eventId, ...TRASHED },
-    data: { deletedAt: null },
+/**
+ * Live events on a profile, counted under a row lock on the profile so a
+ * concurrent create or restore waits rather than counting the same total.
+ * Call inside a transaction, before the write the count gates; the lock
+ * holds until that transaction ends. A count-then-create outside one let
+ * two simultaneous saves both pass the cap.
+ */
+export async function lockedLiveEventCount(
+  tx: Tx,
+  profileId: number,
+): Promise<number> {
+  await tx.$queryRaw`SELECT id FROM profile WHERE id = ${profileId} FOR UPDATE`;
+  return tx.lifeEvent.count({ where: { profileId, deletedAt: null } });
+}
+
+export type RestoreEventResult = "restored" | "not_found" | "limit";
+
+/** Put a trashed event back — unless its profile has filled up to the cap
+ *  meanwhile, which restoring used to step past ("limit"; it stays in the
+ *  Trash). */
+export async function restoreLifeEvent(
+  eventId: number,
+): Promise<RestoreEventResult> {
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.lifeEvent.findFirst({
+      where: { id: eventId, ...TRASHED },
+      select: { profileId: true },
+    });
+    if (!row) return "not_found";
+    const live = await lockedLiveEventCount(tx, row.profileId);
+    if (live >= MAX_LIFE_EVENTS_PER_PROFILE) return "limit";
+    const { count } = await tx.lifeEvent.updateMany({
+      where: { id: eventId, ...TRASHED },
+      data: { deletedAt: null },
+    });
+    return count > 0 ? "restored" : "not_found";
   });
-  return count > 0;
 }
 
 export async function purgeLifeEvent(eventId: number): Promise<boolean> {

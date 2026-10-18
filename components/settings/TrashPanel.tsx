@@ -75,8 +75,13 @@ export default function TrashPanel() {
       return;
     }
     if (res.status === 409) {
+      const { error } = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
       setNotice(
-        "A new reading has been generated for that chart version since — discard it first to restore this one.",
+        error === "event_limit"
+          ? "That profile has reached the life-event limit — delete an event there first to restore this one."
+          : "A new reading has been generated for that chart version since — discard it first to restore this one.",
       );
       return;
     }

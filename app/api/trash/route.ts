@@ -25,7 +25,8 @@ export async function GET() {
  * `{ action, kind: "profile" | "journal" | "reading" | "event", id }`.
  * Restore puts the item back where it was; purge is the irreversible hard
  * delete. A reading whose slot has been regenerated meanwhile answers 409
- * `slot_taken` and stays in the Trash.
+ * `slot_taken`, and an event whose profile has filled to the cap answers
+ * 409 `event_limit`; either stays in the Trash.
  */
 export async function POST(req: NextRequest) {
   const parsed = trashActionSchema.safeParse(await req.json().catch(() => null));
@@ -54,6 +55,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ restored: true }, { headers: NO_STORE });
   }
 
+  if (kind === "event" && action === "restore") {
+    const result = await restoreLifeEvent(id);
+    if (result === "not_found") {
+      return NextResponse.json(
+        { error: "not_found" },
+        { status: 404, headers: NO_STORE },
+      );
+    }
+    if (result === "limit") {
+      return NextResponse.json(
+        { error: "event_limit" },
+        { status: 409, headers: NO_STORE },
+      );
+    }
+    return NextResponse.json({ restored: true }, { headers: NO_STORE });
+  }
+
   const ok =
     kind === "profile"
       ? action === "restore"
@@ -64,9 +82,7 @@ export async function POST(req: NextRequest) {
           ? await restoreJournalEntry(id)
           : await purgeJournalEntry(id)
         : kind === "event"
-          ? action === "restore"
-            ? await restoreLifeEvent(id)
-            : await purgeLifeEvent(id)
+          ? await purgeLifeEvent(id)
           : await purgeReading(id);
   if (!ok) {
     return NextResponse.json(

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { skyForDate, type PinnedSky } from "./pinnedSky";
-import { softDeleteLifeEvent } from "./trash";
+import { lockedLiveEventCount, softDeleteLifeEvent } from "./trash";
 import {
   MAX_LIFE_EVENTS_PER_PROFILE,
   type LifeEventCategory,
@@ -102,26 +102,28 @@ export async function createLifeEvent(args: {
     select: { id: true },
   });
   if (!profile) return null;
-  // The client extension narrows count to live rows (deletedAt: null).
-  const live = await prisma.lifeEvent.count({
-    where: { profileId: args.profileId },
-  });
-  if (live >= MAX_LIFE_EVENTS_PER_PROFILE) return "limit";
-  // A missing sky is a missing decoration, not a failed write.
+  // A missing sky is a missing decoration, not a failed write. Computed
+  // before the transaction so the profile lock is held for two queries,
+  // not for an ephemeris run.
   const sky = await skyForDate(args.profileId, args.eventDate, args.at);
-  const row = await prisma.lifeEvent.create({
-    data: {
-      profileId: args.profileId,
-      title: args.title,
-      eventDate: dateValue(args.eventDate),
-      precision: args.precision,
-      category: args.category,
-      notesMd: args.notesMd ?? null,
-      skyJson: sky
-        ? (sky as unknown as Prisma.InputJsonValue)
-        : Prisma.DbNull,
-    },
+  const row = await prisma.$transaction(async (tx) => {
+    const live = await lockedLiveEventCount(tx, args.profileId);
+    if (live >= MAX_LIFE_EVENTS_PER_PROFILE) return null;
+    return tx.lifeEvent.create({
+      data: {
+        profileId: args.profileId,
+        title: args.title,
+        eventDate: dateValue(args.eventDate),
+        precision: args.precision,
+        category: args.category,
+        notesMd: args.notesMd ?? null,
+        skyJson: sky
+          ? (sky as unknown as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+      },
+    });
   });
+  if (!row) return "limit";
   return serialize(row);
 }
 
