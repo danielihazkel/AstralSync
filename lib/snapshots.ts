@@ -336,9 +336,12 @@ function profileColumns(input: ProfileInput, tz: string, offsetMinutes: number) 
 /**
  * Does this edit change anything the chart or numerology depends on?
  * Presentational fields (displayName, city label) don't count — the
- * compute-once rule means they must not trigger a recompute.
+ * compute-once rule means they must not trigger a recompute. Nor does the
+ * vestigial nameScript: nothing computes from it, and the wizard always
+ * sends "latin", so an older "hebrew"/"other" row re-snapshotted (and
+ * staled its readings) on a mere rename.
  */
-function computationChanged(
+export function computationChanged(
   existing: Profile,
   latestAstro: AstroSnapshot | null,
   input: ProfileInput,
@@ -361,7 +364,6 @@ function computationChanged(
     overrideBefore !== overrideAfter ||
     (existing.fullBirthName ?? null) !== (input.fullBirthName ?? null) ||
     (existing.hebrewBirthName ?? null) !== (input.hebrewBirthName ?? null) ||
-    existing.nameScript !== input.nameScript ||
     latestAstro.houseSystem !== input.houseSystem
   );
 }

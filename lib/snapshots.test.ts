@@ -1,8 +1,10 @@
-import type { Profile } from "@prisma/client";
+import type { AstroSnapshot, Profile } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { CONTENT_VERSION } from "./versions";
+import { profileInputSchema } from "./validation";
 import {
   buildSnapshotRows,
+  computationChanged,
   computeAstro,
   computeHebrew,
   computeNumero,
@@ -301,6 +303,26 @@ describe("profileRowToBirthData (lazy backfill input)", () => {
     deletedAt: null,
     createdAt: new Date(),
   };
+
+  it("treats a rename of an old non-latin row as presentational", () => {
+    const old: Profile = { ...row, nameScript: "other" };
+    const input = profileInputSchema.parse({
+      displayName: "Ada L.",
+      fullBirthName: "Ada King Lovelace",
+      birthDate: "1990-06-15",
+      birthTime: "14:30",
+      timeCertainty: "exact",
+      birthLat: 52.52,
+      birthLng: 13.4,
+      tzIana: "Europe/Berlin",
+      houseSystem: "placidus",
+    });
+    const latest = { houseSystem: "placidus" } as AstroSnapshot;
+    expect(computationChanged(old, latest, input, "Europe/Berlin")).toBe(false);
+    expect(
+      computationChanged(old, latest, { ...input, birthTime: "14:31" }, "Europe/Berlin"),
+    ).toBe(true);
+  });
 
   it("round-trips a stored profile into the computation shape", () => {
     expect(profileRowToBirthData(row)).toEqual(base);
