@@ -4,6 +4,7 @@ export { civilToHebrewDateParts, hebrewMonthStartCivil } from "./calendar";
 export {
   hebrewDateOf,
   hebrewDayLabel,
+  isChanukahLights,
   jewishEvents,
   nextHebrewAnniversary,
   nextHebrewBirthday,

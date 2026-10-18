@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hebrewDateOf,
   hebrewDayLabel,
+  isChanukahLights,
   jewishEvents,
   nextHebrewAnniversary,
   nextHebrewBirthday,
@@ -55,6 +56,21 @@ describe("jewishEvents", () => {
     const placeless = jewishEvents(TISHREI_5787.from, TISHREI_5787.to, { il: true });
     expect(placeless.some((e) => e.time !== null)).toBe(false);
     expect(placeless.some((e) => e.kind === "candles")).toBe(false);
+  });
+
+  it("times Chanukah's lights for the place, and leaves them untimed without one", () => {
+    // Chanukah 5786: the first light on Sunday 14 Dec 2025.
+    const from = { year: 2025, month: 12, day: 13 };
+    const to = { year: 2025, month: 12, day: 23 };
+    const timed = jewishEvents(from, to, { il: true, location: TEL_AVIV }).filter(
+      isChanukahLights,
+    );
+    expect(timed).toHaveLength(8);
+    expect(timed[0]).toMatchObject({ date: "2025-12-14", title: "Chanukah: 1 Candle" });
+    expect(timed.every((e) => e.time !== null && !e.major)).toBe(true);
+    const placeless = jewishEvents(from, to, { il: true }).filter(isChanukahLights);
+    expect(placeless).toHaveLength(8);
+    expect(placeless.every((e) => e.time === null)).toBe(true);
   });
 
   it("carries Hebrew titles", () => {

@@ -4,7 +4,6 @@ import {
   HDate,
   HebrewCalendar,
   Location,
-  TimedEvent,
   flags,
   gematriya,
   type Event,
@@ -67,12 +66,25 @@ function iso(d: CivilDate): string {
   return `${d.year}-${pad(d.month)}-${pad(d.day)}`;
 }
 
+/** The instant of a timed event. Duck-typed, not `instanceof TimedEvent`:
+ *  hebcal's TimedChanukahEvent extends ChanukahEvent, not TimedEvent. */
+function eventTimeOf(e: Event): Date | null {
+  const t = (e as { eventTime?: unknown }).eventTime;
+  return t instanceof Date && !Number.isNaN(t.getTime()) ? t : null;
+}
+
+/** Chanukah's nightly lights, as opposed to Shabbat or Yom Tov
+ *  candle-lighting: they belong to the whole evening, not to one minute. */
+export function isChanukahLights(e: JewishEvent): boolean {
+  return e.kind === "candles" && e.title.startsWith("Chanukah");
+}
+
 function kindOf(e: Event): JewishEventKind {
   const f = e.getFlags();
   if (e instanceof CandleLightingEvent || f & flags.CHANUKAH_CANDLES) return "candles";
   if (e instanceof HavdalahEvent) return "havdalah";
   // The only other timed events are a fast's start and end.
-  if (e instanceof TimedEvent) return "fast";
+  if (eventTimeOf(e) !== null) return "fast";
   // Before the fast check: Yom Kippur is both, and reads as the holiday.
   if (f & flags.CHAG) return "holiday";
   if (f & (flags.MAJOR_FAST | flags.MINOR_FAST)) return "fast";
@@ -118,8 +130,8 @@ export function jewishEvents(
       kind: kindOf(e),
       title: e.render("en"),
       titleHe: e.render("he"),
-      major: (f & (flags.CHAG | flags.MAJOR_FAST)) !== 0 && !(e instanceof TimedEvent),
-      time: e instanceof TimedEvent ? e.eventTime.toISOString() : null,
+      major: (f & (flags.CHAG | flags.MAJOR_FAST)) !== 0 && eventTimeOf(e) === null,
+      time: eventTimeOf(e)?.toISOString() ?? null,
     };
   });
 }

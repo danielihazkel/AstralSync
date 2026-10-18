@@ -1,5 +1,6 @@
 import {
   hebrewDayLabel,
+  isChanukahLights,
   jewishEvents,
   type JewishCalendarOptions,
   type JewishEvent,
@@ -83,6 +84,9 @@ export function jewishEventsNow(
   return jewishEvents({ year: y, month: m, day: d }, tomorrow, opts).filter(
     (e) => {
       if (e.kind === "omer" || e.kind === "molad") return false;
+      // Chanukah lights are lit all evening: tonight's stay on the strip
+      // past their time and past sunset, and tomorrow's wait for tomorrow.
+      if (isChanukahLights(e)) return e.date === day.civilDate;
       if (e.date === day.civilDate) {
         return day.afterSunset ? ahead(e) : e.time === null || ahead(e);
       }

@@ -69,6 +69,18 @@ describe("jewishEventsNow", () => {
     expect(t.some((x) => /candle/i.test(x))).toBe(false);
   });
 
+  it("keeps tonight's Chanukah lights all evening, not tomorrow's", () => {
+    // 19:00 in Tel Aviv on 14 Dec 2025, after sunset and the lighting time:
+    // tonight is the first light.
+    const t = jewishEventsNow(
+      new Date("2025-12-14T17:00:00Z"),
+      { civilDate: "2025-12-14", afterSunset: true },
+      opts,
+    ).map((e) => e.title);
+    expect(t).toContain("Chanukah: 1 Candle");
+    expect(t).not.toContain("Chanukah: 2 Candles");
+  });
+
   it("never lists the omer or the molad", () => {
     const all = jewishEventsNow(
       new Date("2026-04-10T09:00:00Z"),

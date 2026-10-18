@@ -236,4 +236,17 @@ describe("jewishIcsEvents", () => {
   it("gives every event a distinct uid", () => {
     expect(new Set(events.map((e) => e.uid)).size).toBe(events.length);
   });
+
+  it("exports all eight Chanukah lights, timed or all-day", () => {
+    const lights = (location?: { lat: number; lng: number; tzIana: string }) =>
+      jewishIcsEvents(
+        Object.values(jewishMonth(2025, 12, { il: true, location })).flatMap((d) => d.events),
+      ).filter((e) => /^Chanukah: \d Candles?$/.test(e.summary));
+    const timed = lights({ lat: 32.08, lng: 34.78, tzIana: "Asia/Jerusalem" });
+    expect(timed).toHaveLength(8);
+    expect(timed.every((e) => e.start !== undefined)).toBe(true);
+    const allDay = lights();
+    expect(allDay).toHaveLength(8);
+    expect(allDay.every((e) => e.date !== undefined)).toBe(true);
+  });
 });
