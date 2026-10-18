@@ -1,3 +1,4 @@
+import { jewishMonth } from "@/lib/jewishMonth";
 import { describe, expect, it } from "vitest";
 import type { AlmanacDay } from "@/lib/almanac";
 import type { ElectionalDay } from "@/lib/electional";
@@ -7,6 +8,7 @@ import {
   almanacDayIcsEvents,
   electionalDayIcsEvents,
   moonMonthIcsEvents,
+  jewishIcsEvents,
 } from "./calendarIcsEvents";
 
 function cell(overrides: Partial<MoonDayCell>): MoonDayCell {
@@ -209,5 +211,29 @@ describe("electionalDayIcsEvents", () => {
       "Venus rules this hour (+2)\nMercury is retrograde (caution)\nScore 4",
     );
     expect(events[0].uid).toContain("love");
+  });
+});
+
+describe("jewishIcsEvents", () => {
+  const sept = jewishMonth(2026, 9, {
+    il: true,
+    location: { lat: 32.08, lng: 34.78, tzIana: "Asia/Jerusalem" },
+  });
+  const events = jewishIcsEvents(Object.values(sept).flatMap((d) => d.events));
+
+  it("makes holidays all-day on their civil date", () => {
+    const yk = events.find((e) => e.summary === "Yom Kippur");
+    expect(yk).toMatchObject({ date: "2026-09-21" });
+    expect(yk?.start).toBeUndefined();
+  });
+
+  it("keeps candle-lighting as an instant", () => {
+    const candles = events.filter((e) => /candle/i.test(e.summary));
+    expect(candles.length).toBeGreaterThan(0);
+    expect(candles.every((e) => e.start !== undefined && e.date === undefined)).toBe(true);
+  });
+
+  it("gives every event a distinct uid", () => {
+    expect(new Set(events.map((e) => e.uid)).size).toBe(events.length);
   });
 });

@@ -1,5 +1,6 @@
 import type { AlmanacDay } from "@/lib/almanac";
 import type { ElectionalDay } from "@/lib/electional";
+import type { JewishEvent } from "@astralsync/hebrew-core";
 import type { IcsEvent } from "@/lib/ics";
 import { icsUtcStamp } from "@/lib/ics";
 import type { MoonMonth } from "@/lib/skyCalendar";
@@ -161,4 +162,27 @@ export function electionalDayIcsEvents(
     });
   }
   return events;
+}
+
+/**
+ * Jewish-calendar events: holidays, fasts, Rosh Chodesh, the parasha and
+ * special Shabbatot as all-day events on their civil date; candle-lighting,
+ * havdalah and a fast's start and end as instants (they carry a time only
+ * when a home location is set). The omer and the molad stay out, as on the
+ * calendar grid. UIDs are built from the date and title, so a month export
+ * and a day export dedupe on re-import.
+ */
+export function jewishIcsEvents(events: JewishEvent[]): IcsEvent[] {
+  const out: IcsEvent[] = [];
+  for (const e of events) {
+    if (e.kind === "omer" || e.kind === "molad") continue;
+    const slug = e.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const uid = `jewish-${e.date}-${slug}`;
+    if (e.time !== null) {
+      out.push({ uid, summary: e.title, start: e.time });
+    } else if (e.kind !== "candles" && e.kind !== "havdalah") {
+      out.push({ uid, summary: e.title, description: e.titleHe, date: e.date });
+    }
+  }
+  return out;
 }

@@ -22,6 +22,7 @@ import HomeLocationPicker from "@/components/settings/HomeLocationPicker";
 import {
   almanacDayIcsEvents,
   electionalDayIcsEvents,
+  jewishIcsEvents,
 } from "./calendarIcsEvents";
 import { dayTitle, timeOf } from "./calendarFormat";
 import { INTENT_OPTIONS } from "./DayPicker";
@@ -160,6 +161,7 @@ export default function AlmanacPanel({ date }: { date: string }) {
                     [
                       ...almanacDayIcsEvents(almanac),
                       ...electionalDayIcsEvents(electional, intentLabel),
+                      ...jewishIcsEvents(jewish?.events ?? []),
                     ],
                     { calName: `AstralSync almanac — ${date}` },
                   ),

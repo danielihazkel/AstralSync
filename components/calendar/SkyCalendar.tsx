@@ -12,7 +12,7 @@ import MoonMonthGrid from "./MoonMonthGrid";
 import { useTabList } from "@/components/useTabList";
 import { buildIcs } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
-import { moonMonthIcsEvents } from "./calendarIcsEvents";
+import { jewishIcsEvents, moonMonthIcsEvents } from "./calendarIcsEvents";
 import { dayTitle, timeOf } from "./calendarFormat";
 import styles from "./calendar.module.css";
 
@@ -185,6 +185,21 @@ export default function SkyCalendar() {
               }
             >
               Export .ics
+            </button>
+          )}{" "}
+          {jewish !== null && (
+            <button
+              onClick={() =>
+                downloadIcs(
+                  buildIcs(
+                    jewishIcsEvents(Object.values(jewish).flatMap((d) => d.events)),
+                    { calName: `AstralSync Jewish calendar — ${monthLabel}` },
+                  ),
+                  `astralsync-jewish-${year}-${String(month1).padStart(2, "0")}`,
+                )
+              }
+            >
+              Jewish calendar .ics
             </button>
           )}
         </span>

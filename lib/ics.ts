@@ -4,20 +4,48 @@
  * are stamped in the UTC form (…Z) and calendar apps localize on display —
  * no VTIMEZONE needed. Instantaneous events (ingresses, quarters, stations,
  * aspect perfections, eclipse peaks) carry only DTSTART: per §3.6.1 an event
- * with a DATE-TIME start and no DTEND/DURATION consumes no time. UIDs are
+ * with a DATE-TIME start and no DTEND/DURATION consumes no time. Calendar
+ * days (Jewish holidays, the parasha) are all-day DATE events. UIDs are
  * derived from event data so re-importing an export updates entries instead
  * of duplicating them.
  */
 
-export interface IcsEvent {
+interface IcsEventBase {
   /** Stable id fragment derived from the event's data; "@astralsync" is appended. */
   uid: string;
   summary: string;
   description?: string;
-  /** ISO-8601 UTC instant. */
-  start: string;
-  /** ISO-8601 UTC instant; omitted ⇒ instantaneous (no DTEND emitted). */
-  end?: string;
+}
+
+/** Either an instant (or span) in UTC, or an all-day event on a civil date
+ *  — a holiday belongs to a calendar day, not to an instant, and stamping
+ *  it at UTC midnight would land it on the wrong day west of Greenwich. */
+export type IcsEvent = IcsEventBase &
+  (
+    | {
+        /** ISO-8601 UTC instant. */
+        start: string;
+        /** ISO-8601 UTC instant; omitted ⇒ instantaneous (no DTEND emitted). */
+        end?: string;
+        date?: never;
+      }
+    | {
+        /** Civil "YYYY-MM-DD": an all-day event (DTSTART;VALUE=DATE). */
+        date: string;
+        start?: never;
+        end?: never;
+      }
+  );
+
+/** "YYYY-MM-DD" → RFC 5545 DATE form "YYYYMMDD". */
+export function icsDate(date: string): string {
+  return date.replaceAll("-", "");
+}
+
+/** The civil day after `date` — an all-day event's exclusive DTEND. */
+function nextCivilDay(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
 }
 
 /** ISO UTC instant → RFC 5545 UTC form: "2026-08-14T12:30:00.000Z" → "20260814T123000Z". */
@@ -79,8 +107,14 @@ export function buildIcs(
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${escapeIcsText(ev.uid)}@astralsync`);
     lines.push(`DTSTAMP:${dtStamp}`);
-    lines.push(`DTSTART:${icsUtcStamp(ev.start)}`);
-    if (ev.end !== undefined) lines.push(`DTEND:${icsUtcStamp(ev.end)}`);
+    if (ev.date !== undefined) {
+      // §3.6.1: a DATE start with a DTEND one day later is one whole day.
+      lines.push(`DTSTART;VALUE=DATE:${icsDate(ev.date)}`);
+      lines.push(`DTEND;VALUE=DATE:${icsDate(nextCivilDay(ev.date))}`);
+    } else {
+      lines.push(`DTSTART:${icsUtcStamp(ev.start)}`);
+      if (ev.end !== undefined) lines.push(`DTEND:${icsUtcStamp(ev.end)}`);
+    }
     lines.push(`SUMMARY:${escapeIcsText(ev.summary)}`);
     if (ev.description !== undefined) {
       lines.push(`DESCRIPTION:${escapeIcsText(ev.description)}`);

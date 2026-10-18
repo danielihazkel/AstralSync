@@ -146,3 +146,23 @@ describe("buildIcs", () => {
     expect(ics).toContain("UID:b@astralsync");
   });
 });
+
+describe("all-day events", () => {
+  it("writes a DATE start and an exclusive next-day end", () => {
+    const ics = buildIcs(
+      [{ uid: "yk", summary: "Yom Kippur", date: "2026-09-21" }],
+      { calName: "t", dtStamp: "2026-01-01T00:00:00Z" },
+    );
+    expect(ics).toContain("DTSTART;VALUE=DATE:20260921\r\n");
+    expect(ics).toContain("DTEND;VALUE=DATE:20260922\r\n");
+    expect(ics).not.toMatch(/DTSTART:2026/);
+  });
+
+  it("rolls the end over a month and a year", () => {
+    const ics = buildIcs(
+      [{ uid: "x", summary: "x", date: "2026-12-31" }],
+      { calName: "t", dtStamp: "2026-01-01T00:00:00Z" },
+    );
+    expect(ics).toContain("DTEND;VALUE=DATE:20270101");
+  });
+});
