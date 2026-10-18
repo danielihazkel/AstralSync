@@ -31,19 +31,38 @@ import type { ChartStats as ChartStatsData } from "@/lib/chartStats";
 const ChartWheel = dynamic(() => import("@/components/chart/ChartWheel"), {
   loading: () => <WheelSkeleton />,
 });
-import ForecastPanel from "@/components/forecast/ForecastPanel";
-import MazalPanel, { type HebrewBirthday } from "@/components/mazal/MazalPanel";
-import NumerologyPanel, {
-  type NumeroProse,
-} from "@/components/numerology/NumerologyPanel";
-import CyclesPanel from "@/components/cycles/CyclesPanel";
+import type { HebrewBirthday } from "@/components/mazal/MazalPanel";
+import type { NumeroProse } from "@/components/numerology/NumerologyPanel";
 import { parseAtParam } from "@/components/atDate";
-import JournalPanel from "@/components/journal/JournalPanel";
-import LifeEventsPanel from "@/components/lifeEvents/LifeEventsPanel";
 import type { LifeArcPeriods } from "@/components/lifeEvents/LifeArc";
-import TransitsPanel from "@/components/transits/TransitsPanel";
+
+// Every tab but the Chart one loads on demand: they used to ship in one
+// ~160 KB chunk on every profile page, whichever tab was open. A server
+// render of a deep-linked tab still includes it (dynamic keeps SSR).
+const panelLoading = () => <p className={styles.panelLoading}>Loading…</p>;
+const ForecastPanel = dynamic(() => import("@/components/forecast/ForecastPanel"), {
+  loading: panelLoading,
+});
+const MazalPanel = dynamic(() => import("@/components/mazal/MazalPanel"), {
+  loading: panelLoading,
+});
+const NumerologyPanel = dynamic(() => import("@/components/numerology/NumerologyPanel"), {
+  loading: panelLoading,
+});
+const CyclesPanel = dynamic(() => import("@/components/cycles/CyclesPanel"), {
+  loading: panelLoading,
+});
+const JournalPanel = dynamic(() => import("@/components/journal/JournalPanel"), {
+  loading: panelLoading,
+});
+const LifeEventsPanel = dynamic(() => import("@/components/lifeEvents/LifeEventsPanel"), {
+  loading: panelLoading,
+});
+const TransitsPanel = dynamic(() => import("@/components/transits/TransitsPanel"), {
+  loading: panelLoading,
+});
+const ReadingPanel = dynamic(() => import("./ReadingPanel"), { loading: panelLoading });
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
-import ReadingPanel from "./ReadingPanel";
 import { TABS, paramFromTab, tabFromParam, type Tab } from "./tabParam";
 import { useTabList } from "@/components/useTabList";
 import styles from "./profile.module.css";

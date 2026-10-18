@@ -347,3 +347,8 @@
   padding: 0.25rem 0.75rem;
   cursor: pointer;
 }
+
+.panelLoading {
+  color: var(--text-muted);
+  padding: 1rem 0;
+}

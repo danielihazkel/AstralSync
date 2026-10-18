@@ -250,11 +250,10 @@ export default async function ProfilePage({
         view.hebrew.contentVersion,
       )
     : null;
-  // From the sunset-adjusted Hebrew date of birth, as the snapshot stores
-  // it. Computed here, on the server's today, so hebcal stays out of the
-  // profile page's client bundle.
-  // The next ten, for the Mazal tab's calendar export; the first is the
-  // one the tab names.
+  // The next ten Hebrew birthdays (the first is the one the Mazal tab names;
+  // all ten feed its calendar export), from the sunset-adjusted Hebrew date
+  // of birth as the snapshot stores it. Computed here, on the server's
+  // today, so hebcal stays out of the profile page's client bundle.
   const hebrewBirthdays: HebrewBirthday[] = [];
   if (view.hebrew) {
     const birth = toStoredMazal(view.hebrew).hebrewDate.effective;
