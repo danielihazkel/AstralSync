@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
+  clearNotificationDigest,
   loadNotifySettings,
   notifiedProfileIds,
   saveNotifySettings,
+  usesDefaultPick,
   type NotifySettings,
 } from "@/lib/notifications";
 import styles from "./settings.module.css";
@@ -64,6 +66,7 @@ export default function NotificationsPanel() {
       if (result !== "granted") return;
     }
     update({ ...settings, enabled });
+    if (!enabled) void clearNotificationDigest();
   }
 
   function toggleProfile(id: number, on: boolean) {
@@ -81,6 +84,9 @@ export default function NotificationsPanel() {
   const shownIds = settings
     ? notifiedProfileIds(profiles, settings.profileIds)
     : [];
+  // An empty pick means "the default chart", so the last ticked box can't
+  // be unticked into silence — switching notifications off is the way.
+  const lastTicked = shownIds.length === 1 ? shownIds[0] : null;
 
   if (settings === null) return null;
 
@@ -118,16 +124,23 @@ export default function NotificationsPanel() {
               <input
                 type="checkbox"
                 checked={shownIds.includes(p.id)}
+                disabled={p.id === lastTicked}
                 onChange={(e) => toggleProfile(p.id, e.target.checked)}
               />{" "}
               {p.displayName}
               {p.isPrimary && " ★"}
             </label>
           ))}
-          {settings.profileIds.length === 0 && (
+          {usesDefaultPick(profiles, settings.profileIds) && (
             <p className={styles.note}>
               No charts picked — the primary chart (or, with none marked, the
               first chart) is notified by default.
+            </p>
+          )}
+          {lastTicked !== null && !usesDefaultPick(profiles, settings.profileIds) && (
+            <p className={styles.note}>
+              At least one chart stays picked while notifications are on — to
+              stop them, switch notifications off above.
             </p>
           )}
         </div>

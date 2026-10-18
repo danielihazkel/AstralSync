@@ -4,10 +4,13 @@ import { useEffect } from "react";
 import type { Placement } from "@astralsync/astro-core";
 import {
   DIGEST_CACHE,
+  DIGEST_SYNC_TAG,
   DIGEST_URL,
   buildNotifications,
+  clearNotificationDigest,
   loadFiredKeys,
   loadNotifySettings,
+  mergeFiredKeys,
   notifiedProfileIds,
   saveFiredKeys,
   type NotificationDigest,
@@ -30,9 +33,15 @@ const MAX_PER_OPEN = 5;
 export function NotificationScheduler() {
   useEffect(() => {
     const settings = loadNotifySettings();
-    if (!settings.enabled) return;
-    if (typeof Notification === "undefined" || Notification.permission !== "granted")
+    if (
+      !settings.enabled ||
+      typeof Notification === "undefined" ||
+      Notification.permission !== "granted"
+    ) {
+      // Whatever an earlier open left for the worker must stop firing too.
+      void clearNotificationDigest();
       return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -64,7 +73,18 @@ export function NotificationScheduler() {
         const notifications = buildNotifications(perProfile, now, WINDOW_HOURS);
         if (cancelled) return;
 
-        const fired = loadFiredKeys(now.getTime());
+        // Keys the worker fired while the app was closed live only in the
+        // digest — fold them in before deciding what is fresh.
+        let fired = loadFiredKeys(now.getTime());
+        try {
+          const previous = await (await caches.open(DIGEST_CACHE)).match(DIGEST_URL);
+          if (previous) {
+            const body = (await previous.json()) as Partial<NotificationDigest>;
+            fired = mergeFiredKeys(fired, body.fired, now.getTime());
+          }
+        } catch {
+          // No readable digest — the ledger alone decides.
+        }
         const fresh = notifications.filter((n) => !(n.key in fired));
         // `ready` never rejects and never resolves when no worker is
         // registered (dev) — race a timeout instead of hanging.
@@ -118,7 +138,7 @@ export function NotificationScheduler() {
               };
             } | null
           )?.periodicSync;
-          await sync?.register("astralsync-digest", {
+          await sync?.register(DIGEST_SYNC_TAG, {
             minInterval: 6 * 3_600_000,
           });
         } catch {

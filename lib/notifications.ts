@@ -40,13 +40,23 @@ export function notifiedProfileIds(
   profiles: ReadonlyArray<{ id: number; isPrimary: boolean }>,
   picked: readonly number[],
 ): number[] {
-  if (picked.length > 0) {
+  if (!usesDefaultPick(profiles, picked)) {
     return profiles.filter((p) => picked.includes(p.id)).map((p) => p.id);
   }
   const primary = profiles.find((p) => p.isPrimary);
   if (primary) return [primary.id];
   if (profiles.length === 0) return [];
   return [Math.min(...profiles.map((p) => p.id))];
+}
+
+/** True when no picked chart is still live — nothing picked, or every pick
+ *  since trashed — so the default chart notifies. A pick that went to the
+ *  Trash must not leave notifications on and silent. */
+export function usesDefaultPick(
+  profiles: ReadonlyArray<{ id: number }>,
+  picked: readonly number[],
+): boolean {
+  return !profiles.some((p) => picked.includes(p.id));
 }
 
 export const NOTIFY_SETTINGS_KEY = "notify.settings";
@@ -166,6 +176,22 @@ export function loadFiredKeys(nowMs: number): Record<string, number> {
   }
 }
 
+/** Fold the keys the service worker fired while the app was closed (kept
+ *  only in the digest) into the ledger, so the next open doesn't fire them
+ *  again — and the rewritten digest keeps them. Pure. */
+export function mergeFiredKeys(
+  fired: Record<string, number>,
+  digestFired: unknown,
+  nowMs: number,
+): Record<string, number> {
+  const out = { ...fired };
+  if (!Array.isArray(digestFired)) return out;
+  for (const key of digestFired) {
+    if (typeof key === "string" && !(key in out)) out[key] = nowMs;
+  }
+  return out;
+}
+
 export function saveFiredKeys(fired: Record<string, number>): void {
   try {
     localStorage.setItem(NOTIFY_FIRED_KEY, JSON.stringify(fired));
@@ -182,6 +208,8 @@ export function saveFiredKeys(fired: Record<string, number>): void {
 export const DIGEST_CACHE = "astralsync-digest";
 /** Synthetic cache key — never fetched over the network. */
 export const DIGEST_URL = "/__astralsync/digest.json";
+/** The periodicsync tag sw.src.js listens for. */
+export const DIGEST_SYNC_TAG = "astralsync-digest";
 
 export interface NotificationDigest {
   /** ISO instant the digest was computed. */
@@ -190,4 +218,26 @@ export interface NotificationDigest {
   notifications: TransitNotification[];
   /** Keys already shown — the SW appends as it fires. */
   fired: string[];
+}
+
+/** Notifications switched off (or permission withdrawn): drop the digest
+ *  and the periodic check, so the service worker stops firing what an
+ *  earlier open left behind. Best effort, browser only. */
+export async function clearNotificationDigest(): Promise<void> {
+  try {
+    await caches.delete(DIGEST_CACHE);
+  } catch {
+    // Cache API blocked — there is no digest to fire from either.
+  }
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const sync = (
+      reg as unknown as {
+        periodicSync?: { unregister: (tag: string) => Promise<void> };
+      } | undefined
+    )?.periodicSync;
+    await sync?.unregister(DIGEST_SYNC_TAG);
+  } catch {
+    // Periodic Background Sync is a progressive enhancement.
+  }
 }

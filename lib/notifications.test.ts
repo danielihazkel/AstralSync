@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CalendarAspectEvent } from "./transitCalendarCore";
 import {
+  mergeFiredKeys,
   notifiedProfileIds,
+  usesDefaultPick,
   DEFAULT_NOTIFY_SETTINGS,
   buildNotifications,
   pruneFired,
@@ -120,5 +122,35 @@ describe("notifiedProfileIds", () => {
 
   it("is empty with no charts at all", () => {
     expect(notifiedProfileIds([], [])).toEqual([]);
+  });
+});
+
+describe("a pick that went to the Trash", () => {
+  const charts = [
+    { id: 2, isPrimary: false },
+    { id: 7, isPrimary: true },
+  ];
+
+  it("falls back to the default chart instead of going silent", () => {
+    // Profile 5 was the only pick and is now trashed (absent from the list).
+    expect(usesDefaultPick(charts, [5])).toBe(true);
+    expect(notifiedProfileIds(charts, [5])).toEqual([7]);
+  });
+
+  it("keeps a live pick", () => {
+    expect(usesDefaultPick(charts, [5, 2])).toBe(false);
+    expect(notifiedProfileIds(charts, [5, 2])).toEqual([2]);
+  });
+});
+
+describe("mergeFiredKeys", () => {
+  it("adds the worker's fired keys without touching known ones", () => {
+    const merged = mergeFiredKeys({ a: 100 }, ["a", "b"], 500);
+    expect(merged).toEqual({ a: 100, b: 500 });
+  });
+
+  it("ignores a malformed digest list", () => {
+    expect(mergeFiredKeys({ a: 1 }, "nope", 5)).toEqual({ a: 1 });
+    expect(mergeFiredKeys({}, [3, null, "k"], 5)).toEqual({ k: 5 });
   });
 });
