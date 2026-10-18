@@ -21,6 +21,7 @@
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "geo:import": "node scripts/import-geonames.mts",
     "icons:generate": "node scripts/generate-icons.mjs"
   },

@@ -51,9 +51,29 @@ loads it into the `geo_city` table — after that, city search is fully offline.
 | `npm run build` && `npm start` | Production server — use this to test PWA install/offline |
 | `npm test` | Full Vitest suite (engines, timezone edge cases, UI geometry, content lint, PWA) |
 | `npm run lint` / `npm run typecheck` | ESLint (with jsx-a11y) / native TypeScript check |
-| `npm run db:migrate` | Apply Prisma migrations |
+| `npm run db:migrate` | Development: create and apply migrations (`prisma migrate dev` — may offer to **reset** the database when it detects drift; never run it against data you care about without a backup) |
+| `npm run db:deploy` | Apply pending migrations only, never resetting (`prisma migrate deploy`) — the one to use on a database holding real data |
 | `npm run geo:import` | (Re-)import GeoNames cities; already-imported rows are skipped |
 | `npm run icons:generate` | Re-rasterize `app/icon.svg` into the committed PNG icons (only needed if the SVG changes) |
+
+## Backups
+
+Everything personal lives in the MySQL database, so back it up before
+upgrading or migrating:
+
+```bash
+# A full dump, schema and data (adjust user and database name to your .env)
+mysqldump -u root -p --single-transaction --routines astralsync > astralsync-$(date +%F).sql
+
+# Restore into an empty database
+mysql -u root -p astralsync < astralsync-2026-10-18.sql
+```
+
+The in-app export (**Settings → Your data → Export all**) is the portable
+alternative: one JSON file with every profile, chart version, reading, cached
+AI forecast and synastry reading, journal note, life event and saved
+relationship, which **Import** restores on any installation. Importing a file
+whose profiles are already here asks whether to skip them or import copies.
 
 ## Using the app
 
@@ -250,9 +270,10 @@ fallback where a quadrant system degenerates at extreme latitude.
 Three more sections live there. **Your data** exports every profile in one
 bundle — all chart versions, readings, journal notes with their mood, tags
 and pinned sky, life events, and the saved relationships between profiles —
-optionally with this browser's settings; it also imports a single export or
-a bundle, and moves settings alone between devices. (Cached AI forecasts are
-not included: they regenerate.) **Trash** holds every deleted profile,
+optionally with this browser's settings — plus the paid AI text: cached
+forecasts, synastry readings, and discarded readings waiting in the Trash.
+It also imports a single export or a bundle (offering to skip profiles that
+are already here), and moves settings alone between devices. **Trash** holds every deleted profile,
 deleted journal note, deleted life event, and discarded AI reading until you
 restore it or delete it for good — the Undo toast that appears after a
 delete is the same restore, offered for thirty seconds.
