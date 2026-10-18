@@ -88,6 +88,7 @@ describe("GET /api/cycles/[id]", () => {
         solarArc: { title: "Solar arc directions", bodyMd: expect.any(String) },
         solarReturn: { title: "The solar return", bodyMd: expect.any(String) },
         lunarReturn: { title: "The lunar return", bodyMd: expect.any(String) },
+        contacts: {},
       },
     });
     expect(mockView).toHaveBeenCalledWith(
@@ -198,6 +199,32 @@ describe("GET /api/cycles/[id]", () => {
     expect(prose.jupiterReturn.title).toBe("The Jupiter return");
     expect(prose.saturnReturn).toBeUndefined();
     expect(prose.firdaria.title).toBe("A Saturn firdaria");
+  });
+
+  it("attaches the natal-pair archetype to contacts, and the sub-lord's prose", async () => {
+    const contact = { a: "sun", b: "saturn", type: "square", angle: 90, orb: 0.4 };
+    mockView.mockResolvedValue({
+      ...canned,
+      progressions: { ...canned.progressions, crossAspects: [contact] },
+      solarArc: {
+        ...canned.solarArc,
+        crossAspects: [{ ...contact, a: "moon", b: "moon", type: "conjunction", angle: 0 }],
+        angleAspects: [{ planet: "venus", target: "mc", type: "trine", angle: 120, orb: 0.2 }],
+      },
+      firdaria: {
+        isDay: true,
+        secondCycle: false,
+        major: { lord: "saturn" },
+        sub: { lord: "jupiter" },
+        cycle: [],
+      } as unknown as CyclesData["firdaria"],
+    } as unknown as CyclesData);
+    const { prose } = await (await GET(request("/api/cycles/1"), params("1"))).json();
+    expect(Object.keys(prose.contacts).sort()).toEqual([
+      "angle_aspect/venus/mc/trine",
+      "aspect/sun/saturn/square",
+    ]);
+    expect(prose.firdariaSub.title).toMatch(/Jupiter/);
   });
 
   it("passes a valid `at` instant through", async () => {

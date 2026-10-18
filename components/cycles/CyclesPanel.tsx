@@ -44,6 +44,7 @@ import { useTabList } from "@/components/useTabList";
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import OnThisPage, { type PageSection } from "@/components/OnThisPage";
+import { natalAngleAspectKey, natalAspectKey } from "@/lib/contentKeys";
 import styles from "@/components/transits/transits.module.css";
 
 const ChartWheel = dynamic(() => import("@/components/chart/ChartWheel"), {
@@ -111,6 +112,18 @@ function ZrPeriodList({
 function anglePosition(longitude: number): string {
   const norm = ((longitude % 360) + 360) % 360;
   return `${formatDegreeInSign(norm % 30)} ${SIGN_NAMES[SIGNS[Math.floor(norm / 30)]]}`;
+}
+
+/** A contact row's archetype, folded away: the natal pair's reading,
+ *  which the progressed or directed contact sets in motion. */
+function ContactProse({ entry }: { entry?: CyclesEntryProse }) {
+  if (!entry) return null;
+  return (
+    <details className={styles.contactProse}>
+      <summary>The pattern this activates</summary>
+      <Markdown md={entry.bodyMd} />
+    </details>
+  );
 }
 
 /** Library prose under a section's explainer — nothing when unauthored. */
@@ -423,6 +436,14 @@ export default function CyclesPanel({
             ))}
           </ul>
           <Prose entry={data.prose?.firdaria} />
+          {data.prose?.firdariaSub && data.firdaria.sub && (
+            <>
+              <h4 className={styles.sectionTitle}>
+                The {lordName(data.firdaria.sub.lord)} sub-period
+              </h4>
+              <Prose entry={data.prose.firdariaSub} />
+            </>
+          )}
         </section>
       )}
 
@@ -607,6 +628,11 @@ export default function CyclesPanel({
                 {c.b === "moon" && data.natal.moonUncertain && (
                   <UncertaintyBadge reason={moonReason} />
                 )}
+                {c.a !== c.b && (
+                  <ContactProse
+                    entry={data.prose?.contacts?.[natalAspectKey(c.a, c.b, c.type)]}
+                  />
+                )}
               </li>
             ))}
           </ul>
@@ -652,6 +678,11 @@ export default function CyclesPanel({
                 <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
                 {c.b === "moon" && data.natal.moonUncertain && (
                   <UncertaintyBadge reason={moonReason} />
+                )}
+                {c.a !== c.b && (
+                  <ContactProse
+                    entry={data.prose?.contacts?.[natalAspectKey(c.a, c.b, c.type)]}
+                  />
                 )}
               </li>
             ))}
@@ -704,6 +735,11 @@ export default function CyclesPanel({
                 {c.b === "moon" && data.natal.moonUncertain && (
                   <UncertaintyBadge reason={moonReason} />
                 )}
+                {c.a !== c.b && (
+                  <ContactProse
+                    entry={data.prose?.contacts?.[natalAspectKey(c.a, c.b, c.type)]}
+                  />
+                )}
               </li>
             ))}
             {solarArc.angleAspects.map((c, i) => (
@@ -715,6 +751,9 @@ export default function CyclesPanel({
                 {ASPECT_NAMES[c.type].toLowerCase()} natal{" "}
                 {ANGLE_NAMES[c.target]}
                 <span className={styles.orb}> orb {c.orb.toFixed(1)}°</span>
+                <ContactProse
+                  entry={data.prose?.contacts?.[natalAngleAspectKey(c.planet, c.target, c.type)]}
+                />
               </li>
             ))}
           </ul>

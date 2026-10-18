@@ -190,6 +190,13 @@ export interface CyclesProse {
   solarArc?: CyclesEntryProse;
   /** firdaria_lord/<lord> — the current major period's lord. */
   firdaria?: CyclesEntryProse;
+  /** firdaria_lord/<lord> — the sub-period's lord, when it differs. */
+  firdariaSub?: CyclesEntryProse;
+  /** Archetypal prose for the progressed, tertiary and solar-arc contacts,
+   *  keyed by the natal pair key (natalAspectKey / natalAngleAspectKey):
+   *  a contact activates the natal pattern of that pair — the forecast
+   *  route's reuse of the same entries. */
+  contacts?: Record<string, CyclesEntryProse>;
 }
 
 export interface ProgressedLunation {
