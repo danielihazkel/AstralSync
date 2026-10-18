@@ -1,6 +1,19 @@
 export * from "./types";
 export { reduce, reduceSteps, isMaster } from "./reduce";
 export { lifePath, type BirthDate } from "./lifePath";
+export {
+  ageOn,
+  personalDay,
+  personalMonth,
+  personalYear,
+  pinnacleAt,
+  pinnacles,
+  PINNACLE_YEARS,
+  rootDigit,
+  universalYear,
+  type CycleNumber,
+  type Pinnacle,
+} from "./cycles";
 export { hebrewDateGematria, type HebrewDateInput } from "./hebrewDateGematria";
 export { expression, soulUrge, letterValue, isVowelAt } from "./pythagorean";
 export {
