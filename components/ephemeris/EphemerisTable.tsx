@@ -13,6 +13,10 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+/** The engine's supported span, as the "Go to" field enforces it. */
+const MIN_YEAR = 1700;
+const MAX_YEAR = 2200;
+
 /**
  * Monthly ephemeris table, computed in-browser (lib/ephemeris via dynamic
  * import — the Sky Calendar pattern) so it works offline. Daily 0h UT
@@ -24,6 +28,7 @@ export default function EphemerisTable() {
   const [year, setYear] = useState(now.getUTCFullYear());
   const [month, setMonth] = useState(now.getUTCMonth() + 1);
   const [data, setData] = useState<EphemerisMonth | null>(null);
+  const [failed, setFailed] = useState(false);
   const [format, setFormat] = useState<
     ((p: EphemerisMonth["days"][number]["positions"]["sun"]) => string) | null
   >(null);
@@ -31,22 +36,34 @@ export default function EphemerisTable() {
   useEffect(() => {
     let cancelled = false;
     setData(null);
+    setFailed(false);
     void (async () => {
-      const mod = await import("@/lib/ephemeris");
-      // Yield so the "computing" line paints before the ~0.5s sync work.
-      await new Promise((r) => setTimeout(r, 0));
-      if (cancelled) return;
-      setFormat(() => mod.formatEphemerisPosition);
-      setData(mod.computeEphemerisMonth(year, month));
+      try {
+        const mod = await import("@/lib/ephemeris");
+        // Yield so the "computing" line paints before the ~0.5s sync work.
+        await new Promise((r) => setTimeout(r, 0));
+        if (cancelled) return;
+        setFormat(() => mod.formatEphemerisPosition);
+        setData(mod.computeEphemerisMonth(year, month));
+      } catch {
+        // Never leave "Computing the month…" up for good.
+        if (!cancelled) setFailed(true);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [year, month]);
 
+  const atStart = year === MIN_YEAR && month === 1;
+  const atEnd = year === MAX_YEAR && month === 12;
+
   function shift(delta: number) {
     const d = new Date(Date.UTC(year, month - 1 + delta, 1));
-    setYear(d.getUTCFullYear());
+    const y = d.getUTCFullYear();
+    // The buttons and the "[" / "]" shortcuts stop where the field does.
+    if (y < MIN_YEAR || y > MAX_YEAR) return;
+    setYear(y);
     setMonth(d.getUTCMonth() + 1);
   }
 
@@ -69,9 +86,13 @@ export default function EphemerisTable() {
   return (
     <div className={styles.panel}>
       <div className={styles.controls}>
-        <button onClick={() => shift(-1)} aria-label="Previous month">‹</button>
+        <button onClick={() => shift(-1)} aria-label="Previous month" disabled={atStart}>
+          ‹
+        </button>
         <h2 className={styles.monthLabel}>{label}</h2>
-        <button onClick={() => shift(1)} aria-label="Next month">›</button>
+        <button onClick={() => shift(1)} aria-label="Next month" disabled={atEnd}>
+          ›
+        </button>
         <button
           onClick={() => {
             setYear(now.getUTCFullYear());
@@ -85,13 +106,13 @@ export default function EphemerisTable() {
           <input
             type="month"
             value={`${year}-${pad(month)}`}
-            min="1700-01"
-            max="2200-12"
+            min={`${MIN_YEAR}-01`}
+            max={`${MAX_YEAR}-12`}
             onChange={(e) => {
               const m = /^(\d{4})-(\d{2})$/.exec(e.target.value);
               if (!m) return;
               const y = Number(m[1]);
-              if (y < 1700 || y > 2200) return;
+              if (y < MIN_YEAR || y > MAX_YEAR) return;
               setYear(y);
               setMonth(Number(m[2]));
             }}
@@ -114,7 +135,9 @@ export default function EphemerisTable() {
         )}
       </div>
 
-      {!data || !format ? (
+      {failed ? (
+        <p className={styles.muted}>This month could not be computed.</p>
+      ) : !data || !format ? (
         <p className={styles.muted}>Computing the month…</p>
       ) : (
         <div className="tableWrap">
