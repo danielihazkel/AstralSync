@@ -1,6 +1,6 @@
 import type { ChartStats as ChartStatsData } from "@/lib/chartStats";
 import type { ChartShapeType } from "@/lib/chartStats";
-import { PLANET_NAMES, SIGN_NAMES } from "@/components/format";
+import { ordinalHouse, PLANET_NAMES, SIGN_NAMES } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "./glyphs";
 import styles from "./chart.module.css";
 
@@ -33,12 +33,6 @@ const SHAPE_COPY: Record<ChartShapeType, string> = {
 
 function cap(s: string): string {
   return s[0].toUpperCase() + s.slice(1);
-}
-
-function ordinal(house: number): string {
-  const suffix =
-    house === 1 ? "st" : house === 2 ? "nd" : house === 3 ? "rd" : "th";
-  return `${house}${suffix}`;
 }
 
 function Glyph({ planet }: { planet: keyof typeof PLANET_GLYPH_CHARS }) {
@@ -192,7 +186,7 @@ export default function ChartStats({ stats }: { stats: ChartStatsData }) {
                 <tbody>
                   {houseRulers.map((r) => (
                     <tr key={r.house}>
-                      <td>{ordinal(r.house)}</td>
+                      <td>{ordinalHouse(r.house)}</td>
                       <td>{SIGN_NAMES[r.cuspSign]}</td>
                       <td>
                         <Glyph planet={r.ruler} />
@@ -205,7 +199,7 @@ export default function ChartStats({ stats }: { stats: ChartStatsData }) {
                         )}
                       </td>
                       <td>
-                        {ordinal(r.rulerHouse)} house, {SIGN_NAMES[r.rulerSign]}
+                        {ordinalHouse(r.rulerHouse)} house, {SIGN_NAMES[r.rulerSign]}
                       </td>
                     </tr>
                   ))}

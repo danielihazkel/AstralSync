@@ -28,10 +28,11 @@ import { TransitPositionsTable } from "@/components/transits/TransitTables";
 import {
   ANGLE_NAMES,
   ASPECT_NAMES,
+  formatDegreeInSign,
+  ordinalHouse,
   PLANET_NAMES,
   POINT_NAMES,
   SIGN_NAMES,
-  formatDegreeInSign,
 } from "@/components/format";
 import {
   PLANET_GLYPH_CHARS,
@@ -139,12 +140,6 @@ function firdariaRange(p: { startUtc: string; endUtc: string }): string {
   return `${new Date(p.startUtc).toLocaleDateString([], opts)} – ${new Date(
     p.endUtc,
   ).toLocaleDateString([], opts)}`;
-}
-
-function ordinal(house: number): string {
-  const suffix =
-    house === 1 ? "st" : house === 2 ? "nd" : house === 3 ? "rd" : "th";
-  return `${house}${suffix}`;
 }
 
 /**
@@ -350,11 +345,11 @@ export default function CyclesPanel({
       {profection && (
         <section aria-label="Annual profection">
           <h3 className={styles.sectionTitle}>
-            Annual profection — {ordinal(profection.profectedHouse)}-house year
+            Annual profection — {ordinalHouse(profection.profectedHouse)}-house year
           </h3>
           <p className={styles.muted}>
             At age {profection.age} the year counts to the{" "}
-            {ordinal(profection.profectedHouse)} house from your Ascendant:{" "}
+            {ordinalHouse(profection.profectedHouse)} house from your Ascendant:{" "}
             {SIGN_NAMES[profection.profectedSign]}, making{" "}
             {PLANET_NAMES[profection.yearLord]} lord of the year until your
             next birthday (

@@ -4,9 +4,10 @@ import type { CrossAspect, Planet } from "@astralsync/astro-core";
 import type { SynastrySide } from "@/lib/synastry";
 import {
   ASPECT_NAMES,
+  formatDegreeInSign,
+  ordinalHouse,
   PLANET_NAMES,
   SIGN_NAMES,
-  formatDegreeInSign,
 } from "@/components/format";
 import UncertaintyBadge from "@/components/chart/UncertaintyBadge";
 import styles from "@/components/chart/chart.module.css";
@@ -15,12 +16,6 @@ export type SynastrySelection =
   | { kind: "planet"; side: "a" | "b"; planet: Planet }
   | { kind: "aspect"; index: number }
   | null;
-
-function ordinalHouse(house: number): string {
-  const suffix =
-    house === 1 ? "st" : house === 2 ? "nd" : house === 3 ? "rd" : "th";
-  return `${house}${suffix}`;
-}
 
 /** Detail card for the hovered/pinned bi-wheel selection — the synastry
  *  counterpart of PlacementDetail, side-aware and overlay-aware. */

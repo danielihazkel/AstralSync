@@ -174,6 +174,13 @@ export const TZ_WARNING_COPY: Record<TzWarning, string> = {
 };
 
 /** Minutes east of UTC → "UTC+02:00" / "UTC−05:30" / "UTC±00:00". */
+/** 1 → "1st", 2 → "2nd", 3 → "3rd", 4–12 → "th" — houses only. */
+export function ordinalHouse(house: number): string {
+  const suffix =
+    house === 1 ? "st" : house === 2 ? "nd" : house === 3 ? "rd" : "th";
+  return `${house}${suffix}`;
+}
+
 export function formatOffset(minutes: number): string {
   const sign = minutes < 0 ? "−" : "+";
   const abs = Math.abs(minutes);
