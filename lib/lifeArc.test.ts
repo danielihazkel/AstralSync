@@ -4,6 +4,8 @@ import {
   decadeTicks,
   fractionAt,
   placeBands,
+  personalYearBands,
+  pinnacleBands,
   placeEvents,
   profectionBands,
   type ArcBand,
@@ -145,6 +147,55 @@ describe("profectionBands", () => {
 
   it("stops once it passes the window rather than running to 120", () => {
     expect(bands.length).toBeLessThan(60);
+  });
+});
+
+describe("pinnacleBands", () => {
+  // 1990-02-22: month 2, day 22 (master, kept), year 1990 → 1; Life Path 7,
+  // so the first pinnacle ends at 36 − 7 = 29.
+  const birthDate = { year: 1990, month: 2, day: 22 };
+  const s = arcScale(BIRTH, [], NOW);
+  const bands = pinnacleBands(BIRTH, birthDate, s);
+
+  it("keys each band by its pinnacle and carries its challenge", () => {
+    // P1 2+22 = 24 → 6 with challenge |2−4| = 2; P2 22+1 = 23 → 5 with |4−1| = 3
+    expect(bands.map((b) => [b.key, b.lord])).toEqual([
+      ["6", "2"],
+      ["5", "3"],
+    ]);
+  });
+
+  it("turns at the birthday the age arithmetic names", () => {
+    expect(bands[0].startUtc).toBe(BIRTH);
+    expect(bands[0].endUtc).toBe("2019-02-22T12:30:00.000Z");
+    expect(bands[1].startUtc).toBe(bands[0].endUtc);
+  });
+
+  it("drops the pinnacles that start after the window", () => {
+    // The third would begin at 38, in 2028 — past NOW.
+    expect(bands).toHaveLength(2);
+  });
+});
+
+describe("personalYearBands", () => {
+  const birthDate = { year: 1990, month: 2, day: 22 };
+  const s = arcScale(BIRTH, [], NOW);
+  const bands = personalYearBands(birthDate, s);
+
+  it("runs calendar year to calendar year from the birth year", () => {
+    expect(bands[0].startUtc).toBe("1990-01-01T00:00:00.000Z");
+    for (let i = 1; i < bands.length; i++) {
+      expect(bands[i].startUtc).toBe(bands[i - 1].endUtc);
+    }
+    // The last band holds the window's end (the arc runs a little past now).
+    const last = bands.at(-1)!;
+    expect(Date.parse(last.startUtc)).toBeLessThanOrEqual(s.endMs);
+    expect(Date.parse(last.endUtc)).toBeGreaterThan(s.endMs);
+  });
+
+  it("keys each year by its personal-year number", () => {
+    // 2026: 2 + 22 + (2026 → 1) = 25 → 7
+    expect(bands.find((b) => b.startUtc.startsWith("2026"))!.key).toBe("7");
   });
 });
 

@@ -223,6 +223,7 @@ export default function ProfileTabs({
             lifeStoryReading={astro.lifeStoryReading}
             llmEnabled={llmEnabled}
             birthUtc={chart.input.utc}
+            birthDate={profile.birthDate}
             arcPeriods={arcPeriods}
           />
         </div>

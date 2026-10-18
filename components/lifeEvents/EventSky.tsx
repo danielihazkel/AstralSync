@@ -16,6 +16,7 @@ import {
   type EventCyclesInput,
   type TimeLordLine,
 } from "@/lib/eventSky";
+import { eventNumerology } from "@/lib/eventNumerology";
 import type { LifeEventPrecision } from "@/lib/lifeEventMeta";
 import styles from "./lifeEvents.module.css";
 
@@ -113,10 +114,13 @@ function TimeLordRow({ line }: { line: TimeLordLine }) {
 
 export default function EventSky({
   profileId,
+  birthDate,
   eventDate,
   precision,
 }: {
   profileId: number;
+  /** Civil birth date "YYYY-MM-DD" — the numerology timing's input. */
+  birthDate: string;
   /** Canonical "YYYY-MM-DD" (day 01 for month precision, Jan 01 for year). */
   eventDate: string;
   precision: LifeEventPrecision;
@@ -180,22 +184,45 @@ export default function EventSky({
   const placements = filterPlacementsForPrecision(sky.placements, precision);
   const aspects = filterAspectsForPrecision(sky.crossAspects, precision);
   const lords = timeLordLines(cycles);
+  const numerology = eventNumerology(birthDate, { eventDate, precision });
   const showHouses = !sky.natal.isSolarChart;
 
   return (
     <div className={styles.eventSky}>
       {caveat && <p className={styles.muted}>{caveat}</p>}
 
-      {lords.length > 0 && (
-        <section aria-label="Time lords at this event">
-          <h4 className={styles.skyHeading}>Who was in charge</h4>
-          <dl className={styles.lordList}>
-            {lords.map((line, i) => (
-              <TimeLordRow key={`${line.kind}-${i}`} line={line} />
-            ))}
-          </dl>
-        </section>
-      )}
+      <section aria-label="Time lords at this event">
+        <h4 className={styles.skyHeading}>Who was in charge</h4>
+        <dl className={styles.lordList}>
+          {lords.map((line, i) => (
+            <TimeLordRow key={`${line.kind}-${i}`} line={line} />
+          ))}
+          <div className={styles.lordRow}>
+            <dt>Personal year</dt>
+            <dd>{numerology.personalYear.value}</dd>
+          </div>
+          <div className={styles.lordRow}>
+            <dt>Pinnacle</dt>
+            <dd>
+              {numerology.pinnacle ? (
+                <>
+                  {numerology.pinnacle.number.value}, challenge{" "}
+                  {numerology.pinnacle.challenge}
+                  <span className={styles.muted}>
+                    {" "}
+                    · chapter {numerology.pinnacle.index} of 4
+                  </span>
+                </>
+              ) : (
+                <span className={styles.muted}>
+                  a pinnacle changes within this {precision} — add the day to
+                  know which
+                </span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       <section aria-label="Transits at this event">
         <h4 className={styles.skyHeading}>Transits to the natal chart</h4>

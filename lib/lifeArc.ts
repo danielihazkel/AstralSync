@@ -1,11 +1,17 @@
+import {
+  personalYear,
+  pinnacles,
+  type BirthDate,
+} from "@astralsync/numero-core";
 import type { LifeEventCategory, LifeEventPrecision } from "./lifeEventMeta";
 
 /**
  * The life arc: recorded events laid against the time-lord periods that were
  * running when they happened.
  *
- * Four datasets the app already computes — zodiacal releasing L1 periods,
- * firdaria major periods, annual profections, and the user's own events —
+ * The datasets the app already computes — zodiacal releasing L1 periods,
+ * firdaria major periods, annual profections, numerology's pinnacles and
+ * personal years, and the user's own events —
  * become legible together only on one shared axis. Separately they are four
  * lists of dates; together they are the question the app exists to answer:
  * does this system describe what actually happened?
@@ -18,7 +24,8 @@ import type { LifeEventCategory, LifeEventPrecision } from "./lifeEventMeta";
 export interface ArcBand {
   /** Engine key — the component owns the label. */
   key: string;
-  /** Secondary key (a releasing period's ruling planet), when there is one. */
+  /** Secondary key — a releasing period's ruling planet, a pinnacle's
+   *  challenge — when there is one. */
   lord?: string;
   startUtc: string;
   endUtc: string;
@@ -146,6 +153,53 @@ export function profectionBands(
       key: String((age % 12) + 1),
       startUtc: start.toISOString(),
       endUtc: end.toISOString(),
+    });
+  }
+  return bands;
+}
+
+/**
+ * The four numerology pinnacles as bands: birthday anniversaries at the
+ * ages numero-core's pinnacles() gives, the fourth running to the window's
+ * end. Keyed by the pinnacle number, with its challenge as the secondary key.
+ */
+export function pinnacleBands(
+  birthUtc: string,
+  birthDate: BirthDate,
+  scale: ArcScale,
+): ArcBand[] {
+  const birth = new Date(birthUtc);
+  return pinnacles(birthDate).flatMap((p) => {
+    const start = anniversary(birth, p.fromAge);
+    if (start.getTime() >= scale.endMs) return [];
+    const end = p.toAge === null ? new Date(scale.endMs) : anniversary(birth, p.toAge);
+    return [
+      {
+        key: String(p.number.value),
+        lord: String(p.challenge),
+        startUtc: start.toISOString(),
+        endUtc: end.toISOString(),
+      },
+    ];
+  });
+}
+
+/**
+ * Personal-year bands: calendar years (January to January, the convention
+ * numero-core uses), keyed by the year's number. The first is clipped to
+ * birth by placeBands like every other band.
+ */
+export function personalYearBands(
+  birthDate: BirthDate,
+  scale: ArcScale,
+): ArcBand[] {
+  const lastYear = new Date(scale.endMs).getUTCFullYear();
+  const bands: ArcBand[] = [];
+  for (let year = birthDate.year; year <= lastYear; year++) {
+    bands.push({
+      key: String(personalYear(birthDate, year).value),
+      startUtc: new Date(Date.UTC(year, 0, 1)).toISOString(),
+      endUtc: new Date(Date.UTC(year + 1, 0, 1)).toISOString(),
     });
   }
   return bands;

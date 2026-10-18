@@ -120,6 +120,7 @@ export default function LifeEventsPanel({
   lifeStoryReading,
   llmEnabled,
   birthUtc,
+  birthDate,
   arcPeriods = null,
 }: {
   profileId: number;
@@ -128,6 +129,8 @@ export default function LifeEventsPanel({
   llmEnabled: boolean;
   /** Birth instant — the left edge of the life arc. */
   birthUtc: string;
+  /** Civil birth date "YYYY-MM-DD" — the numerology rows' input. */
+  birthDate: string;
   /** Releasing + firdaria bands; null on a solar chart. */
   arcPeriods?: LifeArcPeriods | null;
 }) {
@@ -359,6 +362,7 @@ export default function LifeEventsPanel({
             <>
               <LifeArc
                 birthUtc={birthUtc}
+                birthDate={birthDate}
                 events={events.events.map((e) => ({
                   id: e.id,
                   title: e.title,
@@ -373,6 +377,7 @@ export default function LifeEventsPanel({
                   <EventRow
                     key={e.id}
                     profileId={profileId}
+                    birthDate={birthDate}
                     event={e}
                     onChanged={loadEvents}
                   />
@@ -458,10 +463,12 @@ export default function LifeEventsPanel({
 
 function EventRow({
   profileId,
+  birthDate,
   event,
   onChanged,
 }: {
   profileId: number;
+  birthDate: string;
   event: EventJson;
   onChanged: () => Promise<void>;
 }) {
@@ -663,6 +670,7 @@ function EventRow({
           {skyOpen && (
             <EventSky
               profileId={profileId}
+              birthDate={birthDate}
               eventDate={event.eventDate}
               precision={event.precision}
             />
