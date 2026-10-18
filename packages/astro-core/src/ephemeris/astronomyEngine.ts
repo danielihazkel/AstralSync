@@ -62,4 +62,17 @@ export const astronomyEngineProvider: EphemerisProvider = {
       Math.cos(beta) * Math.sin(eps) * Math.sin(lambda);
     return Math.asin(sinDec) / DEG;
   },
+
+  rightAscension(planet: Planet, utc: Date): number {
+    // The same ecliptic-of-date → equator rotation as declination().
+    const ecl = Astronomy.Ecliptic(Astronomy.GeoVector(BODY[planet], utc, true));
+    const beta = ecl.elat * DEG;
+    const lambda = ecl.elon * DEG;
+    const eps = meanObliquity(utc) * DEG;
+    const ra = Math.atan2(
+      Math.sin(lambda) * Math.cos(eps) - Math.tan(beta) * Math.sin(eps),
+      Math.cos(lambda),
+    );
+    return norm360(ra / DEG);
+  },
 };

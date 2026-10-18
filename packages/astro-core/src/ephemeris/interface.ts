@@ -18,6 +18,8 @@ export interface EphemerisProvider {
   longitudeSpeed(planet: Planet, utc: Date): number;
   /** Geocentric apparent declination of date, degrees, positive north. */
   declination(planet: Planet, utc: Date): number;
+  /** Geocentric apparent right ascension of date, degrees [0, 360). */
+  rightAscension(planet: Planet, utc: Date): number;
   /** Greenwich apparent sidereal time, degrees [0, 360). */
   siderealTimeDeg(utc: Date): number;
 }

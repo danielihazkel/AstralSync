@@ -47,6 +47,12 @@ export {
   progressedRamc,
   ramcAt,
 } from "./progressed";
+export {
+  astrocartographyLines,
+  horizonLongitude,
+  mcLongitude,
+} from "./astrocartography";
+export type { AcgAngle, AcgLine, AcgOptions } from "./astrocartography";
 export { compositeChart } from "./composite";
 export type { CompositeChartData } from "./composite";
 export { upcomingEclipses } from "./eclipses";
