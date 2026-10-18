@@ -27,7 +27,20 @@ import HomeLocationPicker from "./HomeLocationPicker";
 import DataPanel from "./DataPanel";
 import NotificationsPanel from "./NotificationsPanel";
 import TrashPanel from "./TrashPanel";
+import {
+  browserTimeZone,
+  loadHolidaySchedule,
+  resolveIsraelSchedule,
+  saveHolidaySchedule,
+  type HolidaySchedule,
+} from "@/lib/holidaySchedule";
 import styles from "./settings.module.css";
+
+const SCHEDULE_OPTIONS: Array<{ value: HolidaySchedule; label: string }> = [
+  { value: "auto", label: "Auto (follow the home location)" },
+  { value: "israel", label: "Israel" },
+  { value: "diaspora", label: "Diaspora" },
+];
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: "dark", label: "Dark" },
@@ -49,12 +62,14 @@ export default function SettingsPanel() {
   const [chart, setChart] = useState<ChartDisplaySettings | null>(null);
   const [location, setLocation] = useState<HomeLocation | null>(null);
   const [picking, setPicking] = useState(false);
+  const [schedule, setSchedule] = useState<HolidaySchedule>("auto");
 
   useEffect(() => {
     setTheme(loadThemePreference());
     setOrbs(loadOrbSettings());
     setChart(loadChartSettings());
     setLocation(loadHomeLocation());
+    setSchedule(loadHolidaySchedule());
     setLoaded(true);
   }, []);
 
@@ -117,8 +132,8 @@ export default function SettingsPanel() {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Home location</h2>
         <p className={styles.note}>
-          Used for planetary hours on the Today strip and the electional day
-          picker. Birth cities are never assumed.
+          Used for planetary hours on the Today strip, the electional day
+          picker, and candle-lighting times. Birth cities are never assumed.
         </p>
         {picking ? (
           <HomeLocationPicker
@@ -141,6 +156,49 @@ export default function SettingsPanel() {
             <button className={styles.reset} onClick={() => setPicking(true)}>
               {location ? "Change" : "Set location"}
             </button>
+          </p>
+        )}
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Jewish calendar</h2>
+        <p className={styles.note}>
+          Israel and the Diaspora keep different holiday schedules (one day of
+          Yom Tov or two) and, for part of most years, read different weekly
+          parashiot. Candle-lighting and havdalah times use the home location.
+        </p>
+        <div
+          className={styles.fields}
+          role="radiogroup"
+          aria-label="Holiday schedule"
+        >
+          {SCHEDULE_OPTIONS.map((o) => (
+            <label key={o.value} className={styles.field}>
+              <input
+                type="radio"
+                name="holidaySchedule"
+                value={o.value}
+                checked={schedule === o.value}
+                onChange={() => {
+                  setSchedule(o.value);
+                  saveHolidaySchedule(o.value);
+                }}
+              />{" "}
+              {o.label}
+            </label>
+          ))}
+        </div>
+        {schedule === "auto" && (
+          <p className={styles.note}>
+            Currently:{" "}
+            {resolveIsraelSchedule(
+              "auto",
+              location?.tzIana ?? null,
+              browserTimeZone(),
+            )
+              ? "Israel"
+              : "Diaspora"}
+            .
           </p>
         )}
       </section>

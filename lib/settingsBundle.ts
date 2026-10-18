@@ -4,6 +4,12 @@ import {
   saveChartSettings,
   type ChartDisplaySettings,
 } from "./chartSettings";
+import {
+  loadHolidaySchedule,
+  sanitizeHolidaySchedule,
+  saveHolidaySchedule,
+  type HolidaySchedule,
+} from "./holidaySchedule";
 import { loadHomeLocation, saveHomeLocation } from "./homeLocation";
 import {
   loadOrbSettings,
@@ -22,7 +28,7 @@ import type { HomeLocation } from "./today";
 /**
  * Every per-browser preference as one portable JSON document, so settings
  * can move between devices (they never live in the DB or in profile
- * exports). `collect` reads the four stores; `apply` validates a parsed
+ * exports). `collect` reads the five stores; `apply` validates a parsed
  * document field by field and writes only what it recognises — a partial
  * or foreign document leaves the missing preferences untouched.
  */
@@ -33,6 +39,7 @@ export interface SettingsBundle {
   orbs: OrbSettings;
   chart: ChartDisplaySettings;
   homeLocation: HomeLocation | null;
+  holidaySchedule: HolidaySchedule;
 }
 
 export function collectSettingsBundle(): SettingsBundle {
@@ -42,6 +49,7 @@ export function collectSettingsBundle(): SettingsBundle {
     orbs: loadOrbSettings(),
     chart: loadChartSettings(),
     homeLocation: loadHomeLocation(),
+    holidaySchedule: loadHolidaySchedule(),
   };
 }
 
@@ -91,6 +99,9 @@ export function parseSettingsBundle(raw: unknown): Partial<SettingsBundle> | nul
         ? (l as unknown as HomeLocation)
         : null;
   }
+  if ("holidaySchedule" in r) {
+    out.holidaySchedule = sanitizeHolidaySchedule(r.holidaySchedule);
+  }
   return out;
 }
 
@@ -104,5 +115,6 @@ export function applySettingsBundle(raw: unknown): boolean {
   if (bundle.orbs !== undefined) saveOrbSettings(bundle.orbs);
   if (bundle.chart !== undefined) saveChartSettings(bundle.chart);
   if (bundle.homeLocation) saveHomeLocation(bundle.homeLocation);
+  if (bundle.holidaySchedule !== undefined) saveHolidaySchedule(bundle.holidaySchedule);
   return true;
 }

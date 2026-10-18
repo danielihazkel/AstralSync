@@ -36,6 +36,17 @@ describe("parseSettingsBundle", () => {
     expect(parsed).not.toHaveProperty("homeLocation");
   });
 
+  it("carries the holiday schedule, sanitized, and leaves it out when absent", () => {
+    expect(
+      parseSettingsBundle({ settingsVersion: 1, holidaySchedule: "diaspora" })?.holidaySchedule,
+    ).toBe("diaspora");
+    expect(
+      parseSettingsBundle({ settingsVersion: 1, holidaySchedule: "moon" })?.holidaySchedule,
+    ).toBe("auto");
+    // Older files predate the preference: nothing to apply.
+    expect(parseSettingsBundle({ settingsVersion: 1 })).not.toHaveProperty("holidaySchedule");
+  });
+
   it("keeps a well-formed home location and drops a malformed one", () => {
     const loc = { label: "Tel Aviv", lat: 32.08, lng: 34.78, tzIana: "Asia/Jerusalem" };
     expect(
