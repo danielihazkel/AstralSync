@@ -1,3 +1,4 @@
+import { listDayEventsForProfiles } from "@/lib/lifeEvents";
 import { listProfiles } from "@/lib/snapshots";
 import { capTodayProfiles } from "@/lib/todayCap";
 import EmptyState from "@/components/EmptyState";
@@ -20,6 +21,11 @@ export default async function Home() {
   const todayScan = capTodayProfiles(
     profiles.filter((p) => p.placements !== null),
   );
+  // Day-dated life events of the same charts, for "Hebrew anniversary
+  // today" on the strip.
+  const anniversaryEvents = await listDayEventsForProfiles(
+    todayScan.shown.map((p) => p.id),
+  );
 
   return (
     <main>
@@ -37,6 +43,7 @@ export default async function Home() {
         }))}
         primaryId={primaryId}
         hiddenCount={todayScan.hiddenCount}
+        anniversaryEvents={anniversaryEvents}
       />
 
       {profiles.length === 0 ? (

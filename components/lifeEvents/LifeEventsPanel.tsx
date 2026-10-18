@@ -25,7 +25,10 @@ import {
   type EventDateInputs,
 } from "./eventDateInput";
 import EmptyState from "@/components/EmptyState";
-import { localNoonIso } from "@/components/atDate";
+import { localNoonIso, todayLocalDate } from "@/components/atDate";
+import { downloadIcs } from "@/components/downloadIcs";
+import { buildIcs } from "@/lib/ics";
+import type { EventHebrewInfo } from "@/lib/hebrewAnniversaries";
 import EventSky from "./EventSky";
 import LifeArc, { type LifeArcPeriods } from "./LifeArc";
 import Markdown from "@/components/Markdown";
@@ -148,6 +151,31 @@ export default function LifeEventsPanel({
   const [genError, setGenError] = useState<string | null>(null);
   const { busy, streamText, generate: streamGenerate, reset } =
     useStreamedGeneration();
+
+  // Hebrew dates and anniversaries for the day-dated events — computed in
+  // the browser by dynamic import (hebcal stays out of the first bundle).
+  const [hebrew, setHebrew] = useState<{
+    info: Map<number, EventHebrewInfo>;
+    mod: typeof import("@/lib/hebrewAnniversaries");
+  } | null>(null);
+  const eventList = events.kind === "data" ? events.events : null;
+  useEffect(() => {
+    if (eventList === null) return;
+    let cancelled = false;
+    void import("@/lib/hebrewAnniversaries").then((mod) => {
+      if (cancelled) return;
+      const today = todayLocalDate();
+      const info = new Map<number, EventHebrewInfo>();
+      for (const e of eventList) {
+        const i = mod.eventHebrewInfo(e, today);
+        if (i) info.set(e.id, i);
+      }
+      setHebrew({ info, mod });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventList]);
 
   const loadEvents = useCallback(async () => {
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -385,10 +413,31 @@ export default function LifeEventsPanel({
                     profileId={profileId}
                     birthDate={birthDate}
                     event={e}
+                    hebrew={hebrew?.info.get(e.id) ?? null}
                     onChanged={loadEvents}
                   />
                 ))}
               </ul>
+              {hebrew !== null && hebrew.info.size > 0 && (
+                <p className={styles.muted}>
+                  Hebrew dates assume the event happened in daylight — after
+                  sunset it belongs to the next Hebrew day.{" "}
+                  <button
+                    className={styles.linkButton}
+                    onClick={() =>
+                      downloadIcs(
+                        buildIcs(
+                          hebrew.mod.anniversaryIcsEvents(events.events, todayLocalDate()),
+                          { calName: "AstralSync — Hebrew anniversaries" },
+                        ),
+                        "astralsync-hebrew-anniversaries",
+                      )
+                    }
+                  >
+                    Export the next ten years of Hebrew anniversaries (.ics)
+                  </button>
+                </p>
+              )}
             </>
           ))}
       </section>
@@ -471,11 +520,14 @@ function EventRow({
   profileId,
   birthDate,
   event,
+  hebrew,
   onChanged,
 }: {
   profileId: number;
   birthDate: string;
   event: EventJson;
+  /** The event's Hebrew date and next anniversary (day-dated only). */
+  hebrew: EventHebrewInfo | null;
   onChanged: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -561,6 +613,26 @@ function EventRow({
           <span className={styles.entryDate}>
             {formatEventDate(event.eventDate, event.precision)}
           </span>
+          {hebrew && (
+            <span className={styles.hebrewDate}>
+              <span lang="he" dir="rtl">
+                {hebrew.hebrewDate}
+              </span>
+              {hebrew.next && (
+                <>
+                  {" · "}
+                  {hebrew.kind === "yahrzeit" ? "yahrzeit" : "Hebrew anniversary"}{" "}
+                  {new Date(`${hebrew.next.date}T12:00:00Z`).toLocaleDateString(undefined, {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  })}
+                  {" "}(from the evening before)
+                </>
+              )}
+            </span>
+          )}
         </span>
         <span className={styles.entryActions}>
           {!editing && (

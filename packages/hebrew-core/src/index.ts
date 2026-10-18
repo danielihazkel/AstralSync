@@ -2,9 +2,13 @@ export * from "./types";
 export { hebrewBirthDate } from "./hebrewDate";
 export { civilToHebrewDateParts, hebrewMonthStartCivil } from "./calendar";
 export {
+  hebrewDateOf,
   hebrewDayLabel,
   jewishEvents,
+  nextHebrewAnniversary,
   nextHebrewBirthday,
+  type AnniversaryKind,
+  type HebrewAnniversary,
   type JewishCalendarOptions,
   type JewishEvent,
   type JewishEventKind,

@@ -17,10 +17,26 @@ import HomeLocationPicker from "@/components/settings/HomeLocationPicker";
 import type { Sign } from "@astralsync/astro-core";
 import { loadHomeLocation } from "@/lib/homeLocation";
 import type { JewishEvent } from "@astralsync/hebrew-core";
+import type { AnniversaryEvent } from "@/lib/hebrewAnniversaries";
 import { buildIcs, type IcsEvent } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
 import { momentHref, todayLocalDate } from "@/components/atDate";
 import styles from "./today.module.css";
+
+export interface TodayAnniversaryEvent extends AnniversaryEvent {
+  profileId: number;
+}
+
+/** Stable default: a fresh [] per render would re-run the recompute effect
+ *  (it is a dependency) on every render. */
+const NO_ANNIVERSARY_EVENTS: TodayAnniversaryEvent[] = [];
+
+/** The civil date today's Hebrew day belongs to: after sunset, tomorrow's. */
+function hebrewDayCivil(h: { civilDate: string; afterSunset: boolean }): string {
+  if (!h.afterSunset) return h.civilDate;
+  const [y, m, d] = h.civilDate.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
 
 interface UpcomingProfile {
   profileId: number;
@@ -50,6 +66,7 @@ export default function TodayDashboard({
   profiles,
   primaryId = null,
   hiddenCount = 0,
+  anniversaryEvents = NO_ANNIVERSARY_EVENTS,
 }: {
   profiles: TodayProfile[];
   /** The primary ("my") chart leads each per-profile list; the rest fold
@@ -57,9 +74,15 @@ export default function TodayDashboard({
   primaryId?: number | null;
   /** Profiles the scan guardrail left out (lib/todayCap). */
   hiddenCount?: number;
+  /** Day-dated life events of the scanned charts, for their Hebrew
+   *  anniversaries. */
+  anniversaryEvents?: TodayAnniversaryEvent[];
 }) {
   const [sky, setSky] = useState<TodaySky | null>(null);
   const [jewishToday, setJewishToday] = useState<JewishEvent[]>([]);
+  const [anniversaries, setAnniversaries] = useState<
+    Array<{ key: number; label: string; profileId: number }>
+  >([]);
   const [location, setLocation] = useState<HomeLocation | null>(null);
   const [picking, setPicking] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -90,11 +113,13 @@ export default function TodayDashboard({
 
   const recompute = useCallback(
     async (loc: HomeLocation | null) => {
-      const [{ computeToday }, { loadOrbSettings }, jewish] = await Promise.all([
-        import("@/lib/today"),
-        import("@/lib/orbSettings"),
-        import("@/lib/jewishMonth"),
-      ]);
+      const [{ computeToday }, { loadOrbSettings }, jewish, hebrewAnniv] =
+        await Promise.all([
+          import("@/lib/today"),
+          import("@/lib/orbSettings"),
+          import("@/lib/jewishMonth"),
+          import("@/lib/hebrewAnniversaries"),
+        ]);
       const now = new Date();
       const orbs = loadOrbSettings();
       const next = computeToday(now, loc, profiles, {
@@ -106,9 +131,20 @@ export default function TodayDashboard({
       setJewishToday(
         jewish.jewishEventsNow(now, next.hebrew, jewish.currentJewishOptions()),
       );
+      // A Hebrew anniversary begins at sunset, like the date above it.
+      const names = new Map(profiles.map((p) => [p.id, p.displayName]));
+      setAnniversaries(
+        hebrewAnniv
+          .anniversariesOn(anniversaryEvents, hebrewDayCivil(next.hebrew))
+          .map((e) => ({
+            key: e.id,
+            profileId: e.profileId,
+            label: `${hebrewAnniv.anniversaryLabel(e.title, e.info.kind, e.info.next!.years)} · ${names.get(e.profileId) ?? ""}`,
+          })),
+      );
       setSky(next);
     },
-    [profiles],
+    [profiles, anniversaryEvents],
   );
 
   // Compute on mount and re-check each minute (the planetary hour moves).
@@ -250,6 +286,15 @@ export default function TodayDashboard({
               {jewishToday.map((e) => (
                 <li key={`${e.kind}-${e.title}`} className={e.major ? styles.yomTov : undefined}>
                   {e.title}
+                </li>
+              ))}
+            </ul>
+          )}
+          {anniversaries.length > 0 && (
+            <ul className={styles.jewishToday} aria-label="Hebrew anniversaries">
+              {anniversaries.map((a) => (
+                <li key={a.key}>
+                  <Link href={`/profiles/${a.profileId}?tab=life-events`}>{a.label}</Link>
                 </li>
               ))}
             </ul>

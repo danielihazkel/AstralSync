@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { hebrewDayLabel, jewishEvents, nextHebrewBirthday } from "../src";
+import {
+  hebrewDateOf,
+  hebrewDayLabel,
+  jewishEvents,
+  nextHebrewAnniversary,
+  nextHebrewBirthday,
+} from "../src";
 
 const TEL_AVIV = { lat: 32.08, lng: 34.78, tzIana: "Asia/Jerusalem", label: "Tel Aviv" };
 const TISHREI_5787 = { from: { year: 2026, month: 9, day: 10 }, to: { year: 2026, month: 10, day: 20 } };
@@ -80,5 +86,49 @@ describe("nextHebrewBirthday", () => {
     // 1 Tishrei: Rosh Hashana 5787 was 12 Sep 2026; 5788's is 2 Oct 2027.
     const next = nextHebrewBirthday({ year: 5750, month: 7, day: 1 }, { year: 2026, month: 10, day: 18 });
     expect(next.civil).toEqual({ year: 2027, month: 10, day: 2 });
+  });
+});
+
+describe("nextHebrewAnniversary", () => {
+  const sameHebrewDay = (a: { year: number; month: number; day: number }, b: typeof a) => {
+    const x = hebrewDayLabel(a);
+    const y = hebrewDayLabel(b);
+    return x.day === y.day && x.monthName === y.monthName;
+  };
+
+  it("lands on the same Hebrew day in a later year", () => {
+    // Yom Kippur 5781 — 28 Sep 2020 — seen from after Yom Kippur 5787.
+    const event = { year: 2020, month: 9, day: 28 };
+    const next = nextHebrewAnniversary(event, { year: 2026, month: 10, day: 18 }, "anniversary")!;
+    expect(sameHebrewDay(next.civil, event)).toBe(true);
+    expect(next.years).toBe(7);
+    expect(next.civil.year).toBe(2027);
+  });
+
+  it("counts today as the anniversary when it falls today", () => {
+    const event = { year: 2020, month: 9, day: 28 };
+    const yk5787 = { year: 2026, month: 9, day: 21 };
+    expect(nextHebrewAnniversary(event, yk5787, "yahrzeit")!.civil).toEqual(yk5787);
+  });
+
+  it("never offers the event's own year", () => {
+    const event = { year: 2026, month: 10, day: 1 };
+    const next = nextHebrewAnniversary(event, { year: 2026, month: 10, day: 5 }, "anniversary")!;
+    expect(next.years).toBe(1);
+    expect(next.civil.year).toBe(2027);
+  });
+
+  it("agrees with the plain anniversary for an ordinary yahrzeit", () => {
+    const event = { year: 2015, month: 6, day: 10 };
+    const from = { year: 2026, month: 1, day: 1 };
+    expect(nextHebrewAnniversary(event, from, "yahrzeit")).toEqual(
+      nextHebrewAnniversary(event, from, "anniversary"),
+    );
+  });
+});
+
+describe("hebrewDateOf", () => {
+  it("renders the daytime Hebrew date", () => {
+    expect(hebrewDateOf({ year: 2026, month: 9, day: 21 })).toMatch(/תִּשְׁרֵי|תשרי/);
   });
 });

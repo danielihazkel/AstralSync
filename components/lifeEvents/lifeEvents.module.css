@@ -104,6 +104,24 @@
   font-size: 0.85rem;
 }
 
+/* The Hebrew date and next anniversary sit on their own line under the
+   title — the row's first line stays the civil date. */
+.hebrewDate {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-bright);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .entryActions {
   display: inline-flex;
   gap: 0.5rem;

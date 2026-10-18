@@ -84,6 +84,32 @@ export async function listLifeEvents(
   return rows.map(serialize);
 }
 
+/** Day-dated events for a set of profiles — the Today strip's Hebrew
+ *  anniversaries. Lean: no notes, no pinned sky. */
+export async function listDayEventsForProfiles(profileIds: number[]) {
+  if (profileIds.length === 0) return [];
+  const rows = await prisma.lifeEvent.findMany({
+    where: { profileId: { in: profileIds }, precision: "day" },
+    orderBy: { eventDate: "asc" },
+    select: {
+      id: true,
+      profileId: true,
+      title: true,
+      eventDate: true,
+      precision: true,
+      category: true,
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    profileId: r.profileId,
+    title: r.title,
+    eventDate: dateString(r.eventDate),
+    precision: r.precision as LifeEventPrecision,
+    category: r.category as LifeEventCategory,
+  }));
+}
+
 /** Null when the profile doesn't exist (404); "limit" when the profile
  *  already holds MAX_LIFE_EVENTS_PER_PROFILE live events (409). */
 export async function createLifeEvent(args: {

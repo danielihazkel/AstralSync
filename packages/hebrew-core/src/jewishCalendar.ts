@@ -162,3 +162,53 @@ export function nextHebrewBirthday(
   // after any date. Kept total for the type checker.
   throw new Error("no Hebrew birthday within two years");
 }
+
+export type AnniversaryKind = "anniversary" | "yahrzeit";
+
+export interface HebrewAnniversary {
+  /** The civil day it falls on (it begins at the previous sunset). */
+  civil: CivilDate;
+  /** Its Hebrew date in letters. */
+  hebrew: string;
+  /** Hebrew years since the event. */
+  years: number;
+}
+
+/**
+ * The next Hebrew anniversary of a civil date, on or after `from` — the
+ * event dated by its daytime Hebrew date (no time of day is recorded; an
+ * event after sunset belongs to the next Hebrew day). A yahrzeit follows
+ * the mourning rules (hebcal's getYahrzeit: a death in Adar of a common
+ * year, or on 30 Cheshvan or 30 Kislev, moves by custom); any other
+ * anniversary follows the birthday rules. The first anniversary is the
+ * next Hebrew year's — nothing within the event's own year counts. Null
+ * only if hebcal finds none within two years (not expected).
+ */
+export function nextHebrewAnniversary(
+  event: CivilDate,
+  from: CivilDate,
+  kind: AnniversaryKind,
+): HebrewAnniversary | null {
+  const eventHd = hdateFromCivil(event);
+  const startYear = Math.max(
+    hdateFromCivil(from).getFullYear(),
+    eventHd.getFullYear() + 1,
+  );
+  for (let hyear = startYear; hyear <= startYear + 1; hyear++) {
+    const hd =
+      kind === "yahrzeit"
+        ? HebrewCalendar.getYahrzeit(hyear, eventHd)
+        : HebrewCalendar.getBirthdayOrAnniversary(hyear, eventHd);
+    if (!hd) continue;
+    const civil = civilOf(hd);
+    if (iso(civil) >= iso(from)) {
+      return { civil, hebrew: hd.renderGematriya(), years: hyear - eventHd.getFullYear() };
+    }
+  }
+  return null;
+}
+
+/** A civil date's (daytime) Hebrew date in letters, "ז׳ אדר תשפ״ו". */
+export function hebrewDateOf(civil: CivilDate): string {
+  return hdateFromCivil(civil).renderGematriya();
+}
