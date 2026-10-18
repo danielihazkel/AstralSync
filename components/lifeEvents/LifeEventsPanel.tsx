@@ -328,6 +328,7 @@ export default function LifeEventsPanel({
         <div className={styles.addForm}>
           <input
             type="text"
+            dir="auto"
             className={styles.titleInput}
             value={title}
             maxLength={MAX_LIFE_EVENT_TITLE}
@@ -369,6 +370,7 @@ export default function LifeEventsPanel({
             </select>
           </div>
           <textarea
+            dir="auto"
             rows={2}
             maxLength={MAX_LIFE_EVENT_NOTES}
             value={notes}
@@ -625,7 +627,7 @@ function EventRow({
     <li className={styles.entry}>
       <div className={styles.entryHeader}>
         <span className={styles.entryTitle}>
-          <strong>{event.title}</strong>{" "}
+          <strong dir="auto">{event.title}</strong>{" "}
           <span className={styles.entryDate}>
             {formatEventDate(event.eventDate, event.precision)}
           </span>
@@ -697,6 +699,7 @@ function EventRow({
         <div className={styles.addForm}>
           <input
             type="text"
+            dir="auto"
             className={styles.titleInput}
             value={title}
             maxLength={MAX_LIFE_EVENT_TITLE}
@@ -737,6 +740,7 @@ function EventRow({
             </select>
           </div>
           <textarea
+            dir="auto"
             rows={2}
             maxLength={MAX_LIFE_EVENT_NOTES}
             value={notes}
@@ -757,7 +761,7 @@ function EventRow({
             {LIFE_EVENT_CATEGORY_LABELS[event.category]}
           </span>
           {event.notesMd && (
-            <div className={styles.entryBody}>
+            <div className={styles.entryBody} dir="auto">
               <Markdown md={event.notesMd} />
             </div>
           )}

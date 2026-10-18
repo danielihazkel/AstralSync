@@ -197,7 +197,7 @@ export default function LifeArc({
               onClick={() => setActive((v) => (v === e.id ? null : e.id))}
             >
               <span className={styles.srOnly}>
-                {e.title}, {formatEventDate(e.eventDate, e.precision)}
+                <bdi>{e.title}</bdi>, {formatEventDate(e.eventDate, e.precision)}
               </span>
             </button>
           ))}

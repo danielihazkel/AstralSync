@@ -183,7 +183,7 @@ export default function JournalTimeline({
                     ))}
                   </ul>
                 )}
-                <div className={styles.entryBody}>
+                <div className={styles.entryBody} dir="auto">
                   <Markdown md={e.bodyMd} />
                 </div>
               </li>

@@ -333,6 +333,7 @@ export default function JournalPanel({
             New note for {formatBirthDate(date)}
           </label>
           <textarea
+            dir="auto"
             id="journal-draft"
             rows={4}
             maxLength={10_000}
@@ -343,6 +344,7 @@ export default function JournalPanel({
           <MoodPicker value={draftMood} onChange={setDraftMood} />
           <input
             type="text"
+            dir="auto"
             value={draftTags}
             placeholder="Tags, comma-separated (work, dreams…)"
             aria-label="Tags, comma-separated"
@@ -710,6 +712,7 @@ function EntryRow({
       {editing ? (
         <div className={styles.addForm}>
           <textarea
+            dir="auto"
             rows={4}
             maxLength={10_000}
             value={text}
@@ -719,6 +722,7 @@ function EntryRow({
           <MoodPicker value={mood} onChange={setMood} />
           <input
             type="text"
+            dir="auto"
             value={tagsText}
             placeholder="Tags, comma-separated"
             aria-label="Tags, comma-separated"
@@ -736,7 +740,7 @@ function EntryRow({
         </div>
       ) : (
         <>
-          <div className={styles.entryBody}>
+          <div className={styles.entryBody} dir="auto">
             <Markdown md={entry.bodyMd} />
           </div>
           {(entry.mood !== null || entry.tags.length > 0) && (
