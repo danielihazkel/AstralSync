@@ -799,6 +799,21 @@ export default function CyclesPanel({
               : "at the birth location."}
             {data.natal.isSolarChart &&
               " The birth time is unknown, so the natal Sun is a noon estimate — the return moment (and this chart's houses) shift with it."}
+            {solarReturn.relocated && homeLoc && !data.natal.isSolarChart && (
+              <>
+                {" "}
+                <a
+                  href={`/profiles/${profileId}/relocation?${new URLSearchParams({
+                    lat: homeLoc.lat.toFixed(4),
+                    lng: homeLoc.lng.toFixed(4),
+                    label: homeLoc.label,
+                  }).toString()}`}
+                >
+                  Your birth chart relocated to {homeLoc.label}, with its map
+                </a>
+                .
+              </>
+            )}
           </p>
           {srView === "home" && !homeLoc ? (
             <>

@@ -32,7 +32,7 @@ export const GO_TARGETS: Record<string, { href: string; label: string }> = {
   j: { href: "/journal", label: "Journal" },
   c: { href: "/calendar", label: "Sky Calendar" },
   e: { href: "/ephemeris", label: "Ephemeris" },
-  m: { href: "/chart", label: "Chart of the moment" },
+  m: { href: "/chart", label: "Sky now (chart of the moment)" },
   n: { href: "/onboarding", label: "New profile" },
   s: { href: "/settings", label: "Settings" },
 };
@@ -48,6 +48,22 @@ export interface KeyStroke {
 }
 
 const PROFILE_PATH_RE = /^\/profiles\/(\d+)$/;
+/** A profile page or any of its sub-pages (relocation, birth time, print). */
+const PROFILE_AREA_RE = /^\/profiles\/(\d+)(?:\/|$)/;
+
+/** Pages with no `g` key, reachable from the palette. */
+const EXTRA_PAGES: Array<{ href: string; label: string }> = [
+  { href: "/synastry/group", label: "Group synastry grid" },
+];
+
+/** A profile's own pages beyond its tabs. */
+const PROFILE_PAGES: Array<{ path: string; label: string }> = [
+  { path: "relocation", label: "Relocation & astrocartography" },
+  { path: "birth-time", label: "Birth time (sensitivity & rectification)" },
+  { path: "print", label: "Printable report" },
+  { path: "print/cycles", label: "Year-ahead report" },
+  { path: "edit", label: "Edit birth data" },
+];
 
 /** One keydown → one action (or null). `pendingG` is true when the previous
  *  stroke was a bare "g" and its window is still open. */
@@ -105,27 +121,33 @@ export const SHORTCUT_HELP: Array<{ keys: string; description: string }> = [
 export interface PaletteCommand {
   label: string;
   href: string;
-  group: "Pages" | "Tabs" | "Profiles";
+  group: "Pages" | "This profile" | "Profiles";
 }
 
-/** The palette's full item list for the current location. Profile tabs
- *  appear only on a profile page (they link into the same profile). */
+/** The palette's full item list for the current location. On a profile
+ *  page or one of its sub-pages, that profile's tabs and own pages come
+ *  too (they link into the same profile). */
 export function paletteCommands(
   path: string,
   profiles: Array<{ id: number; displayName: string }>,
 ): PaletteCommand[] {
-  const pages: PaletteCommand[] = Object.values(GO_TARGETS).map((t) => ({
-    label: t.label,
-    href: t.href,
-    group: "Pages",
-  }));
-  const m = PROFILE_PATH_RE.exec(path);
+  const pages: PaletteCommand[] = [...Object.values(GO_TARGETS), ...EXTRA_PAGES].map(
+    (t) => ({ label: t.label, href: t.href, group: "Pages" }),
+  );
+  const m = PROFILE_AREA_RE.exec(path);
   const tabs: PaletteCommand[] = m
-    ? TABS.map((t) => ({
-        label: `${t} tab`,
-        href: `/profiles/${m[1]}?tab=${paramFromTab(t)}`,
-        group: "Tabs",
-      }))
+    ? [
+        ...TABS.map((t) => ({
+          label: `${t} tab`,
+          href: `/profiles/${m[1]}?tab=${paramFromTab(t)}`,
+          group: "This profile" as const,
+        })),
+        ...PROFILE_PAGES.map((p) => ({
+          label: p.label,
+          href: `/profiles/${m[1]}/${p.path}`,
+          group: "This profile" as const,
+        })),
+      ]
     : [];
   const rows: PaletteCommand[] = profiles.map((p) => ({
     label: p.displayName,

@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import LlmDisclosure from "@/components/llm/LlmDisclosure";
+import SiteNav from "@/components/nav/SiteNav";
 import { NotificationScheduler } from "@/components/pwa/NotificationScheduler";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import GlobalShortcuts from "@/components/shortcuts/GlobalShortcuts";
 import { ThemeScript } from "@/components/theme/ThemeScript";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { UndoToast } from "@/components/undo/UndoToast";
 import { THEME_COLOR } from "@/lib/pwa/manifest";
 import "./globals.css";
@@ -28,23 +28,18 @@ export default function RootLayout({
       <body>
         <ThemeScript />
         <ServiceWorkerRegistration />
+        <a href="#content" className="skipLink">
+          Skip to content
+        </a>
         <header className="siteHeader">
           <Link href="/" className="siteBrand">
             ✶ AstralSync
           </Link>
-          <nav className="siteNav">
-            <Link href="/">Profiles</Link>
-            <Link href="/synastry">Synastry</Link>
-            <Link href="/journal">Journal</Link>
-            <Link href="/calendar">Calendar</Link>
-            <Link href="/ephemeris">Ephemeris</Link>
-            <Link href="/chart">Chart</Link>
-            <Link href="/onboarding">New profile</Link>
-            <Link href="/settings">Settings</Link>
-            <ThemeToggle />
-          </nav>
+          <SiteNav />
         </header>
-        {children}
+        <div id="content" tabIndex={-1} className="siteContent">
+          {children}
+        </div>
         <UndoToast />
         <LlmDisclosure />
         <GlobalShortcuts />

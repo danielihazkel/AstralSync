@@ -88,14 +88,23 @@ describe("paletteCommands / filterCommands", () => {
     const items = paletteCommands("/journal", profiles);
     expect(items.some((i) => i.group === "Pages" && i.href === "/settings")).toBe(true);
     expect(items.some((i) => i.group === "Profiles" && i.href === "/profiles/2")).toBe(true);
-    expect(items.some((i) => i.group === "Tabs")).toBe(false);
+    expect(items.some((i) => i.group === "This profile")).toBe(false);
   });
 
-  it("adds the profile tabs on a profile page", () => {
+  it("adds the profile tabs and its own pages on a profile page", () => {
     const items = paletteCommands("/profiles/7", profiles);
-    const tabs = items.filter((i) => i.group === "Tabs");
-    expect(tabs).toHaveLength(TABS.length);
+    const tabs = items.filter((i) => i.group === "This profile");
+    expect(tabs.length).toBeGreaterThan(TABS.length);
     expect(tabs[0].href).toBe("/profiles/7?tab=chart");
+    expect(tabs.some((i) => i.href === "/profiles/7/relocation")).toBe(true);
+    expect(tabs.some((i) => i.href === "/profiles/7/birth-time")).toBe(true);
+  });
+
+  it("keeps the profile's commands on its sub-pages, and lists the group grid", () => {
+    const items = paletteCommands("/profiles/7/relocation", profiles);
+    expect(items.some((i) => i.href === "/profiles/7/print/cycles")).toBe(true);
+    expect(items.some((i) => i.href === "/synastry/group")).toBe(true);
+    expect(paletteCommands("/profiles/77x", profiles).some((i) => i.group === "This profile")).toBe(false);
   });
 
   it("filters case-insensitively and passes empty queries through", () => {

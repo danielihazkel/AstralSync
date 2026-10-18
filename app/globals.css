@@ -114,7 +114,8 @@ html[data-theme="light"] body {
     background-image: none;
   }
 
-  body > header {
+  body > header,
+  .skipLink {
     display: none;
   }
 }
@@ -170,12 +171,58 @@ main {
 
 .siteNav {
   display: flex;
+  align-items: baseline;
+}
+
+.siteNavLinks {
+  display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   gap: 1.25rem;
 }
 
 .siteNav a {
   color: var(--text-muted);
+}
+
+.siteNav a[aria-current="page"] {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 0.3em;
+}
+
+/* Phone-width only: the links collapse behind this button. */
+.siteNavToggle {
+  display: none;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.2rem 0.75rem;
+  cursor: pointer;
+}
+
+/* Visible only on keyboard focus: the first stop on every page. */
+.skipLink {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.4rem 0.8rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.skipLink:focus {
+  top: 0.5rem;
+}
+
+.siteContent:focus {
+  outline: none;
 }
 
 .themeToggle {
@@ -200,7 +247,24 @@ main {
   }
 
   .siteNav {
-    gap: 0.9rem;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .siteNavToggle {
+    display: inline-block;
+  }
+
+  .siteNavLinks {
+    display: none;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.6rem;
+    padding-top: 0.6rem;
+  }
+
+  .siteNavLinks[data-open] {
+    display: flex;
   }
 
   main {
