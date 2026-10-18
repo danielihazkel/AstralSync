@@ -298,17 +298,23 @@ export function isBundle(body: unknown): boolean {
  * import, so a relationship whose partner was not in the bundle is dropped
  * rather than half-restored. The model's ordered-pair invariant (aId < bId)
  * is re-established after remapping, because new ids need not preserve the
- * old ordering. Self-pairs cannot survive a remap and are dropped too.
+ * old ordering. Self-pairs cannot survive a remap and are dropped too, and
+ * a pair listed twice (a hand-edited file, or (a,b) beside (b,a)) keeps its
+ * first row — the unique pair would otherwise fail the whole restore.
  */
 export function remapRelationshipRows(
   relationships: z.infer<typeof relationshipSchema>[],
   profileIdMap: Map<number, number>,
 ) {
   const rows = [];
+  const seen = new Set<string>();
   for (const r of relationships) {
     const a = profileIdMap.get(r.aId);
     const b = profileIdMap.get(r.bId);
     if (a === undefined || b === undefined || a === b) continue;
+    const key = `${Math.min(a, b)}:${Math.max(a, b)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     rows.push({
       aId: Math.min(a, b),
       bId: Math.max(a, b),

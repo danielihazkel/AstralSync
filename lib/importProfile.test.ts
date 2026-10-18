@@ -383,6 +383,22 @@ describe("remapRelationshipRows", () => {
     createdAt: "2026-03-01T12:00:00.000Z",
   };
 
+  it("keeps the first row of a pair listed twice", () => {
+    const map = new Map([
+      [7, 101],
+      [9, 102],
+    ]);
+    const rows = remapRelationshipRows(
+      [
+        { ...base, aId: 7, bId: 9, label: "first" },
+        { ...base, aId: 9, bId: 7, label: "second" },
+      ],
+      map,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].label).toBe("first");
+  });
+
   it("remaps both endpoints onto the new profile ids", () => {
     const map = new Map([
       [7, 101],

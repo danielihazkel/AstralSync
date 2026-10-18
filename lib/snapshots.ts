@@ -1052,8 +1052,11 @@ export async function exportAllProfiles() {
   }
   // Saved relationships are a property of a *pair*, so they have no meaning
   // in a single-profile export and live only at the bundle level. Their
-  // endpoints are exported profile ids, remapped on import.
+  // endpoints are exported profile ids, remapped on import. Relationship is
+  // not a soft-delete model, so the live-profile filter is named here: a
+  // pair with a trashed side would carry its label and note into the file.
   const relationships = await prisma.relationship.findMany({
+    where: { a: { deletedAt: null }, b: { deletedAt: null } },
     orderBy: { id: "asc" },
     select: {
       aId: true,
