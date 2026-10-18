@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import AlmanacPanel from "@/components/calendar/AlmanacPanel";
 import { isValidAlmanacDate } from "@/lib/almanacDate";
+import { resolveMoonPhaseProse } from "@/lib/content";
 
 /**
  * Day almanac: the full sky story of one civil day, deep-linkable from the
@@ -32,7 +33,7 @@ export default async function AlmanacPage({
     <main>
       <h1>Sky almanac</h1>
       <Suspense>
-        <AlmanacPanel date={date} />
+        <AlmanacPanel date={date} moonPhaseProse={resolveMoonPhaseProse()} />
       </Suspense>
     </main>
   );

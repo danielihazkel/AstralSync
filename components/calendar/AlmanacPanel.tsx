@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import DayProfileLinks from "@/components/DayProfileLinks";
+import MoonPhaseProse from "@/components/MoonPhaseProse";
+import type { EntryProse } from "@/lib/content";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { AlmanacDay } from "@/lib/almanac";
@@ -50,7 +52,14 @@ function todayStr(): string {
  * independently when location or intent changes. The chosen intent rides in
  * ?intent= so prev/next day links keep it and a flavored day is linkable.
  */
-export default function AlmanacPanel({ date }: { date: string }) {
+export default function AlmanacPanel({
+  date,
+  moonPhaseProse = {},
+}: {
+  date: string;
+  /** The eight moon_phase entries, from the server page. */
+  moonPhaseProse?: Record<string, EntryProse>;
+}) {
   const searchParams = useSearchParams();
   const rawIntent = searchParams.get("intent") ?? "";
   const intent: Intent | "" = INTENT_OPTIONS.some((o) => o.value === rawIntent)
@@ -193,6 +202,7 @@ export default function AlmanacPanel({ date }: { date: string }) {
               {almanac.mansion.meaning}) — the tradition gives it to{" "}
               {almanac.mansion.goodFor}.
             </p>
+            <MoonPhaseProse phaseName={almanac.phaseName} prose={moonPhaseProse} />
             <ul className={styles.eventList}>
               {almanac.moon.quarter && (
                 <li>

@@ -53,6 +53,14 @@ become key segments.
 | `personal_year`      | `personal_year/<n>`              | `personal_year/9.md` |
 | `pinnacle`           | `pinnacle/<n>`                   | `pinnacle/22.md` |
 | `challenge`          | `challenge/<0-8>`                | `challenge/0.md` |
+| `firdaria_lord`      | `firdaria_lord/<planet|node>`   | `firdaria_lord/north_node.md` |
+| `solar_condition`    | `solar_condition/<cazimi|combust|under_beams>` | `solar_condition/under_beams.md` |
+| `out_of_bounds`      | `out_of_bounds/overview`         | `out_of_bounds/overview.md` |
+| `moon_phase`         | `moon_phase/<phase>`             | `moon_phase/waxing_gibbous.md` |
+| `chart_shape`        | `chart_shape/<type>`             | `chart_shape/bucket.md` |
+| `hemisphere`         | `hemisphere/<east|west|north|south>` | `hemisphere/east.md` |
+| `element_lack`       | `element_lack/<element>`         | `element_lack/water.md` |
+| `modality_lack`      | `modality_lack/<modality>`       | `modality_lack/fixed.md` |
 | `mazal_month`        | `mazal_month/<month>`            | `mazal_month/nisan.md` |
 | `day_planet`         | `day_planet/<planet>`            | `day_planet/saturn.md` |
 | `hour_planet`        | `hour_planet/<planet>`           | `hour_planet/venus.md` |
@@ -64,7 +72,7 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (1544 entries):** `planet_in_sign` ×120
+**English scope (1583 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
 framing), `planet_in_house` ×120, `aspect` ×199 (39 full pairs across all
 five types plus conjunction-only Sun–Mercury and Sun–Venus and
@@ -89,7 +97,16 @@ year lord ride in the panel's explainer), `progressed_sun_sign` and
 `progressed_asc_sign` ×12 each (developmental chapter voice, not natal
 identity), `return_overview` ×4 (solar/lunar/Jupiter/Saturn), `solar_arc`
 ×1 (a single directions overview — contacts echo the natal `aspect`
-archetypes rather than a per-pair matrix),
+archetypes rather than a per-pair matrix), `firdaria_lord` ×9 (the seven
+planets and the two nodes — the current major period's chapter on the
+Cycles tab and each life event's sky), `solar_condition` ×3 (cazimi,
+combust, under the beams) and `out_of_bounds` ×1 (planet-generic; the
+planet rides in the source line under the reading's "Planetary condition"
+heading — the Moon is left out on a solar chart), `moon_phase` ×8 (the
+current sky's phase on Today and the almanac — a quality of the days, not
+a natal reading), `chart_shape` ×7, `hemisphere` ×4, `element_lack` ×4
+and `modality_lack` ×3 (Chart → Shape & balance, folded under each
+summary line),
 `ascendant_sign` ×12, `mc_sign` ×12, `chart_pattern` ×5 (stellium, grand
 trine, t-square, grand cross, yod — prose is per-type and planet-generic;
 the pattern's members ride in the section's source line),

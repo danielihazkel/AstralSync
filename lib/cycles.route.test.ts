@@ -170,6 +170,13 @@ describe("GET /api/cycles/[id]", () => {
           bigThree: { sun: "taurus", moon: "cancer", ascendant: "virgo" },
         } as CyclesData["solarReturn"]["chart"],
       },
+      firdaria: {
+        isDay: true,
+        secondCycle: false,
+        major: { lord: "saturn" },
+        sub: null,
+        cycle: [],
+      } as unknown as CyclesData["firdaria"],
       planetaryReturns: [
         {
           planet: "jupiter",
@@ -190,6 +197,7 @@ describe("GET /api/cycles/[id]", () => {
     expect(prose.progressedAsc.title).toBe("Progressed Ascendant in Virgo");
     expect(prose.jupiterReturn.title).toBe("The Jupiter return");
     expect(prose.saturnReturn).toBeUndefined();
+    expect(prose.firdaria.title).toBe("A Saturn firdaria");
   });
 
   it("passes a valid `at` instant through", async () => {

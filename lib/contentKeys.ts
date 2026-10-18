@@ -80,3 +80,21 @@ export function synastryAngleAspectKey(
 ): string {
   return `synastry_angle_aspect/${planet}/${target}/${type}`;
 }
+
+/** The eight moonPhaseName() names — "Waxing Gibbous" — as content
+ *  segments ("waxing_gibbous"). */
+export const MOON_PHASE_SEGMENTS = [
+  "new_moon",
+  "waxing_crescent",
+  "first_quarter",
+  "waxing_gibbous",
+  "full_moon",
+  "waning_gibbous",
+  "third_quarter",
+  "waning_crescent",
+] as const;
+
+/** "Waxing Gibbous" → "moon_phase/waxing_gibbous". */
+export function moonPhaseKey(phaseName: string): string {
+  return `moon_phase/${phaseName.toLowerCase().replace(/s+/g, "_")}`;
+}

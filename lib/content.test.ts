@@ -191,6 +191,7 @@ describe("loadContentIndex", () => {
       "mc_sign/cancer",
       "modality_dominance/cardinal",
       "natal_retrograde/mercury",
+      "out_of_bounds/overview",
       "planet_in_house/jupiter/6",
       "planet_in_house/mars/5",
       "planet_in_house/mercury/3",
@@ -220,6 +221,7 @@ describe("loadContentIndex", () => {
       "point_in_sign/south_node/gemini",
       "point_in_sign/south_node/leo",
       "point_in_sign/south_node/taurus",
+      "solar_condition/cazimi",
       "soul_urge/22",
     ]);
   });
@@ -262,6 +264,16 @@ describe("resolveReading", () => {
       "dignity",
       "dignity",
       "dignity",
+      // Planetary condition: every fixture longitude is 0, so all six
+      // classical non-Sun planets read cazimi; and on the fixture's date
+      // (1990-08-01) the real sky has a planet out of bounds.
+      "condition",
+      "condition",
+      "condition",
+      "condition",
+      "condition",
+      "condition",
+      "condition",
       "house",
       "house",
       "house",
@@ -538,6 +550,34 @@ describe("resolveReading", () => {
     );
     expect(nodes).toHaveLength(2);
     expect(nodes.every((s) => s.nodeVariant === undefined)).toBe(true);
+  });
+
+  it("reads closeness to the Sun from the longitudes, Moon excepted on a solar chart", () => {
+    // The Sun at 137°, Mercury 5° behind it (combust), the Moon 10° ahead
+    // (under the beams); everything else far away.
+    const spread = (p: Placement): Placement =>
+      p.planet === "sun"
+        ? { ...p, longitude: 137 }
+        : p.planet === "mercury"
+          ? { ...p, longitude: 132 }
+          : p.planet === "moon"
+            ? { ...p, longitude: 147 }
+            : { ...p, longitude: 300 };
+    const placements = fixtureChart().placements.map(spread);
+    const exact = resolveReading(fixtureChart({ placements }), null, CONTENT_VERSION, index);
+    const conditions = exact.sections.filter((x) => x.slot === "condition");
+    expect(exact.missingKeys).toContain("solar_condition/combust");
+    expect(exact.missingKeys).toContain("solar_condition/under_beams");
+    expect(conditions.some((x) => x.key === "solar_condition/cazimi")).toBe(false);
+
+    const solar = resolveReading(
+      fixtureChart({ placements: unhoused(placements), isSolarChart: true }),
+      null,
+      CONTENT_VERSION,
+      index,
+    );
+    expect(solar.missingKeys).toContain("solar_condition/combust");
+    expect(solar.missingKeys).not.toContain("solar_condition/under_beams");
   });
 
   it("resolves the Midheaven and Part of Fortune when houses exist", () => {

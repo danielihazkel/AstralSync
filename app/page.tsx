@@ -1,3 +1,4 @@
+import { resolveMoonPhaseProse } from "@/lib/content";
 import { listDayEventsForProfiles } from "@/lib/lifeEvents";
 import { listProfiles } from "@/lib/snapshots";
 import { capTodayProfiles } from "@/lib/todayCap";
@@ -44,6 +45,7 @@ export default async function Home() {
         primaryId={primaryId}
         hiddenCount={todayScan.hiddenCount}
         anniversaryEvents={anniversaryEvents}
+        moonPhaseProse={resolveMoonPhaseProse()}
       />
 
       {profiles.length === 0 ? (

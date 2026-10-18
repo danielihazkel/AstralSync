@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   DEFAULT_ORBS,
   PLANETS,
+  declinationsAt,
   detectAngleAspects,
   detectPatterns,
   essentialDignity,
@@ -15,12 +16,16 @@ import {
   type Planet,
   type PointName,
   type PointPlacement,
+  type SolarCondition,
 } from "@astralsync/astro-core";
 import {
+  MOON_PHASE_SEGMENTS,
   natalAngleAspectKey,
   natalAspectKey,
   transitAspectKey,
 } from "./contentKeys";
+import type { ChartStats } from "./chartStats";
+import { chartDignities } from "./dignityDisplay";
 import type { WheelChart } from "./view-types";
 import { CONTENT_VERSION } from "./versions";
 import {
@@ -91,6 +96,23 @@ export const CONTENT_CATEGORIES = [
   // Single overview for the solar-arc directions section (contacts reuse
   // the natal `aspect` archetypes' doctrine; no per-pair matrix).
   "solar_arc",
+  // The firdaria period's lord (seven planets and the two nodes), resolved
+  // by the cycles route into the Firdaria section.
+  "firdaria_lord",
+  // Planetary condition in the natal reading: closeness to the Sun
+  // (cazimi / combust / under the beams) and declination beyond the
+  // Sun's reach (one overview; the planet rides in the source line).
+  "solar_condition",
+  "out_of_bounds",
+  // The Moon's phase on the Today strip and the almanac — the current
+  // sky's quality, not a natal reading.
+  "moon_phase",
+  // Chart → Shape & balance: the Jones shape, a hemisphere emphasis, and
+  // an element or mode with no planet at all.
+  "chart_shape",
+  "hemisphere",
+  "element_lack",
+  "modality_lack",
   "element_dominance",
   "modality_dominance",
   "life_path",
@@ -261,6 +283,7 @@ export type ReadingSlot =
   | "angle"
   | "retrograde"
   | "dignity"
+  | "condition"
   | "house"
   | "point"
   | "life_path"
@@ -304,6 +327,12 @@ export interface ResolvedReading {
   /** Keys referenced but not authored — sections silently omitted. */
   missingKeys: string[];
 }
+
+const SOLAR_CONDITION_LABELS: Record<SolarCondition, string> = {
+  cazimi: "cazimi",
+  combust: "combust",
+  under_beams: "under the beams",
+};
 
 function cap(s: string): string {
   return s[0].toUpperCase() + s.slice(1);
@@ -508,6 +537,32 @@ export function resolveReading(
     }
   }
 
+  // Planetary condition. Closeness to the Sun for the six classical
+  // non-Sun planets (lib/dignityDisplay's doctrine), and declination beyond
+  // the Sun's reach. On a solar chart the Moon is left out of both: a noon
+  // estimate can be half a day off, and the Moon moves ~13° and several
+  // degrees of declination in that time.
+  const dignities = chartDignities(chart.placements);
+  for (const p of chart.placements) {
+    const solar = dignities[p.planet]?.solar;
+    if (!solar || (chart.isSolarChart && p.planet === "moon")) continue;
+    take(
+      `solar_condition/${solar}`,
+      "condition",
+      `${cap(p.planet)} — ${SOLAR_CONDITION_LABELS[solar]}`,
+    );
+  }
+  const outOfBounds = declinationsAt(new Date(chart.input.utc)).filter(
+    (d) => d.outOfBounds && !(chart.isSolarChart && d.planet === "moon"),
+  );
+  if (outOfBounds.length > 0) {
+    take(
+      "out_of_bounds/overview",
+      "condition",
+      `${outOfBounds.map((d) => cap(d.planet)).join(", ")} out of bounds`,
+    );
+  }
+
   // House placements for all ten planets, behind the per-placement
   // house-null guard — solar charts have no houses, so the keys are never
   // attempted (no missingKeys noise). Unlike signs, an outer planet's house
@@ -659,4 +714,54 @@ export function resolveReading(
     sections,
     missingKeys,
   };
+}
+
+/** A content entry as a component renders it. */
+export interface EntryProse {
+  title: string;
+  bodyMd: string;
+}
+
+/** Authored prose for Chart → Shape & balance: the Jones shape, each
+ *  leading hemisphere, and each element or mode with no planet at all. */
+export interface ChartStatsProse {
+  shape?: EntryProse;
+  hemispheres: EntryProse[];
+  lacks: EntryProse[];
+}
+
+export function resolveChartStatsProse(
+  stats: Pick<ChartStats, "shape" | "hemispheres" | "elements" | "modalities">,
+  index: ContentIndex = loadContentIndex(),
+): ChartStatsProse {
+  const get = (key: string): EntryProse | null => {
+    const e = getEntry(index, key);
+    return e ? { title: e.title, bodyMd: e.bodyMd } : null;
+  };
+  const present = (x: EntryProse | null): x is EntryProse => x !== null;
+  const h = stats.hemispheres;
+  return {
+    shape: get(`chart_shape/${stats.shape.type}`) ?? undefined,
+    hemispheres: [h?.eastWest, h?.northSouth]
+      .filter((side): side is NonNullable<typeof side> => side != null)
+      .map((side) => get(`hemisphere/${side}`))
+      .filter(present),
+    lacks: [
+      ...stats.elements.missing.map((e) => get(`element_lack/${e}`)),
+      ...stats.modalities.missing.map((m) => get(`modality_lack/${m}`)),
+    ].filter(present),
+  };
+}
+
+/** The eight moon-phase entries keyed "moon_phase/<phase>", for the client
+ *  surfaces (Today, the almanac) that compute the phase in-browser. */
+export function resolveMoonPhaseProse(
+  index: ContentIndex = loadContentIndex(),
+): Record<string, EntryProse> {
+  const out: Record<string, EntryProse> = {};
+  for (const segment of MOON_PHASE_SEGMENTS) {
+    const e = getEntry(index, `moon_phase/${segment}`);
+    if (e) out[e.key] = { title: e.title, bodyMd: e.bodyMd };
+  }
+  return out;
 }

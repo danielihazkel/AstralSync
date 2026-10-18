@@ -27,7 +27,12 @@ import { personalYear, pinnacles } from "@astralsync/numero-core";
 import { nextHebrewBirthday } from "@astralsync/hebrew-core";
 import { buildAspectMotion } from "@/lib/aspectMotion";
 import { computeChartStats } from "@/lib/chartStats";
-import { getEntry, loadContentIndex, resolveReading } from "@/lib/content";
+import {
+  getEntry,
+  loadContentIndex,
+  resolveChartStatsProse,
+  resolveReading,
+} from "@/lib/content";
 import { computeArcPeriods } from "@/lib/eventLords";
 import { civilFromDate } from "@/lib/forecast";
 import { resolveHebrewReading } from "@/lib/hebrewReading";
@@ -103,6 +108,9 @@ export default async function ProfilePage({
   if (!view) notFound();
 
   const chart = toWheelChart(view.astro);
+  // Shape, hemispheres, balance, dispositors, house rulers — read-time like
+  // the patterns, from the stored placements and cusps.
+  const stats = computeChartStats(chart.placements, chart.houses);
   // The life-arc bands: releasing and firdaria periods from birth. Cheap
   // (calendar arithmetic, no ephemeris search) and server-side, so the Life
   // events tab needs no extra round trip. Null on a solar chart.
@@ -310,9 +318,8 @@ export default async function ProfilePage({
         arcPeriods={arcPeriods}
         points={points}
         patterns={detectPatterns(chart.placements)}
-        // Shape, hemispheres, balance, dispositors, house rulers — read-time
-        // like the patterns, from the stored placements and cusps.
-        stats={computeChartStats(chart.placements, chart.houses)}
+        stats={stats}
+        statsProse={resolveChartStatsProse(stats)}
         // Read-time overlay with fixed tight orbs (2°) — never stored, and
         // deliberately not orb-configurable so SSR output stays stable.
         minorAspects={minorAspects}

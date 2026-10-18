@@ -43,6 +43,7 @@ const SLOT_GROUP: Record<ReadingSlot, string | null> = {
   angle: "Angles",
   retrograde: "Retrogrades",
   dignity: "Dignities",
+  condition: "Planetary condition",
   house: "Houses",
   point: "Points",
   life_path: "Numerology",

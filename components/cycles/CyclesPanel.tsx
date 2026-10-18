@@ -422,6 +422,7 @@ export default function CyclesPanel({
               </li>
             ))}
           </ul>
+          <Prose entry={data.prose?.firdaria} />
         </section>
       )}
 

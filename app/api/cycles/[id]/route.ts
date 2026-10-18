@@ -85,6 +85,9 @@ export async function GET(
   if (progressedAsc) {
     prose.progressedAsc = resolve(`progressed_asc_sign/${progressedAsc}`);
   }
+  if (view.firdaria) {
+    prose.firdaria = resolve(`firdaria_lord/${view.firdaria.major.lord}`);
+  }
   prose.solarArc = resolve("solar_arc/overview");
   prose.solarReturn = resolve("return_overview/solar");
   if (view.lunarReturn) prose.lunarReturn = resolve("return_overview/lunar");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import type { ResolvedReading } from "@/lib/content";
+import type { ChartStatsProse, ResolvedReading } from "@/lib/content";
 import type { ResolvedHebrewReading } from "@/lib/hebrewReading";
 import type {
   AstroView,
@@ -58,6 +58,7 @@ export default function ProfileTabs({
   points = null,
   patterns = [],
   stats = null,
+  statsProse,
   minorAspects = null,
   angleAspects = null,
   declinations = null,
@@ -81,6 +82,7 @@ export default function ProfileTabs({
   points?: ChartPoints | null;
   patterns?: ChartPattern[];
   stats?: ChartStatsData | null;
+  statsProse?: ChartStatsProse;
   minorAspects?: Aspect[] | null;
   angleAspects?: AngleAspect[] | null;
   declinations?: {
@@ -155,7 +157,7 @@ export default function ProfileTabs({
             downloadName={`${profile.displayName} chart`}
           />
           <ChartPatterns patterns={patterns} />
-          {stats && <ChartStats stats={stats} />}
+          {stats && <ChartStats stats={stats} prose={statsProse} />}
         </div>
       )}
       {tab === "Reading" && (

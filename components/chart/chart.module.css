@@ -333,6 +333,19 @@
   margin-top: 0.2rem;
 }
 
+/* Authored prose folded under a Shape & balance summary line. */
+.patternMore {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.patternMore summary {
+  cursor: pointer;
+  color: var(--accent-bright);
+  font-size: 0.85rem;
+}
+
 .patternNote {
   color: var(--text-muted);
   font-size: 0.8rem;

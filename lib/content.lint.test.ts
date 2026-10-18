@@ -3,6 +3,7 @@ import { ANGLE_BODIES, PLANETS, SIGNS, type Planet } from "@astralsync/astro-cor
 import { DAY_PLANETS, HEBREW_MONTH_KEYS } from "@astralsync/hebrew-core";
 import { ELEMENTS, MODALITIES } from "./dominance";
 import { contentRoot, loadContentIndex, type ContentEntry } from "./content";
+import { MOON_PHASE_SEGMENTS } from "./contentKeys";
 
 /**
  * Lint for the real shipped libraries under content/en and content/he —
@@ -101,7 +102,7 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1544 entries", () => {
+  it("contains exactly the 1583 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
@@ -115,8 +116,11 @@ describe("content library lint", () => {
     // composite sign placements (Sun/Moon/Venus/Mars x 12) + 12 profection
     // years + 12 progressed Sun signs + 12 progressed ASC signs + 4 return
     // overviews + 1 solar-arc overview + 12 personal years + 12 pinnacles
-    // (1–9 and the three masters each) + 9 challenges (0–8).
-    expect(entries).toHaveLength(1544);
+    // (1–9 and the three masters each) + 9 challenges (0–8) + 9 firdaria
+    // lords (seven planets and the nodes) + 3 solar conditions + 1
+    // out-of-bounds overview + 8 moon phases + 7 chart shapes + 4
+    // hemispheres + 4 element lacks + 3 modality lacks.
+    expect(entries).toHaveLength(1583);
   });
 
   it("covers every planet in every sign", () => {
@@ -273,6 +277,31 @@ describe("content library lint", () => {
     expect(entries.filter((e) => e.category === "return_overview")).toHaveLength(4);
     expect(entry("solar_arc/overview")).not.toBeNull();
     expect(entries.filter((e) => e.category === "solar_arc")).toHaveLength(1);
+  });
+
+  it("covers the round-6 categories: firdaria lords, conditions, phases, shapes", () => {
+    for (const lord of [...PLANETS.slice(0, 7), "north_node", "south_node"]) {
+      expect(entry(`firdaria_lord/${lord}`), lord).not.toBeNull();
+    }
+    for (const c of ["cazimi", "combust", "under_beams"]) {
+      expect(entry(`solar_condition/${c}`), c).not.toBeNull();
+    }
+    expect(entry("out_of_bounds/overview")).not.toBeNull();
+    for (const phase of MOON_PHASE_SEGMENTS) {
+      expect(entry(`moon_phase/${phase}`), phase).not.toBeNull();
+    }
+    for (const shape of ["bundle", "bowl", "bucket", "locomotive", "seesaw", "splay", "splash"]) {
+      expect(entry(`chart_shape/${shape}`), shape).not.toBeNull();
+    }
+    for (const side of ["east", "west", "north", "south"]) {
+      expect(entry(`hemisphere/${side}`), side).not.toBeNull();
+    }
+    for (const element of ELEMENTS) {
+      expect(entry(`element_lack/${element}`), element).not.toBeNull();
+    }
+    for (const modality of MODALITIES) {
+      expect(entry(`modality_lack/${modality}`), modality).not.toBeNull();
+    }
   });
 
   it("covers every element dominance", () => {

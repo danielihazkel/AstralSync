@@ -141,6 +141,7 @@ export interface EventCyclesInput {
   prose?: {
     profection?: { title: string; bodyMd: string };
     progressedSun?: { title: string; bodyMd: string };
+    firdaria?: { title: string; bodyMd: string };
   };
 }
 

@@ -106,6 +106,7 @@ function TimeLordRow({
             {line.secondCycle && (
               <span className={styles.muted}> · second cycle</span>
             )}
+            <LordProse entry={prose?.firdaria} />
           </dd>
         </div>
       );

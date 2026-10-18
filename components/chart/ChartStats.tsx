@@ -1,5 +1,7 @@
 import type { ChartStats as ChartStatsData } from "@/lib/chartStats";
 import type { ChartShapeType } from "@/lib/chartStats";
+import type { ChartStatsProse, EntryProse } from "@/lib/content";
+import Markdown from "@/components/Markdown";
 import { ordinalHouse, PLANET_NAMES, SIGN_NAMES } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "./glyphs";
 import styles from "./chart.module.css";
@@ -49,7 +51,26 @@ function Glyph({ planet }: { planet: keyof typeof PLANET_GLYPH_CHARS }) {
  * the house rulers. Computed server-side at read time (lib/chartStats.ts);
  * solar charts get the shape and balances only.
  */
-export default function ChartStats({ stats }: { stats: ChartStatsData }) {
+/** An authored entry, folded under the one-line summary it expands. */
+function MoreProse({ entry }: { entry?: EntryProse }) {
+  if (!entry) return null;
+  return (
+    <details className={styles.patternMore}>
+      <summary>{entry.title}</summary>
+      <Markdown md={entry.bodyMd} />
+    </details>
+  );
+}
+
+export default function ChartStats({
+  stats,
+  prose,
+}: {
+  stats: ChartStatsData;
+  /** Authored prose (lib/content resolveChartStatsProse); omitted, the
+   *  card keeps its one-line summaries. */
+  prose?: ChartStatsProse;
+}) {
   const { shape, hemispheres, elements, modalities, dispositors, houseRulers } =
     stats;
   const lacks = [
@@ -87,6 +108,7 @@ export default function ChartStats({ stats }: { stats: ChartStatsData }) {
             </span>
           </p>
           <p className={styles.patternCopy}>{SHAPE_COPY[shape.type]}</p>
+          <MoreProse entry={prose?.shape} />
         </li>
 
         {hemispheres && (
@@ -107,6 +129,9 @@ export default function ChartStats({ stats }: { stats: ChartStatsData }) {
               toward what others bring; North (1–6, below the horizon) toward
               the private life, South (7–12) toward the public one.
             </p>
+            {prose?.hemispheres.map((entry) => (
+              <MoreProse key={entry.title} entry={entry} />
+            ))}
           </li>
         )}
 
@@ -122,6 +147,9 @@ export default function ChartStats({ stats }: { stats: ChartStatsData }) {
             A missing element or mode is felt as a hunger — sought in others,
             in work, in place — as much as a lack.
           </p>
+          {prose?.lacks.map((entry) => (
+            <MoreProse key={entry.title} entry={entry} />
+          ))}
         </li>
 
         <li>

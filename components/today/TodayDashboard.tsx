@@ -18,6 +18,8 @@ import type { Sign } from "@astralsync/astro-core";
 import { loadHomeLocation } from "@/lib/homeLocation";
 import type { JewishEvent } from "@astralsync/hebrew-core";
 import type { AnniversaryEvent } from "@/lib/hebrewAnniversaries";
+import type { EntryProse } from "@/lib/content";
+import MoonPhaseProse from "@/components/MoonPhaseProse";
 import { buildIcs, type IcsEvent } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
 import { momentHref, todayLocalDate } from "@/components/atDate";
@@ -67,6 +69,7 @@ export default function TodayDashboard({
   primaryId = null,
   hiddenCount = 0,
   anniversaryEvents = NO_ANNIVERSARY_EVENTS,
+  moonPhaseProse = {},
 }: {
   profiles: TodayProfile[];
   /** The primary ("my") chart leads each per-profile list; the rest fold
@@ -77,6 +80,8 @@ export default function TodayDashboard({
   /** Day-dated life events of the scanned charts, for their Hebrew
    *  anniversaries. */
   anniversaryEvents?: TodayAnniversaryEvent[];
+  /** The eight moon_phase entries (lib/content resolveMoonPhaseProse). */
+  moonPhaseProse?: Record<string, EntryProse>;
 }) {
   const [sky, setSky] = useState<TodaySky | null>(null);
   const [jewishToday, setJewishToday] = useState<JewishEvent[]>([]);
@@ -243,6 +248,7 @@ export default function TodayDashboard({
           <p className={styles.muted}>
             {sky.moon.phaseName} · {Math.round(sky.moon.illumination * 100)}% lit
           </p>
+          <MoonPhaseProse phaseName={sky.moon.phaseName} prose={moonPhaseProse} />
           <p className={styles.muted}>
             Mansion {sky.moon.mansion.index} · {sky.moon.mansion.name}
           </p>

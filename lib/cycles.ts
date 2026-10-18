@@ -188,6 +188,8 @@ export interface CyclesProse {
   saturnReturn?: CyclesEntryProse;
   /** solar_arc/overview */
   solarArc?: CyclesEntryProse;
+  /** firdaria_lord/<lord> — the current major period's lord. */
+  firdaria?: CyclesEntryProse;
 }
 
 export interface ProgressedLunation {
