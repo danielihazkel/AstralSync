@@ -107,6 +107,15 @@ export default function DetailsPanel({
             — what changes across the window, tested against your life events
           </span>
         </p>
+        <p className={styles.actionRow}>
+          <Link href={`/profiles/${profile.id}/relocation`}>
+            Relocation &amp; astrocartography
+          </Link>
+          <span className={styles.hint}>
+            {" "}
+            — where on Earth each planet was on an angle, and the chart recast anywhere
+          </span>
+        </p>
       </section>
 
       <section className={styles.detailsSection}>

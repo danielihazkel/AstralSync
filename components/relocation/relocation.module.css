@@ -1,0 +1,208 @@
+.panel {
+  display: grid;
+  gap: 1rem;
+  max-width: 60rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chips legend {
+  margin-bottom: 0.3rem;
+}
+
+.chip,
+.chipActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.chipActive {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+  background: var(--accent-dim);
+}
+
+/* The radio stays focusable for the keyboard but out of sight; the chip is
+   its visible face. */
+.chip input,
+.chipActive input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.chip:focus-within,
+.chipActive:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.figure {
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.map {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: crosshair;
+}
+
+.sea {
+  fill: var(--bg);
+}
+
+.land {
+  fill: var(--surface-raised);
+  stroke: var(--border-strong);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.grid {
+  stroke: var(--border);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.lineOff path,
+.lineOn path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.lineOff path {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+.lineOn path {
+  stroke: var(--accent-bright);
+  stroke-width: 2;
+}
+
+/* A transparent, wide twin under each line: a hover target bigger than
+   the mark, carrying the group's <title> tooltip. */
+.lineOff path.hit,
+.lineOn path.hit {
+  stroke: transparent;
+  stroke-width: 10;
+  opacity: 1;
+}
+
+.lineOff:hover path:not(.hit) {
+  stroke: var(--text);
+  opacity: 1;
+}
+
+.lineLabel {
+  font-size: 5px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+}
+
+.lineOn .lineLabel {
+  fill: var(--accent-bright);
+  font-weight: 600;
+}
+
+.marker circle:first-child {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.marker circle:last-child {
+  fill: var(--text);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 1rem;
+  font-size: 0.85rem;
+}
+
+.legendLine {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+}
+
+.subTitle {
+  font-size: 1rem;
+  margin-top: 0.4rem;
+}
+
+.picker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.linkButton {
+  justify-self: start;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-bright);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.3rem 1rem 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.facts {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.2rem;
+}
