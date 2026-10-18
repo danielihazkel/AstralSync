@@ -213,6 +213,16 @@
   font-size: 0.9rem;
 }
 
+.lordProse {
+  margin-top: 0.25rem;
+}
+
+.lordProse summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 @media (max-width: 34rem) {
   .lordRow {
     grid-template-columns: 1fr;

@@ -136,6 +136,12 @@ export interface EventCyclesInput {
     spirit: { current: { l1: ZrLike } | null } | null;
   } | null;
   progressions: { placements: { planet: string; sign: string }[] } | null;
+  /** The cycles route's authored prose (profection year, progressed Sun
+   *  sign) — absent when unauthored. */
+  prose?: {
+    profection?: { title: string; bodyMd: string };
+    progressedSun?: { title: string; bodyMd: string };
+  };
 }
 
 interface ZrLike {

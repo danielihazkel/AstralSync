@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import type { CrossAspect, Placement } from "@astralsync/astro-core";
 import { localNoonIso } from "@/components/atDate";
 import { PLANET_NAMES, POINT_NAMES, SIGN_NAMES } from "@/components/format";
+import Markdown from "@/components/Markdown";
 import {
   TransitAspectList,
   TransitPositionsTable,
+  type TransitProse,
 } from "@/components/transits/TransitTables";
 import {
   filterAspectsForPrecision,
@@ -34,6 +36,9 @@ type Sky = {
   placements: Placement[];
   crossAspects: CrossAspect[];
   natal: { isSolarChart: boolean; moonUncertain?: boolean };
+  /** The transits route's authored prose per aspect, as on the Transits
+   *  tab. */
+  prose?: TransitProse;
 };
 
 type State =
@@ -58,7 +63,25 @@ function signName(sign: string): string {
   return SIGN_NAMES[sign as keyof typeof SIGN_NAMES] ?? sign;
 }
 
-function TimeLordRow({ line }: { line: TimeLordLine }) {
+/** The section's authored prose, folded — the event block is already an
+ *  expander, so the reading stays one click away. */
+function LordProse({ entry }: { entry?: { title: string; bodyMd: string } }) {
+  if (!entry) return null;
+  return (
+    <details className={styles.lordProse}>
+      <summary>{entry.title}</summary>
+      <Markdown md={entry.bodyMd} />
+    </details>
+  );
+}
+
+function TimeLordRow({
+  line,
+  prose,
+}: {
+  line: TimeLordLine;
+  prose: EventCyclesInput["prose"];
+}) {
   switch (line.kind) {
     case "profection":
       return (
@@ -68,6 +91,7 @@ function TimeLordRow({ line }: { line: TimeLordLine }) {
             {ORDINAL[line.house - 1]} house in {signName(line.sign)} —{" "}
             {lordName(line.lord)} lord of the year
             <span className={styles.muted}> · age {line.age}</span>
+            <LordProse entry={prose?.profection} />
           </dd>
         </div>
       );
@@ -106,7 +130,10 @@ function TimeLordRow({ line }: { line: TimeLordLine }) {
       return (
         <div className={styles.lordRow}>
           <dt>Progressed Sun</dt>
-          <dd>{signName(line.sign)}</dd>
+          <dd>
+            {signName(line.sign)}
+            <LordProse entry={prose?.progressedSun} />
+          </dd>
         </div>
       );
   }
@@ -195,7 +222,7 @@ export default function EventSky({
         <h4 className={styles.skyHeading}>Who was in charge</h4>
         <dl className={styles.lordList}>
           {lords.map((line, i) => (
-            <TimeLordRow key={`${line.kind}-${i}`} line={line} />
+            <TimeLordRow key={`${line.kind}-${i}`} line={line} prose={cycles.prose} />
           ))}
           <div className={styles.lordRow}>
             <dt>Personal year</dt>
@@ -228,7 +255,7 @@ export default function EventSky({
         <h4 className={styles.skyHeading}>Transits to the natal chart</h4>
         <TransitAspectList
           aspects={aspects}
-          prose={undefined}
+          prose={sky.prose}
           moonUncertain={false}
           moonReason=""
           emptyText={
