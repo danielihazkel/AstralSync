@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AlmanacDay } from "@/lib/almanac";
 import type { ElectionalDay } from "@/lib/electional";
 import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
+import { lunarMansion } from "@/lib/lunarMansions";
 import {
   almanacDayIcsEvents,
   electionalDayIcsEvents,
@@ -101,6 +102,8 @@ describe("almanacDayIcsEvents", () => {
       ],
     }),
     phaseName: "Full Moon",
+    // The mansion is display-only; the ICS mapping never reads it.
+    mansion: lunarMansion(320),
     mundane: [
       { a: "venus", b: "jupiter", angle: 120, utc: "2026-08-08T14:32:00.000Z" },
     ],
