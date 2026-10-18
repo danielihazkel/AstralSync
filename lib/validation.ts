@@ -45,8 +45,9 @@ export const profileInputBase = z
     /** Hebrew name — gematria destiny + mispar-katan Mazal reading. May
      *  coexist with fullBirthName; either may be null. */
     hebrewBirthName: z.string().trim().min(1).max(200).nullish(),
-    /** Vestigial: the UI only sends "latin" since the two-field name split;
-     *  "hebrew" is accepted for legacy payloads and normalized below. */
+    /** Input-only and legacy: the UI never sends it since the two-field
+     *  name split, and nothing stores it (the column is gone). A legacy
+     *  "hebrew" payload is still accepted and normalized below. */
     nameScript: z.enum(["latin", "hebrew", "other"]).default("latin"),
     /** "YYYY-MM-DD" local calendar date. */
     birthDate: z.string().regex(DATE_RE, "expected YYYY-MM-DD"),
@@ -560,7 +561,6 @@ export function toProfileBirthData(
   return {
     fullBirthName: input.fullBirthName ?? null,
     hebrewBirthName: input.hebrewBirthName ?? null,
-    nameScript: input.nameScript,
     birthDate: { year, month, day },
     birthTime: input.birthTime
       ? {

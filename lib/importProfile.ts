@@ -8,8 +8,8 @@ import { prisma } from "./db";
  * profile id. This is a restore, not re-entry — snapshot JSON is stored as
  * exported with no recompute or content re-validation, and the schema is
  * deliberately independent of profileInputSchema (whose normalizing rules
- * would reject legacy rows the database legitimately holds, e.g.
- * nameScript "hebrew"). Only create operations are used, so the write-once
+ * would reject legacy rows the database legitimately holds). Only create
+ * operations are used, so the write-once
  * guard in lib/db.ts is untouched.
  */
 
@@ -62,7 +62,8 @@ export const profileSchema = z.object({
   displayName: z.string().min(1).max(100),
   fullBirthName: z.string().max(200).nullish(),
   hebrewBirthName: z.string().max(200).nullish(),
-  nameScript: z.enum(["latin", "hebrew", "other"]).default("latin"),
+  // Exported before the column was dropped: accepted, never written.
+  nameScript: z.enum(["latin", "hebrew", "other"]).optional(),
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   birthTime: z
     .string()
@@ -566,7 +567,6 @@ export async function importProfileInTx(
         displayName: data.profile.displayName,
         fullBirthName: data.profile.fullBirthName ?? null,
         hebrewBirthName: data.profile.hebrewBirthName ?? null,
-        nameScript: data.profile.nameScript,
         // @db.Date column: UTC midnight, same as profileColumns().
         birthDate: new Date(Date.UTC(y, m - 1, d)),
         birthTime: data.profile.birthTime ?? null,

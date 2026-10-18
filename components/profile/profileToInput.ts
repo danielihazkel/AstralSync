@@ -13,7 +13,6 @@ export function profileToInput(profile: ProfileData, houseSystem: HouseSystem) {
     displayName: profile.displayName,
     fullBirthName: profile.fullBirthName,
     hebrewBirthName: profile.hebrewBirthName,
-    nameScript: profile.nameScript,
     birthDate: profile.birthDate,
     birthTime: profile.birthTime,
     timeCertainty: profile.timeCertainty,

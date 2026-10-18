@@ -66,7 +66,6 @@ vi.mock("./db", () => ({
         displayName: "Ada",
         fullBirthName: "Ada King",
         hebrewBirthName: null,
-        nameScript: "latin",
         birthDate: new Date("1990-06-15T00:00:00Z"),
         birthTime: "14:30",
         timeCertainty: "exact",

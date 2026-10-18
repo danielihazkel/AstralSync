@@ -68,7 +68,6 @@ function buildPayload(draft: WizardDraft, houseSystem: HouseSystem) {
     displayName: draft.displayName.trim(),
     fullBirthName,
     hebrewBirthName,
-    nameScript: "latin" as const,
     birthDate: draft.birthDate,
     birthTime: draft.timeCertainty === "unknown" ? null : draft.birthTime,
     timeCertainty: draft.timeCertainty,

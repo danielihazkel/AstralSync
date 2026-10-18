@@ -8,7 +8,6 @@ const base: ProfileData = {
   displayName: "Test Person",
   fullBirthName: "Test Full Name",
   hebrewBirthName: null,
-  nameScript: "latin",
   birthDate: "1990-03-04",
   birthTime: "14:30",
   timeCertainty: "exact",

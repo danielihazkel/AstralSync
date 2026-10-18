@@ -16,7 +16,6 @@ import {
 const base: ProfileBirthData = {
   fullBirthName: "Ada King Lovelace",
   hebrewBirthName: null,
-  nameScript: "latin",
   birthDate: { year: 1990, month: 6, day: 15 },
   birthTime: { hour: 14, minute: 30 },
   timeCertainty: "exact",
@@ -289,7 +288,6 @@ describe("profileRowToBirthData (lazy backfill input)", () => {
     displayName: "Ada",
     fullBirthName: "Ada King Lovelace",
     hebrewBirthName: null,
-    nameScript: "latin",
     birthDate: new Date(Date.UTC(1990, 5, 15)),
     birthTime: "14:30",
     timeCertainty: "exact",
@@ -304,8 +302,8 @@ describe("profileRowToBirthData (lazy backfill input)", () => {
     createdAt: new Date(),
   };
 
-  it("treats a rename of an old non-latin row as presentational", () => {
-    const old: Profile = { ...row, nameScript: "other" };
+  it("treats a rename as presentational", () => {
+    const old: Profile = { ...row };
     const input = profileInputSchema.parse({
       displayName: "Ada L.",
       fullBirthName: "Ada King Lovelace",

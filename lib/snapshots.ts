@@ -50,9 +50,6 @@ export interface ProfileBirthData {
   fullBirthName: string | null;
   /** Hebrew name — gematria destiny + mispar-katan Mazal reading. */
   hebrewBirthName: string | null;
-  /** Vestigial since the two-field name split (validation normalizes
-   *  legacy "hebrew" payloads before this shape is built). */
-  nameScript: "latin" | "hebrew" | "other";
   birthDate: { year: number; month: number; day: number };
   /** Null ⇔ timeCertainty is "unknown". */
   birthTime: { hour: number; minute: number } | null;
@@ -320,7 +317,6 @@ function profileColumns(input: ProfileInput, tz: string, offsetMinutes: number) 
     displayName: input.displayName,
     fullBirthName: input.fullBirthName ?? null,
     hebrewBirthName: input.hebrewBirthName ?? null,
-    nameScript: input.nameScript,
     // @db.Date column: construct at UTC midnight to avoid local-tz off-by-one.
     birthDate: new Date(Date.UTC(y, m - 1, d)),
     birthTime: input.birthTime ?? null,
@@ -337,10 +333,7 @@ function profileColumns(input: ProfileInput, tz: string, offsetMinutes: number) 
 /**
  * Does this edit change anything the chart or numerology depends on?
  * Presentational fields (displayName, city label) don't count — the
- * compute-once rule means they must not trigger a recompute. Nor does the
- * vestigial nameScript: nothing computes from it, and the wizard always
- * sends "latin", so an older "hebrew"/"other" row re-snapshotted (and
- * staled its readings) on a mere rename.
+ * compute-once rule means they must not trigger a recompute.
  */
 export function computationChanged(
   existing: Profile,
@@ -431,7 +424,6 @@ function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
     displayName: p.displayName,
     fullBirthName: p.fullBirthName,
     hebrewBirthName: p.hebrewBirthName,
-    nameScript: p.nameScript,
     birthDate: dateOnly(p.birthDate),
     birthTime: p.birthTime,
     timeCertainty: p.timeCertainty,
@@ -716,7 +708,6 @@ export function profileRowToBirthData(p: Profile): ProfileBirthData {
   return {
     fullBirthName: p.fullBirthName,
     hebrewBirthName: p.hebrewBirthName,
-    nameScript: p.nameScript,
     birthDate: { year, month, day },
     birthTime: p.birthTime
       ? {
@@ -901,7 +892,6 @@ export function exportProfileColumns(p: {
   displayName: string;
   fullBirthName: string | null;
   hebrewBirthName: string | null;
-  nameScript: Profile["nameScript"];
   birthDate: Date;
   birthTime: string | null;
   timeCertainty: Profile["timeCertainty"];
@@ -919,7 +909,6 @@ export function exportProfileColumns(p: {
     displayName: p.displayName,
     fullBirthName: p.fullBirthName,
     hebrewBirthName: p.hebrewBirthName,
-    nameScript: p.nameScript,
     birthDate: dateOnly(p.birthDate),
     birthTime: p.birthTime,
     timeCertainty: p.timeCertainty,
