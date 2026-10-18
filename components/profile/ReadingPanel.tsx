@@ -11,6 +11,7 @@ import { useStreamedGeneration } from "@/components/useStreamedGeneration";
 import ChatPanel from "./ChatPanel";
 import DiscardReadingButton from "./DiscardReadingButton";
 import { ELEMENTS, MODALITIES } from "@/lib/dominance";
+import OnThisPage from "@/components/OnThisPage";
 import styles from "./profile.module.css";
 
 function cap(s: string): string {
@@ -112,6 +113,15 @@ export default function ReadingPanel({
   }
 
   const { dominance, modality } = reading;
+  // The group headings double as anchors; a group that recurs further down
+  // keeps its id on the first heading only.
+  const groupIds = new Map<string, number>();
+  sections.forEach((section, i) => {
+    const group = SLOT_GROUP[section.slot];
+    if (group !== null && !groupIds.has(group)) groupIds.set(group, i);
+  });
+  const groupId = (group: string) =>
+    `reading-${group.toLowerCase().replace(/[^a-z]+/g, "-")}`;
 
   return (
     <div className={styles.reading}>
@@ -166,6 +176,10 @@ export default function ReadingPanel({
         )}
       </div>
 
+      <OnThisPage
+        sections={[...groupIds.keys()].map((g) => ({ id: groupId(g), label: g }))}
+      />
+
       {sections.map((section, i) => {
         const group = SLOT_GROUP[section.slot];
         const prevGroup = i > 0 ? SLOT_GROUP[sections[i - 1].slot] : null;
@@ -174,7 +188,12 @@ export default function ReadingPanel({
         return (
           <div key={`${section.key ?? section.slot}-${i}`} className={styles.reading}>
             {group !== null && group !== prevGroup && (
-              <h2 className={styles.readingGroup}>{group}</h2>
+              <h2
+                className={styles.readingGroup}
+                id={groupIds.get(group) === i ? groupId(group) : undefined}
+              >
+                {group}
+              </h2>
             )}
             <section
               className={styles.readingSection}

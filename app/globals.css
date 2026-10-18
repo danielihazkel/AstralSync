@@ -266,3 +266,8 @@ a:focus-visible,
 ::placeholder {
   color: var(--text-muted);
 }
+
+/* In-page anchors (components/OnThisPage) land with a little air above. */
+:target {
+  scroll-margin-top: 1rem;
+}

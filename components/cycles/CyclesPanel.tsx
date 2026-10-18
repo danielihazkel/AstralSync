@@ -43,6 +43,7 @@ import Markdown from "@/components/Markdown";
 import { useTabList } from "@/components/useTabList";
 import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
+import OnThisPage, { type PageSection } from "@/components/OnThisPage";
 import styles from "@/components/transits/transits.module.css";
 
 const ChartWheel = dynamic(() => import("@/components/chart/ChartWheel"), {
@@ -343,6 +344,23 @@ export default function CyclesPanel({
         </span>
       </div>
 
+      <OnThisPage
+        sections={[
+          profection && { id: "cycles-profection", label: "Profection" },
+          data.firdaria && { id: "cycles-firdaria", label: "Firdaria" },
+          data.zodiacalReleasing && { id: "cycles-releasing", label: "Releasing" },
+          { id: "cycles-progressions", label: "Progressions" },
+          { id: "cycles-tertiary", label: "Tertiary" },
+          { id: "cycles-solar-arc", label: "Solar arc" },
+          lunarReturn && { id: "cycles-lunar-return", label: "Lunar return" },
+          { id: "cycles-solar-return", label: "Solar return" },
+          ...planetaryReturns.map((r) => ({
+            id: `cycles-${r.planet}-return`,
+            label: `${PLANET_NAMES[r.planet]} return`,
+          })),
+        ].filter((s): s is PageSection => Boolean(s))}
+      />
+
       {!isLatest && (
         <p className={styles.notice}>
           Cycles are computed against the current chart version, not the
@@ -351,7 +369,7 @@ export default function CyclesPanel({
       )}
 
       {profection && (
-        <section aria-label="Annual profection">
+        <section id="cycles-profection" aria-label="Annual profection">
           <h3 className={styles.sectionTitle}>
             Annual profection — {ordinalHouse(profection.profectedHouse)}-house year
           </h3>
@@ -370,7 +388,7 @@ export default function CyclesPanel({
       )}
 
       {data.firdaria && (
-        <section aria-label="Firdaria">
+        <section id="cycles-firdaria" aria-label="Firdaria">
           <h3 className={styles.sectionTitle}>
             Firdaria — {lordName(data.firdaria.major.lord)} period
             {data.firdaria.sub &&
@@ -411,7 +429,7 @@ export default function CyclesPanel({
         (() => {
           const zr = data.zodiacalReleasing[zrView];
           return (
-            <section aria-label="Zodiacal releasing">
+            <section id="cycles-releasing" aria-label="Zodiacal releasing">
               <h3 className={styles.sectionTitle}>
                 Zodiacal releasing —{" "}
                 {zr.current
@@ -482,7 +500,7 @@ export default function CyclesPanel({
           );
         })()}
 
-      <section aria-label="Secondary progressions">
+      <section id="cycles-progressions" aria-label="Secondary progressions">
         <h3 className={styles.sectionTitle}>
           Secondary progressions — age {progressions.ageYears.toFixed(1)}
         </h3>
@@ -594,7 +612,7 @@ export default function CyclesPanel({
         )}
       </section>
 
-      <section aria-label="Tertiary progressions">
+      <section id="cycles-tertiary" aria-label="Tertiary progressions">
         <h3 className={styles.sectionTitle}>
           Tertiary progressions — lunar month {Math.floor(data.tertiary.ageMonths)}
         </h3>
@@ -640,7 +658,7 @@ export default function CyclesPanel({
         )}
       </section>
 
-      <section aria-label="Solar arc directions">
+      <section id="cycles-solar-arc" aria-label="Solar arc directions">
         <h3 className={styles.sectionTitle}>
           Solar arc directions — arc {solarArc.arcDegrees.toFixed(1)}°
         </h3>
@@ -703,7 +721,7 @@ export default function CyclesPanel({
       </section>
 
       {lunarReturn && (
-        <section aria-label="Lunar return">
+        <section id="cycles-lunar-return" aria-label="Lunar return">
           <h3 className={styles.sectionTitle}>Lunar return</h3>
           <div
             className={styles.viewSwitch}
@@ -755,7 +773,7 @@ export default function CyclesPanel({
         </section>
       )}
 
-      <section aria-label="Solar return">
+      <section id="cycles-solar-return" aria-label="Solar return">
         <h3 className={styles.sectionTitle}>
           Solar return {solarReturn.year}
         </h3>
@@ -808,6 +826,7 @@ export default function CyclesPanel({
       {planetaryReturns.map((r) => (
         <section
           key={r.planet}
+          id={`cycles-${r.planet}-return`}
           aria-label={`${PLANET_NAMES[r.planet]} return`}
         >
           <h3 className={styles.sectionTitle}>

@@ -37,6 +37,7 @@ import CrossAspectList, {
 } from "@/components/synastry/CrossAspectList";
 import SynastryReadingPanel from "@/components/synastry/SynastryReadingPanel";
 import type { SynastrySide } from "@/lib/synastry";
+import OnThisPage, { type PageSection } from "@/components/OnThisPage";
 import styles from "@/components/synastry/synastry.module.css";
 
 // Snapshot data lives in the local DB; render per-request. Synastry is an
@@ -275,9 +276,30 @@ export default async function SynastryPage({
         </p>
       )}
 
+      <OnThisPage
+        sections={[
+          { id: "synastry-aspects", label: "Cross aspects" },
+          (angleContacts.aOnB.length > 0 || angleContacts.bOnA.length > 0) && {
+            id: "synastry-angles",
+            label: "Angle contacts",
+          },
+          (vertexContacts.aOnB.length > 0 || vertexContacts.bOnA.length > 0) && {
+            id: "synastry-vertex",
+            label: "Vertex contacts",
+          },
+          !(a.isSolarChart && b.isSolarChart) && {
+            id: "synastry-overlays",
+            label: "House overlays",
+          },
+          { id: "synastry-composite", label: "Composite" },
+          { id: "synastry-davison", label: "Davison" },
+          { id: "synastry-reading", label: "AI reading" },
+        ].filter((s): s is PageSection => Boolean(s))}
+      />
+
       <BiWheel a={a} b={b} aspects={aspects} />
 
-      <section aria-label="Cross aspects">
+      <section id="synastry-aspects" aria-label="Cross aspects">
         <h2 className={styles.sectionTitle}>Cross aspects</h2>
         <CrossAspectList
           aName={a.displayName}
@@ -290,7 +312,7 @@ export default async function SynastryPage({
       </section>
 
       {(angleContacts.aOnB.length > 0 || angleContacts.bOnA.length > 0) && (
-        <section aria-label="Angle contacts">
+        <section id="synastry-angles" aria-label="Angle contacts">
           <h2 className={styles.sectionTitle}>Angle contacts</h2>
           <p className={styles.muted}>
             Major aspects to the other person&rsquo;s Ascendant and Midheaven
@@ -312,7 +334,7 @@ export default async function SynastryPage({
       )}
 
       {(vertexContacts.aOnB.length > 0 || vertexContacts.bOnA.length > 0) && (
-        <section aria-label="Vertex contacts">
+        <section id="synastry-vertex" aria-label="Vertex contacts">
           <h2 className={styles.sectionTitle}>Vertex contacts</h2>
           <p className={styles.muted}>
             Planets on the other person&rsquo;s Vertex axis — where the
@@ -355,34 +377,44 @@ export default async function SynastryPage({
         </section>
       )}
 
-      <section aria-label="House overlays" className={styles.overlayTables}>
+      <section
+        id="synastry-overlays"
+        aria-label="House overlays"
+        className={styles.overlayTables}
+      >
         {!b.isSolarChart && <OverlayTable owner={a} host={b} />}
         {!a.isSolarChart && <OverlayTable owner={b} host={a} />}
       </section>
 
-      <CompositePanel
-        composite={composite}
-        aName={a.displayName}
-        bName={b.displayName}
-        prose={compositeProse}
-        signProse={signProse}
-      />
+      <div id="synastry-composite">
+        <CompositePanel
+          composite={composite}
+          aName={a.displayName}
+          bName={b.displayName}
+          prose={compositeProse}
+          signProse={signProse}
+        />
+      </div>
 
-      <DavisonPanel
-        davison={davison}
-        aName={a.displayName}
-        bName={b.displayName}
-        prose={compositeProse}
-        signProse={signProse}
-      />
+      <div id="synastry-davison">
+        <DavisonPanel
+          davison={davison}
+          aName={a.displayName}
+          bName={b.displayName}
+          prose={compositeProse}
+          signProse={signProse}
+        />
+      </div>
 
-      <SynastryReadingPanel
-        a={query.data.a}
-        b={query.data.b}
-        reading={storedReading}
-        stale={readingStale}
-        llmEnabled={llmEnabled}
-      />
+      <div id="synastry-reading">
+        <SynastryReadingPanel
+          a={query.data.a}
+          b={query.data.b}
+          reading={storedReading}
+          stale={readingStale}
+          llmEnabled={llmEnabled}
+        />
+      </div>
 
       <p className={styles.muted}>
         <Link href="/">← All profiles</Link>
