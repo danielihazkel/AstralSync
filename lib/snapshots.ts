@@ -451,6 +451,20 @@ function serializeProfile(p: Profile & { birthCity: GeoCity | null }) {
   };
 }
 
+/**
+ * Every stored generator a profile view surfaces — serializeAstro reads
+ * `llm` and `life_story`, serializeHebrew reads `hebrew_llm`. getProfileView
+ * filters its include to exactly this list, so a generator missing here is
+ * never loaded: `life_story` once was, and the panel re-offered Generate
+ * for a reading that existed, paid for a fresh one, then lost it to the
+ * unique slot as `already_generated`.
+ */
+const VIEW_READING_GENERATORS: ReadingGenerator[] = [
+  "llm",
+  "hebrew_llm",
+  "life_story",
+];
+
 function serializeAstro(s: AstroSnapshot & { readings?: Reading[] }) {
   const llm = s.readings?.find((r) => r.generator === "llm") ?? null;
   const story =
@@ -655,9 +669,7 @@ export async function getProfileView(
   if (!profile) return null;
 
   const withReadings = {
-    readings: {
-      where: { generator: { in: ["llm", "hebrew_llm"] as ReadingGenerator[] } },
-    },
+    readings: { where: { generator: { in: VIEW_READING_GENERATORS } } },
   };
   const astro =
     version != null
