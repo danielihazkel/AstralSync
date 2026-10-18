@@ -15,6 +15,7 @@ import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs"
 import HomeLocationPicker from "@/components/settings/HomeLocationPicker";
 import type { Sign } from "@astralsync/astro-core";
 import { loadHomeLocation } from "@/lib/homeLocation";
+import type { JewishEvent } from "@astralsync/hebrew-core";
 import { buildIcs, type IcsEvent } from "@/lib/ics";
 import { downloadIcs } from "@/components/downloadIcs";
 import styles from "./today.module.css";
@@ -56,6 +57,7 @@ export default function TodayDashboard({
   hiddenCount?: number;
 }) {
   const [sky, setSky] = useState<TodaySky | null>(null);
+  const [jewishToday, setJewishToday] = useState<JewishEvent[]>([]);
   const [location, setLocation] = useState<HomeLocation | null>(null);
   const [picking, setPicking] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -86,10 +88,22 @@ export default function TodayDashboard({
 
   const recompute = useCallback(
     async (loc: HomeLocation | null) => {
-      const [{ computeToday }, { loadOrbSettings }] = await Promise.all([
+      const [{ computeToday }, { loadOrbSettings }, jewish] = await Promise.all([
         import("@/lib/today"),
         import("@/lib/orbSettings"),
+        import("@/lib/jewishMonth"),
       ]);
+      // Today's civil day in the browser — the day the user is living.
+      const now = new Date();
+      const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const day = jewish.jewishMonth(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        jewish.currentJewishOptions(),
+      )[key];
+      setJewishToday(
+        (day?.events ?? []).filter((e) => e.kind !== "omer" && e.kind !== "molad"),
+      );
       const orbs = loadOrbSettings();
       setSky(
         computeToday(new Date(), loc, profiles, {
@@ -221,6 +235,15 @@ export default function TodayDashboard({
             </span>
             mazal {sky.hebrew.mazal.mazal}
           </p>
+          {jewishToday.length > 0 && (
+            <ul className={styles.jewishToday}>
+              {jewishToday.map((e) => (
+                <li key={`${e.kind}-${e.title}`} className={e.major ? styles.yomTov : undefined}>
+                  {e.title}
+                </li>
+              ))}
+            </ul>
+          )}
           {sky.hebrew.approximate && (
             <p className={styles.muted}>
               After sunset the next Hebrew day begins — set a location to

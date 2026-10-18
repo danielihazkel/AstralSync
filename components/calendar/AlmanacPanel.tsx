@@ -25,6 +25,8 @@ import {
 import { dayTitle, timeOf } from "./calendarFormat";
 import { INTENT_OPTIONS } from "./DayPicker";
 import styles from "./calendar.module.css";
+import type { JewishDay } from "@/lib/jewishMonth";
+import JewishDayEvents from "./JewishDayEvents";
 
 const VERDICT_CLASS: Record<ScoredWindow["verdict"], string> = {
   good: styles.windowGood,
@@ -58,6 +60,7 @@ export default function AlmanacPanel({ date }: { date: string }) {
   const [location, setLocation] = useState<HomeLocation | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [jewish, setJewish] = useState<JewishDay | null>(null);
 
   useEffect(() => {
     setLocation(loadHomeLocation());
@@ -76,6 +79,24 @@ export default function AlmanacPanel({ date }: { date: string }) {
       cancelled = true;
     };
   }, [date]);
+
+  // The day's Jewish calendar; re-run when the home location changes,
+  // since candle-lighting times belong to it.
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    void (async () => {
+      const { currentJewishOptions, jewishMonth } = await import(
+        "@/lib/jewishMonth"
+      );
+      const [y, m] = date.split("-").map(Number);
+      const day = jewishMonth(y, m, currentJewishOptions())[date] ?? null;
+      if (!cancelled) setJewish(day);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [date, loaded, location]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -264,6 +285,18 @@ export default function AlmanacPanel({ date }: { date: string }) {
               </ul>
             )}
           </section>
+
+          {jewish && (
+            <section className={styles.card} aria-label="Jewish calendar">
+              <h2 className={styles.cardTitle}>Jewish calendar</h2>
+              <JewishDayEvents day={jewish} />
+              {!location && (
+                <p className={styles.muted}>
+                  Set a home location for candle-lighting and havdalah times.
+                </p>
+              )}
+            </section>
+          )}
 
           <section
             className={`${styles.card} ${styles.cardWide}`}

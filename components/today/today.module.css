@@ -77,3 +77,16 @@
   color: var(--text-muted);
   font-size: 0.82rem;
 }
+
+.jewishToday {
+  list-style: none;
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+
+.yomTov {
+  color: var(--accent-bright);
+  font-weight: 600;
+}

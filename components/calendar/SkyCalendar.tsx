@@ -4,6 +4,8 @@ import Link from "next/link";
 import { MONTH_SHIFT_EVENT } from "@/lib/shortcuts";
 import { useEffect, useState } from "react";
 import type { MoonDayCell, MoonMonth } from "@/lib/skyCalendar";
+import type { JewishDay } from "@/lib/jewishMonth";
+import JewishDayEvents from "./JewishDayEvents";
 import { SIGN_NAMES } from "@/components/format";
 import DayPicker from "./DayPicker";
 import MoonMonthGrid from "./MoonMonthGrid";
@@ -40,6 +42,23 @@ export default function SkyCalendar() {
   const [month1, setMonth1] = useState(now.getMonth() + 1);
   const [month, setMonth] = useState<MoonMonth | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [jewish, setJewish] = useState<Record<string, JewishDay> | null>(null);
+
+  // The Jewish calendar: cheap (milliseconds), but hebcal is loaded on
+  // demand like the ephemeris so it stays out of the first bundle.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { currentJewishOptions, jewishMonth } = await import(
+        "@/lib/jewishMonth"
+      );
+      if (cancelled) return;
+      setJewish(jewishMonth(year, month1, currentJewishOptions()));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [year, month1]);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,10 +196,13 @@ export default function SkyCalendar() {
         <>
           <MoonMonthGrid
             month={month}
+            jewish={jewish}
             selected={selected}
             onSelect={(d) => setSelected(d === selected ? null : d)}
           />
-          {selectedCell && <DayDetail cell={selectedCell} />}
+          {selectedCell && (
+            <DayDetail cell={selectedCell} jewish={jewish?.[selectedCell.date] ?? null} />
+          )}
           <p className={styles.muted}>
             Times are shown in your device’s timezone. “v/c” marks a
             void-of-course window: the Moon perfects no further major aspect
@@ -193,7 +215,13 @@ export default function SkyCalendar() {
   );
 }
 
-function DayDetail({ cell }: { cell: MoonDayCell }) {
+function DayDetail({
+  cell,
+  jewish,
+}: {
+  cell: MoonDayCell;
+  jewish: JewishDay | null;
+}) {
   return (
     <section className={styles.detail} aria-label={`Details for ${cell.date}`}>
       <h2 className={styles.detailTitle}>{dayTitle(cell.date)}</h2>
@@ -241,6 +269,7 @@ function DayDetail({ cell }: { cell: MoonDayCell }) {
           </li>
         ))}
       </ul>
+      {jewish && <JewishDayEvents day={jewish} />}
       <Link href={`/calendar/${cell.date}`}>Full day view →</Link>
     </section>
   );

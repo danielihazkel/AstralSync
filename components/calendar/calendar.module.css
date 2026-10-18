@@ -209,3 +209,39 @@
     padding: 0.2rem 0.25rem;
   }
 }
+
+/* --- the Jewish calendar layer --- */
+
+/* The day number and its Hebrew date share the cell's top line. */
+.dayNum {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.hebrewDay {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.jewishEvent,
+.yomTov {
+  display: block;
+  font-size: 0.66rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.yomTov {
+  color: var(--accent-bright);
+  font-weight: 600;
+}
+
+.jewishDay {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+}
