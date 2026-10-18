@@ -52,4 +52,16 @@ describe("momentQuery / momentFromQuery", () => {
     expect(momentFromQuery(q)).toEqual({ date: null, time: null, place: null });
     expect(momentFromQuery(new URLSearchParams("")).place).toBeNull();
   });
+
+  it("refuses dates that do not exist instead of rolling them over", () => {
+    for (const date of ["2024-02-30", "2023-02-29", "2024-13-05", "2024-00-10", "2024-04-31"]) {
+      expect(momentFromQuery(new URLSearchParams({ date })).date).toBeNull();
+    }
+    expect(momentFromQuery(new URLSearchParams({ date: "2024-02-29" })).date).toBe("2024-02-29");
+  });
+
+  it("refuses a zone the runtime does not know", () => {
+    const q = new URLSearchParams("date=2025-01-01&time=12:00&lat=32&lng=35&tz=Foo/Bar");
+    expect(momentFromQuery(q)).toMatchObject({ date: "2025-01-01", time: "12:00", place: null });
+  });
 });

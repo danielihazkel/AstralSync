@@ -47,9 +47,15 @@ export default function MomentChart() {
       const { wallNowIn } = await import("@/lib/momentChart");
       const fromUrl = momentFromQuery(searchParams);
       const startPlace = fromUrl.place ?? loadHomeLocation();
-      const now = wallNowIn(
-        startPlace?.tzIana ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-      );
+      const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      let now: { date: string; time: string };
+      try {
+        now = wallNowIn(startPlace?.tzIana ?? browserZone);
+      } catch {
+        // A stored zone this runtime does not know: read the browser's clock
+        // rather than leave the page on "Reading the clock…".
+        now = wallNowIn(browserZone);
+      }
       setPlace(startPlace);
       setDate(fromUrl.date ?? now.date);
       setTime(fromUrl.time ?? now.time);
