@@ -218,6 +218,8 @@ export async function POST(
     birth: birthDataFromProfile(view.profile),
     numerology: toNumeroDerivation(view.numero),
     events: (await listLifeEvents(id)) ?? [],
+    // The period's own personal year/month and pinnacle, not today's.
+    asOf: period.start,
   };
 
   let prompt: string;

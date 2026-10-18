@@ -18,6 +18,7 @@ import {
   LlmUnavailableError,
   ollamaClient,
   openAiCompatClient,
+  renderPersonalSections,
   type PersonalContext,
 } from "./llm";
 import type { BirthData, LifeEventPromptItem } from "./promptData";
@@ -235,6 +236,27 @@ const personal: PersonalContext = {
   numerology: numero,
   events: lifeEvents,
 };
+
+describe("renderPersonalSections — numerology over time", () => {
+  it("adds the cycles in force on asOf, and only when asked", () => {
+    const [, timeless] = renderPersonalSections(personal);
+    expect(timeless).not.toContain("Numerology cycles as of");
+    const [, dated] = renderPersonalSections({
+      ...personal,
+      asOf: { year: 2026, month: 10, day: 18 },
+    });
+    // 2000-08-09: 8 + 9 + (2026 → 1) = 18 → 9
+    expect(dated).toContain("Numerology cycles as of 2026-10-18");
+    expect(dated).toContain("Personal year (2026): 9");
+  });
+
+  it("times every life event by its personal year", () => {
+    const [, , events] = renderPersonalSections(personal);
+    // 2019: 8 + 9 + (2019 → 12 → 3) = 20 → 2; 2021: 8 + 9 + 5 = 22 (master)
+    expect(events).toContain("Numerology: personal year 2");
+    expect(events).toContain("Numerology: personal year 22");
+  });
+});
 
 describe("buildReadingPrompt", () => {
   it("includes entry titles, bodies, and the element distribution", () => {

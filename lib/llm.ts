@@ -11,10 +11,12 @@ import {
   renderHebrewPeriodData,
   renderLifeEventsData,
   renderMazalData,
+  renderNumerologyCycles,
   renderNumerologyData,
   renderSynastryData,
   renderWesternPeriodData,
   type BirthData,
+  type CivilDay,
   type LifeEventPromptItem,
 } from "./promptData";
 // Type-only: lib/synastry pulls in prisma, which this module must not load.
@@ -788,6 +790,10 @@ export interface PersonalContext {
   birth: BirthData;
   numerology: NumeroDerivation | null;
   events: LifeEventPromptItem[];
+  /** When set, the numerology section adds the cycles in force on this
+   *  date — a forecast's period start, the chat's today. The stored natal
+   *  readings leave it unset: they describe a life, not a moment. */
+  asOf?: CivilDay;
 }
 
 /**
@@ -802,10 +808,14 @@ export function renderPersonalSections(
   return [
     `## Birth data\n${renderBirthData(personal.birth)}`,
     personal.numerology
-      ? `## Complete numerology data\n${renderNumerologyData(personal.numerology)}`
+      ? `## Complete numerology data\n${renderNumerologyData(personal.numerology)}${
+          personal.asOf
+            ? `\n${renderNumerologyCycles(personal.birth.birthDate, personal.asOf)}`
+            : ""
+        }`
       : "",
     personal.events.length > 0
-      ? `## Life events\n${renderLifeEventsData(personal.events)}`
+      ? `## Life events\n${renderLifeEventsData(personal.events, personal.birth.birthDate)}`
       : "",
   ];
 }

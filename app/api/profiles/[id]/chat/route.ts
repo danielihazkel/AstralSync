@@ -8,6 +8,7 @@ import {
   CHAT_MAX_TURNS,
 } from "@/lib/chat";
 import { createChatLimiter } from "@/lib/chatLimiter";
+import { civilFromDate } from "@/lib/forecast";
 import { listLifeEvents } from "@/lib/lifeEvents";
 import { llmClientFromEnv } from "@/lib/llm";
 import { birthDataFromProfile } from "@/lib/promptData";
@@ -123,6 +124,8 @@ export async function POST(
       birth: birthDataFromProfile(view.profile),
       numerology: toNumeroDerivation(view.numero),
       events,
+      // The conversation happens now: carry today's numerology cycles.
+      asOf: civilFromDate(new Date()),
     },
     view.hebrew
       ? {

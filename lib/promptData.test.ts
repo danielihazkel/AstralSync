@@ -7,6 +7,8 @@ import type {
   WheelChart,
 } from "./view-types";
 import {
+  renderEventNumerology,
+  renderNumerologyCycles,
   renderChartData,
   renderHebrewPeriodData,
   renderMazalData,
@@ -634,5 +636,47 @@ describe("renderHebrewPeriodData", () => {
     expect(renderHebrewPeriodData(hebrewSummary)).not.toContain(
       "Planetary hour",
     );
+  });
+});
+
+describe("numerology cycles in prompts", () => {
+  // 1990-03-21: Life Path 7; pinnacles 6/4/1/4 at ages 0–29/29–38/38–47/47+,
+  // challenges 0/2/2/2.
+  const BIRTH = "1990-03-21";
+
+  it("dates the cycles and states each one", () => {
+    const text = renderNumerologyCycles(BIRTH, { year: 2026, month: 10, day: 18 });
+    expect(text).toContain("as of 2026-10-18");
+    expect(text).toContain("Personal year (2026): 7");
+    expect(text).toContain("Personal month: 8");
+    expect(text).toContain("Personal day: 8");
+    // Age 36: the second chapter.
+    expect(text).toContain("Pinnacle 4 (chapter 2 of 4, ages 29–38), challenge 2");
+  });
+
+  it("gives every event its personal year, whatever the precision", () => {
+    for (const precision of ["day", "month", "year"] as const) {
+      expect(
+        renderEventNumerology(BIRTH, { eventDate: "2026-01-01", precision }),
+      ).toContain("personal year 7");
+    }
+  });
+
+  it("names the pinnacle only when the date cannot straddle a change", () => {
+    // The first pinnacle ends on the 29th birthday, 2019-03-21.
+    expect(
+      renderEventNumerology(BIRTH, { eventDate: "2019-03-25", precision: "day" }),
+    ).toContain("pinnacle 4, challenge 2");
+    // "March 2019" and "2019" both contain the birthday — either pinnacle.
+    expect(
+      renderEventNumerology(BIRTH, { eventDate: "2019-03-01", precision: "month" }),
+    ).not.toContain("pinnacle");
+    expect(
+      renderEventNumerology(BIRTH, { eventDate: "2019-01-01", precision: "year" }),
+    ).not.toContain("pinnacle");
+    // "2015" sits wholly inside the first.
+    expect(
+      renderEventNumerology(BIRTH, { eventDate: "2015-01-01", precision: "year" }),
+    ).toContain("pinnacle 6, challenge 0");
   });
 });

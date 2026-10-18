@@ -1,5 +1,14 @@
 import { SIGNS, overlayHouses, pointsAt } from "@astralsync/astro-core";
-import type { NameNumberResult } from "@astralsync/numero-core";
+import {
+  ageOn,
+  personalDay,
+  personalMonth,
+  personalYear,
+  pinnacleAt,
+  pinnacles,
+  type BirthDate as NumeroBirthDate,
+  type NameNumberResult,
+} from "@astralsync/numero-core";
 import {
   formatCivil,
   type ForecastPeriod,
@@ -13,6 +22,7 @@ import {
   type LifeEventPrecision,
 } from "./lifeEventMeta";
 import type { EventLords } from "./eventLords";
+import { eventNumerology } from "./eventNumerology";
 // Type-only: lib/synastry pulls in prisma, which this module must not load.
 import type { SynastryData } from "./synastry";
 import type {
@@ -200,6 +210,62 @@ export function renderNumerologyData(numero: NumeroDerivation): string {
     lines.push(...nameNumberLines("Hebrew Destiny", numero.hebrewDestiny));
   }
   return lines.join("\n");
+}
+
+/** A civil calendar date. */
+export interface CivilDay {
+  year: number;
+  month: number;
+  day: number;
+}
+
+function civilParts(iso: string): NumeroBirthDate {
+  const [year, month, day] = iso.split("-").map(Number);
+  return { year, month, day };
+}
+
+function isoDay(d: CivilDay): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.year}-${pad(d.month)}-${pad(d.day)}`;
+}
+
+/**
+ * Numerology's time cycles on one civil date (numero-core cycles.ts): the
+ * personal year, month and day, and the pinnacle and challenge in force.
+ * Dated, because unlike the birth numbers these change.
+ */
+export function renderNumerologyCycles(birthDate: string, asOf: CivilDay): string {
+  const birth = civilParts(birthDate);
+  const master = (n: { isMaster: boolean }) => (n.isMaster ? " (master number)" : "");
+  const year = personalYear(birth, asOf.year);
+  const month = personalMonth(birth, asOf.year, asOf.month);
+  const day = personalDay(birth, asOf.year, asOf.month, asOf.day);
+  const p = pinnacleAt(pinnacles(birth), ageOn(birth, asOf));
+  const ages = p.toAge === null ? `from age ${p.fromAge}` : `ages ${p.fromAge}–${p.toAge}`;
+  return [
+    `Numerology cycles as of ${isoDay(asOf)}:`,
+    `- Personal year (${asOf.year}): ${year.value}${master(year)}`,
+    `- Personal month: ${month.value}${master(month)}`,
+    `- Personal day: ${day.value}${master(day)}`,
+    `- Pinnacle ${p.number.value}${master(p.number)} (chapter ${p.index} of 4, ${ages}), challenge ${p.challenge}`,
+  ].join("\n");
+}
+
+/**
+ * One line of numerology timing for a life event, under eventNumerology's
+ * rule: the personal year always, the pinnacle only when the date's
+ * precision cannot straddle a pinnacle change.
+ */
+export function renderEventNumerology(
+  birthDate: string,
+  event: { eventDate: string; precision: LifeEventPrecision },
+): string {
+  const { personalYear: year, pinnacle } = eventNumerology(birthDate, event);
+  const parts = [`personal year ${year.value}`];
+  if (pinnacle) {
+    parts.push(`pinnacle ${pinnacle.number.value}, challenge ${pinnacle.challenge}`);
+  }
+  return `Numerology: ${parts.join("; ")}.`;
 }
 
 /**
@@ -577,7 +643,11 @@ export function renderEventLords(lords: EventLords | null | undefined): string {
  * time-lord summary when one was computed. Over the cap, the most recent
  * MAX_LIFE_EVENTS_IN_PROMPT are kept and the omission is stated.
  */
-export function renderLifeEventsData(events: LifeEventPromptItem[]): string {
+export function renderLifeEventsData(
+  events: LifeEventPromptItem[],
+  /** Civil birth date; adds each event's numerology timing when given. */
+  birthDate?: string,
+): string {
   const shown = events.slice(-MAX_LIFE_EVENTS_IN_PROMPT);
   const omitted = events.length - shown.length;
   const lines: string[] = [];
@@ -594,6 +664,7 @@ export function renderLifeEventsData(events: LifeEventPromptItem[]): string {
     );
     const lordLine = renderEventLords(e.lords);
     if (lordLine) lines.push(`  ${lordLine}`);
+    if (birthDate) lines.push(`  ${renderEventNumerology(birthDate, e)}`);
     if (e.notesMd) {
       const note = e.notesMd.replace(/\s+/g, " ").trim();
       lines.push(
