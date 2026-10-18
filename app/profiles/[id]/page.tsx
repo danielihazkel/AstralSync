@@ -25,6 +25,7 @@ import {
 } from "@astralsync/astro-core";
 import { personalYear, pinnacles } from "@astralsync/numero-core";
 import { nextHebrewBirthday } from "@astralsync/hebrew-core";
+import type { HebrewBirthday } from "@/components/mazal/MazalPanel";
 import { buildAspectMotion } from "@/lib/aspectMotion";
 import { computeChartStats } from "@/lib/chartStats";
 import {
@@ -250,12 +251,24 @@ export default async function ProfilePage({
   // From the sunset-adjusted Hebrew date of birth, as the snapshot stores
   // it. Computed here, on the server's today, so hebcal stays out of the
   // profile page's client bundle.
-  const hebrewBirthday = view.hebrew
-    ? nextHebrewBirthday(
-        toStoredMazal(view.hebrew).hebrewDate.effective,
-        civilFromDate(new Date()),
-      )
-    : null;
+  // The next ten, for the Mazal tab's calendar export; the first is the
+  // one the tab names.
+  const hebrewBirthdays: HebrewBirthday[] = [];
+  if (view.hebrew) {
+    const birth = toStoredMazal(view.hebrew).hebrewDate.effective;
+    let from = civilFromDate(new Date());
+    for (let i = 0; i < 10; i++) {
+      const next = nextHebrewBirthday(birth, from);
+      hebrewBirthdays.push(next);
+      const after = new Date(Date.UTC(next.civil.year, next.civil.month - 1, next.civil.day + 1));
+      from = {
+        year: after.getUTCFullYear(),
+        month: after.getUTCMonth() + 1,
+        day: after.getUTCDate(),
+      };
+    }
+  }
+  const hebrewBirthday = hebrewBirthdays[0] ?? null;
 
   return (
     <main>
@@ -333,6 +346,7 @@ export default async function ProfilePage({
         hebrew={view.hebrew}
         hebrewReading={hebrewReading}
         hebrewBirthday={hebrewBirthday}
+        hebrewBirthdays={hebrewBirthdays}
         llmEnabled={llmEnabled}
       />
     </main>

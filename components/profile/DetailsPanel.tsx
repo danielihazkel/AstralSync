@@ -14,6 +14,8 @@ import HouseSystemSelector from "./HouseSystemSelector";
 import TagsEditor from "./TagsEditor";
 import PrimaryProfileButton from "./PrimaryProfileButton";
 import VersionHistory from "./VersionHistory";
+import { lunarMansion } from "@/lib/lunarMansions";
+import { moonPhaseFromLongitudes } from "@/lib/moonPhase";
 import styles from "./profile.module.css";
 
 export interface SnapshotVersionInfo {
@@ -43,6 +45,15 @@ export default function DetailsPanel({
   // Library sections only — the composed synthesis has no entry key.
   const authoredSections = reading.sections.filter((s) => s.key !== null).length;
   const attemptedSections = authoredSections + reading.missingKeys.length;
+  const sun = chart.placements.find((p) => p.planet === "sun");
+  const moon = chart.placements.find((p) => p.planet === "moon");
+  const birthMoon =
+    sun && moon
+      ? {
+          phase: moonPhaseFromLongitudes(sun.longitude, moon.longitude),
+          mansion: lunarMansion(moon.longitude),
+        }
+      : null;
   return (
     <div className={styles.details}>
       <section className={styles.detailsSection}>
@@ -84,6 +95,18 @@ export default function DetailsPanel({
               <dt>Hebrew name</dt>
               <dd lang="he" dir="rtl">
                 {profile.hebrewBirthName}
+              </dd>
+            </>
+          )}
+          {birthMoon && (
+            <>
+              <dt>Moon at birth</dt>
+              <dd>
+                {birthMoon.phase} · mansion {birthMoon.mansion.index},{" "}
+                {birthMoon.mansion.name} ({birthMoon.mansion.meaning})
+                {chart.isSolarChart && (
+                  <span className={styles.hint}> — approximate: the birth time is unknown</span>
+                )}
               </dd>
             </>
           )}

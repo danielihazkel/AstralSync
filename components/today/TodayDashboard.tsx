@@ -28,6 +28,7 @@ import {
   eclipseContacts,
   natalEclipsePoints,
 } from "@/lib/eclipseContacts";
+import { universalYear } from "@astralsync/numero-core";
 import styles from "./today.module.css";
 
 export interface TodayAnniversaryEvent extends AnniversaryEvent {
@@ -291,6 +292,11 @@ export default function TodayDashboard({
               {mazalSign + "︎"}
             </span>
             mazal {sky.hebrew.mazal.mazal}
+          </p>
+          <p className={styles.muted}>
+            Universal year{" "}
+            {universalYear(Number(sky.hebrew.civilDate.slice(0, 4))).value} — the
+            numerology of the calendar year, shared by everyone
           </p>
           {jewishToday.length > 0 && (
             <ul className={styles.jewishToday}>

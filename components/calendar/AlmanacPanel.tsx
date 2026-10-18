@@ -3,6 +3,7 @@
 import Link from "next/link";
 import DayProfileLinks from "@/components/DayProfileLinks";
 import { skyHref } from "@/components/atDate";
+import { universalYear } from "@astralsync/numero-core";
 import MoonPhaseProse from "@/components/MoonPhaseProse";
 import type { EntryProse } from "@/lib/content";
 import { useSearchParams } from "next/navigation";
@@ -187,6 +188,7 @@ export default function AlmanacPanel({
       <DayProfileLinks date={date} />
       <p className={styles.muted}>
         <Link href={skyHref(date)}>Cast the full chart for noon this day →</Link>
+        {" "}· universal year {universalYear(Number(date.slice(0, 4))).value}
       </p>
 
       {almanac === null ? (

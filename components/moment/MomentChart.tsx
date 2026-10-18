@@ -9,6 +9,7 @@ import DayProfileLinks from "@/components/DayProfileLinks";
 import CitySearch from "@/components/onboarding/CitySearch";
 import { loadChartSettings } from "@/lib/chartSettings";
 import { loadHomeLocation } from "@/lib/homeLocation";
+import { lunarMansion } from "@/lib/lunarMansions";
 import type { HoraryNote } from "@/lib/horary";
 import type { MomentChart as Cast } from "@/lib/momentChart";
 import { momentFromQuery, momentQuery, type MomentPlace } from "@/lib/momentQuery";
@@ -178,6 +179,17 @@ export default function MomentChart() {
             {computed.cast.chart.tzWarnings.includes("dst_ambiguous") &&
               " · that clock time happened twice (the clocks went back); cast for the first"}
           </p>
+          {(() => {
+            const moon = computed.cast.chart.placements.find((p) => p.planet === "moon");
+            if (!moon) return null;
+            const m = lunarMansion(moon.longitude);
+            return (
+              <p className={styles.muted}>
+                Moon in mansion {m.index}, {m.name} ({m.meaning}) — the tradition
+                gives it to {m.goodFor}.
+              </p>
+            );
+          })()}
           <LazyChartWheel
             chart={computed.cast.chart}
             points={computed.cast.points}

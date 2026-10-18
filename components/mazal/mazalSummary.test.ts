@@ -2,7 +2,7 @@ import { buildMazalChart } from "@astralsync/hebrew-core";
 import { gematriaExpression, hebrewDateGematria } from "@astralsync/numero-core";
 import { describe, expect, it } from "vitest";
 import type { StoredHebrewGematria, StoredMazal } from "@/lib/view-types";
-import { buildMazalSummary } from "./mazalSummary";
+import { buildMazalSummary, hebrewBirthdayIcsEvents } from "./mazalSummary";
 
 /**
  * Panel render states as pure values (the component itself is markup only):
@@ -92,5 +92,23 @@ describe("buildMazalSummary render states", () => {
     const s = buildMazalSummary(mazal, gematria);
     expect(s.hourLabel).toBeNull();
     expect(s.chips.map((c) => c.field)).toContain("planetary_hour");
+  });
+});
+
+describe("hebrewBirthdayIcsEvents", () => {
+  it("makes all-day events keyed by profile and date", () => {
+    const events = hebrewBirthdayIcsEvents(
+      [{ civil: { year: 2027, month: 3, day: 9 }, hebrew: "ב׳ אדר", age: 36 }],
+      28,
+      "Dana",
+    );
+    expect(events).toEqual([
+      {
+        uid: "hebrew-birthday-28-2027-03-09",
+        summary: "Dana's Hebrew birthday (36)",
+        description: "ב׳ אדר — begins at sunset the evening before.",
+        date: "2027-03-09",
+      },
+    ]);
   });
 });

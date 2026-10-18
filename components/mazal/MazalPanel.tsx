@@ -10,7 +10,9 @@ import Markdown from "@/components/Markdown";
 import { useStreamedGeneration } from "@/components/useStreamedGeneration";
 import DiscardReadingButton from "@/components/profile/DiscardReadingButton";
 import { PLANET_GLYPH_CHARS, SIGN_GLYPH_CHARS } from "@/components/chart/glyphs";
-import { buildMazalSummary } from "./mazalSummary";
+import { buildMazalSummary, hebrewBirthdayIcsEvents } from "./mazalSummary";
+import { buildIcs } from "@/lib/ics";
+import { downloadIcs } from "@/components/downloadIcs";
 import styles from "./mazal.module.css";
 
 function dateOnly(value: Date | string): string {
@@ -37,6 +39,8 @@ export default function MazalPanel({
   hebrew,
   reading,
   hebrewBirthday = null,
+  hebrewBirthdays = [],
+  displayName = "",
   profileId,
   version,
   llmEnabled,
@@ -44,6 +48,9 @@ export default function MazalPanel({
   hebrew: HebrewView | null;
   reading: ResolvedHebrewReading | null;
   hebrewBirthday?: HebrewBirthday | null;
+  /** The next several Hebrew birthdays, for the calendar export. */
+  hebrewBirthdays?: HebrewBirthday[];
+  displayName?: string;
   profileId: number;
   version: number;
   llmEnabled: boolean;
@@ -138,6 +145,22 @@ export default function MazalPanel({
                   })}{" "}
                   — turning {hebrewBirthday.age}
                 </span>
+                {hebrewBirthdays.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.icsButton}
+                    onClick={() =>
+                      downloadIcs(
+                        buildIcs(hebrewBirthdayIcsEvents(hebrewBirthdays, profileId, displayName), {
+                          calName: `${displayName} — Hebrew birthdays`,
+                        }),
+                        `${displayName} hebrew birthdays`,
+                      )
+                    }
+                  >
+                    Export the next {hebrewBirthdays.length} (.ics)
+                  </button>
+                )}
               </dd>
             </>
           )}

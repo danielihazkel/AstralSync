@@ -45,6 +45,9 @@ import dynamic from "next/dynamic";
 import { WheelSkeleton } from "@/components/chart/WheelSkeleton";
 import OnThisPage, { type PageSection } from "@/components/OnThisPage";
 import { natalAngleAspectKey, natalAspectKey } from "@/lib/contentKeys";
+import { buildIcs } from "@/lib/ics";
+import { downloadIcs } from "@/components/downloadIcs";
+import { cyclesIcsEvents } from "./cyclesIcs";
 import styles from "@/components/transits/transits.module.css";
 
 const ChartWheel = dynamic(() => import("@/components/chart/ChartWheel"), {
@@ -353,6 +356,17 @@ export default function CyclesPanel({
         </span>
         <span>
           <a href={`/profiles/${profileId}/print/cycles`}>Year-ahead report</a>{" "}
+          <button
+            onClick={() =>
+              downloadIcs(
+                buildIcs(cyclesIcsEvents(data, profileId), { calName: "Cycles — returns and periods" }),
+                "cycles returns and periods",
+              )
+            }
+            title="Returns, and where the profection year and firdaria periods end"
+          >
+            Dates (.ics)
+          </button>{" "}
           <button onClick={() => void load()}>Refresh</button>
         </span>
       </div>

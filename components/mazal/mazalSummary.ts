@@ -71,3 +71,30 @@ export function buildMazalSummary(
     chips: mazal.uncertainties,
   };
 }
+
+/**
+ * Hebrew birthdays as all-day calendar events on their civil dates (each
+ * begins at the previous sunset — said in the description, since an
+ * all-day event cannot). The uid carries the civil date, so a re-export
+ * updates rather than duplicates.
+ */
+export function hebrewBirthdayIcsEvents(
+  birthdays: ReadonlyArray<{
+    civil: { year: number; month: number; day: number };
+    hebrew: string;
+    age: number;
+  }>,
+  profileId: number,
+  displayName: string,
+): Array<{ uid: string; summary: string; description: string; date: string }> {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return birthdays.map((b) => {
+    const date = `${b.civil.year}-${pad(b.civil.month)}-${pad(b.civil.day)}`;
+    return {
+      uid: `hebrew-birthday-${profileId}-${date}`,
+      summary: `${displayName}'s Hebrew birthday (${b.age})`,
+      description: `${b.hebrew} — begins at sunset the evening before.`,
+      date,
+    };
+  });
+}

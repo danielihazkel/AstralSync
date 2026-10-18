@@ -128,3 +128,19 @@
     display: none;
   }
 }
+
+.icsButton {
+  margin-left: 0.6rem;
+  font-size: 0.82rem;
+  padding: 0.1rem 0.55rem;
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.icsButton:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}

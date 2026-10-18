@@ -70,6 +70,7 @@ export default function ProfileTabs({
   hebrew,
   hebrewReading,
   hebrewBirthday,
+  hebrewBirthdays = [],
   llmEnabled,
 }: {
   profile: ProfileData;
@@ -97,6 +98,8 @@ export default function ProfileTabs({
   hebrew: HebrewView | null;
   hebrewReading: ResolvedHebrewReading | null;
   hebrewBirthday: HebrewBirthday | null;
+  /** The next ten Hebrew birthdays, for the Mazal tab's .ics. */
+  hebrewBirthdays?: HebrewBirthday[];
   llmEnabled: boolean;
 }) {
   // Tab state lives in ?tab= so views are bookmarkable and survive reloads.
@@ -188,6 +191,8 @@ export default function ProfileTabs({
             hebrew={hebrew}
             reading={hebrewReading}
             hebrewBirthday={hebrewBirthday}
+            hebrewBirthdays={hebrewBirthdays}
+            displayName={profile.displayName}
             profileId={profile.id}
             version={astro.version}
             llmEnabled={llmEnabled}
