@@ -4,6 +4,7 @@ import {
   astrocartographyLines,
   astronomyEngineProvider,
   buildChart,
+  horizonLongitude,
   mcLongitude,
   separation,
 } from "@astralsync/astro-core";
@@ -71,12 +72,37 @@ describe("linesNear", () => {
     for (let i = 1; i < near.length; i++) expect(near[i].km).toBeGreaterThanOrEqual(near[i - 1].km);
   });
 
-  it("measures east–west along the latitude and names the side", () => {
+  it("measures great-circle distance to a meridian and names the side", () => {
     const lng = mcLongitude(equatorial.venus.ra, gst);
-    // Two degrees west of the line at 60°N: ~111 km.
+    // Two degrees west of the line at 60°N: asin(cos 60° · sin 2°) ≈ 111 km.
     const near = linesNear(lines, equatorial, gst, { label: "x", lat: 60, lng: lng - 2 });
     const venus = near.find((n) => n.planet === "venus" && n.angle === "mc")!;
-    expect(venus.km).toBeCloseTo(111.3, 0);
+    expect(venus.km).toBeCloseTo(111.2, 0);
     expect(venus.side).toBe("east");
+  });
+
+  it("measures across the circumpolar bend, not along the latitude", () => {
+    // June solstice Sun: its rising line bends into the IC meridian at
+    // ~66.6°N, running almost east–west there. A place 0.4° north of the
+    // line at 66°N is ~45 km from it, though the line's longitude at the
+    // place's own latitude is far away.
+    const at = new Date(Date.UTC(2026, 5, 21, 12));
+    const g = astronomyEngineProvider.siderealTimeDeg(at);
+    const eq = {
+      sun: {
+        ra: astronomyEngineProvider.rightAscension("sun", at),
+        dec: astronomyEngineProvider.declination("sun", at),
+      },
+    };
+    const onLine = horizonLongitude(eq.sun.ra, eq.sun.dec, g, 66, "asc")!;
+    const alongLatitude = horizonLongitude(eq.sun.ra, eq.sun.dec, g, 66.4, "asc")!;
+    expect(separation(alongLatitude, onLine)).toBeGreaterThan(5);
+    const near = linesNear([{ planet: "sun", angle: "asc" }], eq, g, {
+      label: "x",
+      lat: 66.4,
+      lng: onLine,
+    });
+    expect(near).toHaveLength(1);
+    expect(near[0].km).toBeLessThan(50);
   });
 });

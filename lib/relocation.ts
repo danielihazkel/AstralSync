@@ -95,18 +95,55 @@ function lngDelta(a: number, b: number): number {
 export interface LineNear {
   planet: Planet;
   angle: AcgAngle;
-  /** East–west distance from the place to the line along its latitude. */
+  /** Great-circle distance from the place to the nearest point of the line. */
   km: number;
-  /** "east" when the line lies east of the place. */
+  /** "east" when that nearest point lies east of the place. */
   side: "east" | "west";
 }
 
+const EARTH_KM = 6371;
+const RAD = Math.PI / 180;
+
+/** Haversine distance between two points, km. */
+function greatCircleKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const a =
+    Math.sin(((lat2 - lat1) * RAD) / 2) ** 2 +
+    Math.cos(lat1 * RAD) * Math.cos(lat2 * RAD) * Math.sin(((lng2 - lng1) * RAD) / 2) ** 2;
+  return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** The nearest point of a rising/setting line to a place: the line's exact
+ *  longitude as a function of latitude, searched on a quarter-degree grid
+ *  around the place and refined to a hundredth. Null when the line does
+ *  not come within the search span (circumpolar there). */
+function nearestOnHorizonLine(
+  eq: { ra: number; dec: number },
+  gst: number,
+  angle: "asc" | "dsc",
+  place: RelocationPlace,
+): { km: number; lng: number } | null {
+  let best: { km: number; lng: number; lat: number } | null = null;
+  const probe = (lat: number) => {
+    if (Math.abs(lat) >= 89.99) return;
+    const lng = horizonLongitude(eq.ra, eq.dec, gst, lat, angle);
+    if (lng === null) return;
+    const km = greatCircleKm(place.lat, place.lng, lat, lng);
+    if (best === null || km < best.km) best = { km, lng, lat };
+  };
+  for (let d = -12; d <= 12; d += 0.25) probe(place.lat + d);
+  const coarse = best as { lat: number } | null;
+  if (coarse === null) return null;
+  for (let d = -0.25; d <= 0.25; d += 0.01) probe(coarse.lat + d);
+  return best;
+}
+
 /**
- * The astrocartography lines within `maxKm` of a place, nearest first,
- * measured east–west along the place's latitude (the lines run roughly
- * north–south, so that is close to the true distance, and it is how
- * astrocartographers read a map). Uses the exact line position at the
- * place's latitude, not the sampled polyline.
+ * The astrocartography lines within `maxKm` of a place, nearest first, by
+ * great-circle distance to the nearest point of each line. A meridian (MC/
+ * IC) is a great circle, so that is exact; a rising or setting line is
+ * searched along its exact curve, so a place near the circumpolar limit —
+ * where those lines bend nearly east–west — is not measured across the
+ * bend.
  */
 export function linesNear(
   lines: Pick<AcgLine, "planet" | "angle">[],
@@ -115,21 +152,27 @@ export function linesNear(
   place: RelocationPlace,
   maxKm = LINE_BAND_KM,
 ): LineNear[] {
-  const kmPerDegree = 111.32 * Math.cos((place.lat * Math.PI) / 180);
   const out: LineNear[] = [];
   for (const { planet, angle } of lines) {
     const eq = equatorial[planet];
     if (!eq) continue;
-    const lng =
-      angle === "mc"
-        ? mcLongitude(eq.ra, gst)
-        : angle === "ic"
-          ? mcLongitude(eq.ra, gst) + 180
-          : horizonLongitude(eq.ra, eq.dec, gst, place.lat, angle);
-    if (lng === null) continue;
-    const d = lngDelta(lng, place.lng);
-    const km = Math.abs(d) * kmPerDegree;
-    if (km <= maxKm) out.push({ planet, angle, km, side: d >= 0 ? "east" : "west" });
+    let km: number;
+    let lng: number;
+    if (angle === "mc" || angle === "ic") {
+      lng = mcLongitude(eq.ra, gst) + (angle === "ic" ? 180 : 0);
+      const d = lngDelta(lng, place.lng) * RAD;
+      // Distance to a meridian half: asin(cos φ · sin Δλ) while it faces
+      // the place; past 90° of longitude the line is half a world away.
+      if (Math.abs(d) > Math.PI / 2) continue;
+      km = EARTH_KM * Math.asin(Math.abs(Math.cos(place.lat * RAD) * Math.sin(d)));
+    } else {
+      const nearest = nearestOnHorizonLine(eq, gst, angle, place);
+      if (nearest === null) continue;
+      ({ km, lng } = nearest);
+    }
+    if (km <= maxKm) {
+      out.push({ planet, angle, km, side: lngDelta(lng, place.lng) >= 0 ? "east" : "west" });
+    }
   }
   return out.sort((a, b) => a.km - b.km);
 }

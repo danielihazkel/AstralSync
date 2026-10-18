@@ -51,6 +51,7 @@ export {
   astrocartographyLines,
   horizonLongitude,
   mcLongitude,
+  splitAtAntimeridian,
 } from "./astrocartography";
 export type { AcgAngle, AcgLine, AcgOptions } from "./astrocartography";
 export { compositeChart } from "./composite";

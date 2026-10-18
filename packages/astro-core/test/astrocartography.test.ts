@@ -8,6 +8,7 @@ import {
   horizonLongitude,
   mcLongitude,
   separation,
+  splitAtAntimeridian,
 } from "../src";
 
 const AT = new Date(Date.UTC(1990, 2, 4, 10, 30));
@@ -77,6 +78,46 @@ describe("astrocartography lines", () => {
     const ic = mcLongitude(10, 0) + 180;
     expect(separation(asc, ic)).toBeLessThan(2);
     expect(separation(dsc, ic)).toBeLessThan(2);
+  });
+
+  it("runs each sampled rising/setting line all the way onto its meridian", () => {
+    // June solstice: the Sun at δ ≈ +23.4° reaches its limit at ~66.6°,
+    // well inside a 75° map.
+    const at = new Date(Date.UTC(2026, 5, 21, 12));
+    const gst = astronomyEngineProvider.siderealTimeDeg(at);
+    const lines = astrocartographyLines(at, { maxLatitude: 75, planets: ["sun"] });
+    const ra = astronomyEngineProvider.rightAscension("sun", at);
+    const dec = astronomyEngineProvider.declination("sun", at);
+    const mc = mcLongitude(ra, gst);
+    const ic = mc + 180;
+    for (const angle of ["asc", "dsc"] as const) {
+      const pts = lines.find((l) => l.angle === angle)!.segments.flat();
+      const north = pts.reduce((a, b) => (b[1] > a[1] ? b : a));
+      const south = pts.reduce((a, b) => (b[1] < a[1] ? b : a));
+      // Northern limit (90° − δ): lower culmination, on the IC line.
+      expect(north[1]).toBeCloseTo(90 - dec, 3);
+      expect(separation(north[0], ic)).toBeLessThan(0.5);
+      // Southern limit (−(90° − δ)): beyond it the Sun never rises; it
+      // grazes the horizon at upper culmination, on the MC line.
+      expect(south[1]).toBeCloseTo(-(90 - dec), 3);
+      expect(separation(south[0], mc)).toBeLessThan(0.5);
+    }
+  });
+
+  it("meets the map edge at ±180° instead of stopping short", () => {
+    const segs = splitAtAntimeridian([
+      [170, 0],
+      [178, 1],
+      [-176, 2],
+      [-170, 3],
+    ]);
+    expect(segs).toHaveLength(2);
+    const [a, b] = segs;
+    expect(a[a.length - 1][0]).toBe(180);
+    expect(b[0][0]).toBe(-180);
+    // 178 → 184 (unwrapped) crosses 180 a third of the way: latitude 1.333.
+    expect(a[a.length - 1][1]).toBeCloseTo(1 + 1 / 3, 6);
+    expect(b[0][1]).toBeCloseTo(1 + 1 / 3, 6);
   });
 
   it("draws four lines per planet and never jumps across the map", () => {

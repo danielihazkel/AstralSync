@@ -219,7 +219,7 @@ export default function RelocationPanel({
                 </g>
               );
             })}
-            {place && (
+            {place && Math.abs(place.lat) <= MAX_LAT && (
               <g className={styles.marker}>
                 <circle cx={x(place.lng)} cy={y(place.lat)} r={2.6} />
                 <circle cx={x(place.lng)} cy={y(place.lat)} r={1.1} />
@@ -272,8 +272,14 @@ export default function RelocationPanel({
         {place && relocated && (
           <>
             <h3 className={styles.subTitle}>Lines within 700 km</h3>
+            {Math.abs(place.lat) > MAX_LAT && (
+              <p className={styles.muted}>
+                {place.label} lies beyond the map&rsquo;s {MAX_LAT}° edge, so it is not
+                marked there; the distances below still hold.
+              </p>
+            )}
             {relocated.near.length === 0 ? (
-              <p className={styles.muted}>No line passes within 700 km east or west of here.</p>
+              <p className={styles.muted}>No line passes within 700 km of here.</p>
             ) : (
               <div className="tableWrap">
                 <table className={styles.table}>

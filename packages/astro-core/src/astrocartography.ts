@@ -42,20 +42,51 @@ function wrap180(lng: number): number {
   return ((((lng + 180) % 360) + 360) % 360) - 180;
 }
 
-/** Split a polyline wherever consecutive longitudes jump across the map. */
-function splitAtAntimeridian(points: Array<[number, number]>): Array<Array<[number, number]>> {
+/** Split a polyline wherever consecutive longitudes jump across the map,
+ *  ending one piece and starting the next on the ±180° edge itself (at the
+ *  interpolated latitude) so the line leaves no gap at the map's border. */
+export function splitAtAntimeridian(
+  points: Array<[number, number]>,
+): Array<Array<[number, number]>> {
   const out: Array<Array<[number, number]>> = [];
   let current: Array<[number, number]> = [];
   for (const p of points) {
     const prev = current[current.length - 1];
     if (prev && Math.abs(p[0] - prev[0]) > 180) {
+      const edge = prev[0] > 0 ? 180 : -180;
+      const unwrapped = p[0] + (edge > 0 ? 360 : -360);
+      const t = (edge - prev[0]) / (unwrapped - prev[0]);
+      const lat = prev[1] + t * (p[1] - prev[1]);
+      current.push([edge, lat]);
       if (current.length > 1) out.push(current);
-      current = [];
+      current = [[-edge, lat]];
     }
     current.push(p);
   }
   if (current.length > 1) out.push(current);
   return out;
+}
+
+/**
+ * The latitudes to sample a rising/setting line at: the regular grid, plus
+ * an even sweep of the hour angle H₀ from 0° to 180° mapped back to
+ * latitude (tan φ = −cos H₀ / tan δ). The grid alone ends a whole step
+ * short of the circumpolar limit, where the curve runs nearly east–west —
+ * a gap of 15° of longitude or more before it meets the MC/IC meridian;
+ * the H₀ sweep lands on the limit exactly (H₀ = 0° and 180°) and follows
+ * the bend into it.
+ */
+function horizonSampleLatitudes(dec: number, maxLat: number, step: number): number[] {
+  const lats: number[] = [];
+  for (let lat = -maxLat; lat <= maxLat + 1e-9; lat += step) lats.push(lat);
+  const tanDec = Math.tan(dec * DEG);
+  if (Math.abs(tanDec) > 1e-9) {
+    for (let h = 0; h <= 180; h += 2) {
+      const lat = Math.atan(-Math.cos(h * DEG) / tanDec) / DEG;
+      if (Math.abs(lat) <= maxLat) lats.push(lat);
+    }
+  }
+  return [...new Set(lats.map((l) => Math.round(l * 1e6) / 1e6))].sort((a, b) => a - b);
 }
 
 /** The longitude where `planet` is on the MC for an instant. */
@@ -75,8 +106,9 @@ export function horizonLongitude(
   angle: "asc" | "dsc",
 ): number | null {
   const x = -Math.tan(lat * DEG) * Math.tan(dec * DEG);
-  if (x < -1 || x > 1) return null;
-  const h0 = Math.acos(x) / DEG;
+  // A hair of tolerance: the sampled limit latitude can round to |x| = 1 + ε.
+  if (x < -1 - 1e-9 || x > 1 + 1e-9) return null;
+  const h0 = Math.acos(Math.max(-1, Math.min(1, x))) / DEG;
   return wrap180(ra - gst + (angle === "asc" ? -h0 : h0));
 }
 
@@ -100,7 +132,7 @@ export function astrocartographyLines(
     );
     for (const angle of ["asc", "dsc"] as const) {
       const points: Array<[number, number]> = [];
-      for (let lat = -maxLat; lat <= maxLat + 1e-9; lat += step) {
+      for (const lat of horizonSampleLatitudes(dec, maxLat, step)) {
         const lng = horizonLongitude(ra, dec, gst, lat, angle);
         if (lng !== null) points.push([lng, lat]);
       }
