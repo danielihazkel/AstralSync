@@ -38,6 +38,7 @@ export default function RootLayout({
             <Link href="/journal">Journal</Link>
             <Link href="/calendar">Calendar</Link>
             <Link href="/ephemeris">Ephemeris</Link>
+            <Link href="/chart">Chart</Link>
             <Link href="/onboarding">New profile</Link>
             <Link href="/settings">Settings</Link>
             <ThemeToggle />

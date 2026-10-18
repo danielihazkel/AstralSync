@@ -124,13 +124,20 @@ export default function OnboardingWizard({
   mode,
   profileId,
   initial,
+  prefill,
 }: {
   mode: "create" | "edit";
   profileId?: number;
   initial?: WizardInitial;
+  /** Create mode: fields carried in from elsewhere (the moment chart's
+   *  "Save as a profile") — the rest start empty. */
+  prefill?: Partial<WizardDraft>;
 }) {
   const router = useRouter();
-  const [draft, dispatch] = useReducer(reducer, initial ?? EMPTY_DRAFT);
+  const [draft, dispatch] = useReducer(
+    reducer,
+    initial ?? { ...EMPTY_DRAFT, ...prefill },
+  );
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);

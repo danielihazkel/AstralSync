@@ -32,6 +32,7 @@ export const GO_TARGETS: Record<string, { href: string; label: string }> = {
   j: { href: "/journal", label: "Journal" },
   c: { href: "/calendar", label: "Sky Calendar" },
   e: { href: "/ephemeris", label: "Ephemeris" },
+  m: { href: "/chart", label: "Chart of the moment" },
   n: { href: "/onboarding", label: "New profile" },
   s: { href: "/settings", label: "Settings" },
 };
