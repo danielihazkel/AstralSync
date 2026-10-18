@@ -50,6 +50,9 @@ become key segments.
 | `life_path`          | `life_path/<n>`                  | `life_path/11.md` |
 | `destiny`            | `destiny/<n>`                    | `destiny/5.md` |
 | `soul_urge`          | `soul_urge/<n>`                  | `soul_urge/22.md` |
+| `personal_year`      | `personal_year/<n>`              | `personal_year/9.md` |
+| `pinnacle`           | `pinnacle/<n>`                   | `pinnacle/22.md` |
+| `challenge`          | `challenge/<0-8>`                | `challenge/0.md` |
 | `mazal_month`        | `mazal_month/<month>`            | `mazal_month/nisan.md` |
 | `day_planet`         | `day_planet/<planet>`            | `day_planet/saturn.md` |
 | `hour_planet`        | `hour_planet/<planet>`           | `hour_planet/venus.md` |
@@ -61,7 +64,7 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (1511 entries):** `planet_in_sign` ×120
+**English scope (1544 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
 framing), `planet_in_house` ×120, `aspect` ×199 (39 full pairs across all
 five types plus conjunction-only Sun–Mercury and Sun–Venus and
@@ -101,7 +104,10 @@ with sign delineations, and `resolveReading` never emits them), `composite_in_si
 Sun/Moon/Venus/Mars × 12 signs — relationship-voice prose shared by the
 composite and Davison panels, which re-label the heading for their own
 register), `life_path` / `destiny` / `soul_urge` ×12 each
-(1–9, 11, 22, 33), `element_dominance` ×4, and `modality_dominance` ×3.
+(1–9, 11, 22, 33), `personal_year` and `pinnacle` ×12 each (the same
+values; pinnacle prose never assumes which of the four chapters it is),
+`challenge` ×9 (0–8 — a challenge is a difference of single digits, so
+never 9 or a master; the lint asserts there is no `challenge/9`), `element_dominance` ×4, and `modality_dominance` ×3.
 The reading renders sign and house sections for all ten planets —
 Jupiter/Saturn with the placements, the outer three under a "Generational
 backdrop" heading, houses for every planet with a placed house — plus the

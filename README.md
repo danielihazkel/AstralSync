@@ -107,11 +107,13 @@ picker.
   synthesis.
 - **Numerology** — Life Path, Destiny, and Soul Urge with the full
   letter-by-letter derivation ("show your work"); master numbers 11/22/33 are
-  never reduced.
-- **Mazal** — the Hebrew layer: sunset-adjusted Hebrew birth date, month
-  mazal, day and hour planets (Shabbat 156a), Sefer Yetzirah
-  correspondences, date and name gematria — with RTL Hebrew sources and an
-  optional English AI synthesis.
+  never reduced. Below them, **your cycles now**: the personal year, month
+  and day, the nine years ahead, and the four pinnacles with their
+  challenges — the current chapter marked, with its prose.
+- **Mazal** — the Hebrew layer: sunset-adjusted Hebrew birth date and the
+  next Hebrew birthday, month mazal, day and hour planets (Shabbat 156a),
+  Sefer Yetzirah correspondences, date and name gematria — with RTL Hebrew
+  sources and an optional English AI synthesis.
 - **Transits** — live positions against the natal chart with per-aspect
   prose, a transit bi-wheel, and adjustable orbs (see settings below). A
   date picker pins the whole view to any day in the engine's range, so
@@ -131,9 +133,12 @@ picker.
   current lunar and solar return charts, and
   **Jupiter & Saturn returns** (last/next exact dates, retrograde multi-pass
   notes, the return chart).
-- **Forecast** — cached AI readings for the day / week / month, in a Western
-  mode (Moon spans, ingresses, stations, eclipses, aspect windows) and a
-  Hebrew mode (day planets, month mazalot, gematria).
+- **Forecast** — the day / week / month computed from the ephemeris, in a
+  Western mode (Moon spans, ingresses, stations, eclipses against your chart,
+  the strongest contacts with their prose) and a Hebrew mode (the month's
+  mazal, letter, tribe and faculty; every day's planet and date number) —
+  shown with or without AI. With the AI layer on, a cached AI forecast for
+  the period sits beneath it, told the period's own numerology cycles.
 - **Journal** — dated notes with mood and free-form tags, each pinned to a
   sky snapshot captured at save time ("what was hitting your chart"),
   filterable by transiting planet or aspect — plus an **Insights** view that
@@ -147,10 +152,20 @@ picker.
   zodiacal releasing from Fortune and Spirit with its peaks and loosings of
   the bond, and the progressed Sun. An event dated only to the year hides
   the Moon, Sun, Mercury, Venus and Mars and says why: they move too far in
-  a year for their positions to mean anything. Above the list, a **life
-  arc** lays your events against those periods on one timeline. All of it
+  a year for their positions to mean anything. Each also carries its
+  numerology timing: the personal year, and the pinnacle when the date is
+  precise enough to know it. Above the list, a **life arc** lays your events
+  against those periods — and the pinnacles and personal years — on one
+  timeline. All of it
   feeds the **Life Story** reading, which now gets each event's timing
   rather than guessing it from the calendar.
+- **Birth time** (`/profiles/[id]/birth-time`, linked from Details and the
+  life arc) — what the birth time decides across a window (where the
+  Ascendant, MC and Moon change sign), and, with three or more dated life
+  events, every candidate time scored against them by solar-arc directions,
+  progressed angles and slow transits to the angles, with a clear /
+  suggestive / inconclusive verdict and every contact shown. It never edits
+  the profile.
 - **Details** — birth data, engine metadata, version history, house-system
   selector, profile tags, "this is me", reading coverage (which
   interpretation keys this chart wants but the library hasn't authored),
@@ -178,12 +193,14 @@ not a compatibility score.
 
 `/calendar` is a client-computed (offline-capable) month grid of the sky
 itself: the Moon's sign and phase each day, full void-of-course windows,
-sign ingresses, and eclipses. A second view is the **electional day picker**:
+sign ingresses, and eclipses — and the **Jewish calendar**: each day's
+Hebrew date, holidays, Rosh Chodesh, fasts, the parasha and special
+Shabbatot, with candle-lighting and havdalah for the home location. A second view is the **electional day picker**:
 pick an intent (start a venture, sign, launch, travel, …) and every
 planetary-hour window of the day is scored against transparent classical
 rules — each window lists exactly which factors moved it. Any day deep-links
 to `/calendar/[date]`, a full almanac page (mundane aspects, ingresses,
-stations, planetary hours, electional windows). Months, days, and electional
+stations, the Jewish calendar, planetary hours, electional windows). Months, days, and electional
 windows all export as `.ics` files with stable UIDs, so re-imports update
 instead of duplicating.
 
@@ -199,7 +216,9 @@ downloadable as CSV for cross-checking against a published ephemeris.
 `/settings` consolidates the per-browser preferences: **theme** (dark /
 light / auto, no flash on reload), **aspect orbs** (luminary / planet /
 minor-aspect orbs plus the minor-aspect opt-in), **home location** (powers
-planetary hours and the electional picker — birth cities are never assumed),
+planetary hours, the electional picker and candle-lighting times — birth
+cities are never assumed), the **holiday schedule** (Israel or the
+Diaspora, or auto from the home location),
 and **chart display** (points on/off, true vs. mean nodes, minor overlay,
 wheel vs. table default, and the house system new profiles start with).
 Eight house systems are supported — Placidus, Whole Sign, Equal, Porphyry,
@@ -328,7 +347,7 @@ content has moved on since.
 app/                  Next.js App Router pages + API routes (incl. app/sw.js/route.ts,
                       the service worker route, and /profiles/[id]/print)
 components/           React components (wizard, chart wheel, panels, Today dashboard)
-content/en/           English interpretation library (1511 Markdown entries)
+content/en/           English interpretation library (1544 Markdown entries)
 content/he/           Hebrew interpretation library (62 Markdown entries)
 lib/                  App services: snapshots, timezone, content, forecasts, LLM, PWA
 packages/astro-core/  Framework-free chart engine (ephemeris, houses, aspects,
