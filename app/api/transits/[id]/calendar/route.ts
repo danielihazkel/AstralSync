@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTransitCalendar } from "@/lib/transitCalendar";
+import { civilRangeToUtc } from "@/lib/tz";
 import { transitCalendarQuerySchema } from "@/lib/validation";
 
 function parseId(raw: string): number | null {
@@ -13,8 +14,8 @@ const NO_STORE = { "Cache-Control": "no-store" };
  * Ephemeral transit-calendar read: exact aspect hits, ingresses, stations
  * and eclipses across a civil-date range, against the profile's latest
  * natal snapshot. Never persisted, never cached — same stance as
- * /api/transits/[id]. Day boundaries are UTC; a hit near local midnight may
- * render under the adjacent local day.
+ * /api/transits/[id]. Day boundaries are the `tz` zone's local midnights
+ * (the browser sends its own), UTC midnights when it is omitted.
  */
 export async function GET(
   req: NextRequest,
@@ -36,9 +37,12 @@ export async function GET(
       { status: 400, headers: NO_STORE },
     );
   }
-  const from = new Date(`${parsed.data.from}T00:00:00Z`);
   // Inclusive range: scan through the end of the `to` day.
-  const to = new Date(Date.parse(`${parsed.data.to}T00:00:00Z`) + 86_400_000);
+  const { from, to } = civilRangeToUtc(
+    parsed.data.from,
+    parsed.data.to,
+    parsed.data.tz,
+  );
   const view = await getTransitCalendar(id, from, to, {
     includeMinors: parsed.data.minors === "1",
   });

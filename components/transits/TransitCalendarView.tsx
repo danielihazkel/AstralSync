@@ -8,6 +8,7 @@ import type {
   TransitCalendarEvent,
 } from "@/lib/transitCalendar";
 import { loadOrbSettings } from "@/lib/orbSettings";
+import { tzQueryPart } from "@/components/atDate";
 import { MONTH_SHIFT_EVENT } from "@/lib/shortcuts";
 import PrintButton from "@/components/print/PrintButton";
 import {
@@ -139,7 +140,7 @@ export default function TransitCalendarView({
     let res: Response;
     try {
       res = await fetch(
-        `/api/transits/${profileId}/calendar?from=${from}&to=${to}${minors}`,
+        `/api/transits/${profileId}/calendar?from=${from}&to=${to}${minors}${tzQueryPart()}`,
       );
     } catch {
       setState({ kind: "offline" });

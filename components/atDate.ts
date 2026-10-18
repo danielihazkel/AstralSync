@@ -47,6 +47,18 @@ export function localNoonIso(date: string): string {
   return `${date}T12:00:00${offset}`;
 }
 
+/** The browser's IANA zone as a query fragment ("&tz=…"), so range routes
+ *  bound the scan by the user's local days rather than UTC ones; empty when
+ *  the runtime cannot name its zone (the route then falls back to UTC). */
+export function tzQueryPart(): string {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return zone ? `&tz=${encodeURIComponent(zone)}` : "";
+  } catch {
+    return "";
+  }
+}
+
 /** Clamp a picker value into the ephemeris range; "" (cleared input) and
  *  malformed values fall back to the previous date. */
 export function clampAtDate(raw: string, previous: string): string {

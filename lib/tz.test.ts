@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  civilRangeToUtc,
   isValidTimeZone,
   offsetMinutesAt,
   resolveBirthMoment,
@@ -81,5 +82,34 @@ describe("historical UTC offset resolution", () => {
     });
     expect(r.offsetMinutes).toBe(330);
     expect(r.utc.toISOString()).toBe("1995-06-01T06:30:00.000Z");
+  });
+});
+
+describe("civilRangeToUtc", () => {
+  it("bounds the range by the zone's local midnights", () => {
+    // Israel in October 2026 is IDT (UTC+3) until the 25th, then IST (+2):
+    // each end takes its own offset.
+    const r = civilRangeToUtc("2026-10-01", "2026-10-31", "Asia/Jerusalem");
+    expect(r.from.toISOString()).toBe("2026-09-30T21:00:00.000Z");
+    expect(r.to.toISOString()).toBe("2026-10-31T22:00:00.000Z");
+  });
+
+  it("covers an early-morning hit on the 1st that UTC bounds dropped", () => {
+    const hit = Date.parse("2026-09-30T22:30:00Z"); // 01:30 local, Oct 1
+    const local = civilRangeToUtc("2026-10-01", "2026-10-31", "Asia/Jerusalem");
+    const utc = civilRangeToUtc("2026-10-01", "2026-10-31");
+    expect(hit >= local.from.getTime() && hit < local.to.getTime()).toBe(true);
+    expect(hit >= utc.from.getTime()).toBe(false);
+  });
+
+  it("keeps UTC days when no zone is given (older clients)", () => {
+    const r = civilRangeToUtc("2026-02-01", "2026-02-28");
+    expect(r.from.toISOString()).toBe("2026-02-01T00:00:00.000Z");
+    expect(r.to.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+  });
+
+  it("rolls the end over a year boundary", () => {
+    const r = civilRangeToUtc("2026-12-01", "2026-12-31", "America/New_York");
+    expect(r.to.toISOString()).toBe("2027-01-01T05:00:00.000Z");
   });
 });

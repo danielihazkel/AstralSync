@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTransitGraph } from "@/lib/transitGraph";
 import { transitOptionsFromQuery } from "@/lib/transits";
+import { civilRangeToUtc } from "@/lib/tz";
 import { transitGraphQuerySchema } from "@/lib/validation";
 
 function parseId(raw: string): number | null {
@@ -36,8 +37,11 @@ export async function GET(
       { status: 400, headers: NO_STORE },
     );
   }
-  const from = new Date(`${parsed.data.from}T00:00:00Z`);
-  const to = new Date(Date.parse(`${parsed.data.to}T00:00:00Z`) + 86_400_000);
+  const { from, to } = civilRangeToUtc(
+    parsed.data.from,
+    parsed.data.to,
+    parsed.data.tz,
+  );
   const view = await getTransitGraph(id, from, to, transitOptionsFromQuery(parsed.data));
   if (!view) {
     return NextResponse.json(

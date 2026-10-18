@@ -393,11 +393,20 @@ export type LifeEventUpdateInput = z.infer<typeof lifeEventUpdateSchema>;
 /** GET /api/transits/[id]/calendar query: an inclusive civil-date range,
  *  capped at 93 days (one quarter) — the scan cost is linear in the span —
  *  and kept inside ~1700–2200 where the ephemeris' Pluto model holds. */
+/** The browser's IANA zone, so a range's days are the user's local days
+ *  (lib/tz.ts civilRangeToUtc); omitted, they are UTC days. */
+const rangeZone = z
+  .string()
+  .min(1)
+  .max(64)
+  .refine(isValidTimeZone, { message: "not a recognized IANA timezone" });
+
 export const transitCalendarQuerySchema = z
   .object({
     from: civilDateString,
     to: civilDateString,
     minors: z.enum(["1", "0"]).optional(),
+    tz: rangeZone.optional(),
   })
   .refine((v) => v.from <= v.to, { message: "from must not be after to" })
   .refine(
@@ -421,6 +430,7 @@ export const transitGraphQuerySchema = z
     from: civilDateString,
     to: civilDateString,
     minors: z.enum(["1", "0"]).optional(),
+    tz: rangeZone.optional(),
     luminaryOrb: orbParam.optional(),
     defaultOrb: orbParam.optional(),
     minorOrb: orbParam.optional(),

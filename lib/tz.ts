@@ -64,6 +64,34 @@ export function offsetMinutesAt(zone: string, utc: Date): number {
 }
 
 /**
+ * An inclusive civil-date range → the UTC instants bounding it: the start
+ * of `from` through the start of the day after `to`. With a zone, the days
+ * are that zone's (DST-correct at each end); without one they are UTC days,
+ * the behaviour older clients were built against.
+ *
+ * Scanned ranges are grouped by the browser's local day, so UTC bounds
+ * dropped a hit early on the 1st (it fell in the previous UTC month) and
+ * listed a late hit on the last day under the next month's 1st.
+ */
+export function civilRangeToUtc(
+  from: string,
+  to: string,
+  zone?: string,
+): { from: Date; to: Date } {
+  const [ty, tm, td] = to.split("-").map(Number);
+  const dayAfter = new Date(Date.UTC(ty, tm - 1, td + 1))
+    .toISOString()
+    .slice(0, 10);
+  const start = (date: string): Date => {
+    if (!zone) return new Date(`${date}T00:00:00Z`);
+    const [year, month, day] = date.split("-").map(Number);
+    return resolveBirthMoment(zone, { year, month, day, hour: 0, minute: 0 })
+      .utc;
+  };
+  return { from: start(from), to: start(dayAfter) };
+}
+
+/**
  * Convert a local wall-clock birth time to a UTC instant.
  *
  * DST edge handling (Temporal "compatible" semantics):

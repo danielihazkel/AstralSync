@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AspectType } from "@astralsync/astro-core";
 import type { GraphBar, TransitGraphData } from "@/lib/transitGraphCore";
 import { loadOrbSettings, orbQuery } from "@/lib/orbSettings";
+import { tzQueryPart } from "@/components/atDate";
 import { ASPECT_NAMES, PLANET_NAMES } from "@/components/format";
 import { PLANET_GLYPH_CHARS } from "@/components/chart/glyphs";
 import styles from "./transits.module.css";
@@ -73,7 +74,7 @@ export default function TransitGraph({ profileId }: { profileId: number }) {
     setState({ kind: "loading" });
     const { from, to } = monthRange(year, month0);
     const orbs = orbQuery(loadOrbSettings());
-    const query = `from=${from}&to=${to}${orbs ? "&" + orbs.slice(1) : ""}`;
+    const query = `from=${from}&to=${to}${orbs ? "&" + orbs.slice(1) : ""}${tzQueryPart()}`;
     let res: Response;
     try {
       res = await fetch(`/api/transits/${profileId}/graph?${query}`);

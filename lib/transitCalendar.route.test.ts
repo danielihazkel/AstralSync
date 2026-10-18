@@ -52,6 +52,30 @@ describe("GET /api/transits/[id]/calendar", () => {
     );
   });
 
+  it("bounds the scan by the browser's local days when tz is sent", async () => {
+    const res = await GET(
+      request(
+        "/api/transits/1/calendar?from=2026-08-01&to=2026-08-31&tz=Asia%2FJerusalem",
+      ),
+      params("1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockCalendar).toHaveBeenCalledWith(
+      1,
+      new Date("2026-07-31T21:00:00Z"),
+      new Date("2026-08-31T21:00:00Z"),
+      { includeMinors: false },
+    );
+  });
+
+  it("rejects an unknown zone with 400", async () => {
+    const res = await GET(
+      request("/api/transits/1/calendar?from=2026-08-01&to=2026-08-31&tz=Mars%2FOlympus"),
+      params("1"),
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("threads minors=1 through", async () => {
     await GET(
       request("/api/transits/1/calendar?from=2026-08-01&to=2026-08-31&minors=1"),
