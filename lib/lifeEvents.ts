@@ -145,16 +145,21 @@ export async function updateLifeEvent(
 ): Promise<LifeEventView | null> {
   const existing = await prisma.lifeEvent.findFirst({
     where: { id: eventId, profileId },
-    select: { id: true },
+    select: { id: true, eventDate: true },
   });
   if (!existing) return null;
   // The journal's rule (lib/journal.ts): a date edit moves the event to a
   // different sky, so recompute; editing the title or notes does not, so
-  // leave the pinned sky exactly as it was.
-  const sky =
-    patch.eventDate !== undefined
-      ? await skyForDate(profileId, patch.eventDate, patch.at)
-      : undefined;
+  // leave the pinned sky exactly as it was. Decided by comparing against
+  // the stored date, not by whether the field was sent — the edit form
+  // sends every field, and a retitle used to re-pin the sky with whatever
+  // engine and natal version happened to be current.
+  const dateChanged =
+    patch.eventDate !== undefined &&
+    patch.eventDate !== dateString(existing.eventDate);
+  const sky = dateChanged
+    ? await skyForDate(profileId, patch.eventDate!, patch.at)
+    : undefined;
   const row = await prisma.lifeEvent.update({
     where: { id: eventId },
     data: {

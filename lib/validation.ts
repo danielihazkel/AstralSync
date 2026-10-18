@@ -381,7 +381,12 @@ export const lifeEventUpdateSchema = z
       v.precision === undefined ||
       isCanonicalEventDate(v.eventDate, v.precision),
     { message: CANONICAL_MESSAGE },
-  );
+  )
+  // Same guard as create: without it an edit could pin the sky of a
+  // different day than the one it stores.
+  .refine((v) => !v.at || !v.eventDate || v.at.slice(0, 10) === v.eventDate, {
+    message: "at must fall on eventDate",
+  });
 
 export type LifeEventUpdateInput = z.infer<typeof lifeEventUpdateSchema>;
 
