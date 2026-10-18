@@ -11,8 +11,8 @@ import styles from "./shortcuts.module.css";
 
 /**
  * The Ctrl+K palette: pages, the current profile's tabs, and every saved
- * profile, filtered as you type. Profiles are fetched once per open session
- * of the palette (best effort — offline still lists the static pages).
+ * profile, filtered as you type. Profiles are fetched on each open (best
+ * effort — offline still lists the static pages).
  */
 export default function CommandPalette({
   open,
@@ -29,7 +29,6 @@ export default function CommandPalette({
   const [profiles, setProfiles] = useState<
     Array<{ id: number; displayName: string }>
   >([]);
-  const fetched = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -37,20 +36,25 @@ export default function CommandPalette({
     setQuery("");
     setActive(0);
     inputRef.current?.focus();
-    if (fetched.current) return;
-    fetched.current = true;
+    // Refetched on every open: the palette lives in the root layout and
+    // never remounts, so a once-only fetch went stale after a create,
+    // rename or trash. The last list shows until the fresh one lands.
+    let cancelled = false;
     fetch("/api/profiles?limit=200")
       .then((res) => (res.ok ? res.json() : null))
       .then((body: { profiles?: Array<{ id: number; displayName: string }> } | null) => {
-        if (body?.profiles) {
+        if (!cancelled && body?.profiles) {
           setProfiles(
             body.profiles.map((p) => ({ id: p.id, displayName: p.displayName })),
           );
         }
       })
       .catch(() => {
-        fetched.current = false; // try again next open
+        // Offline — the static pages (and the last list) still work.
       });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   if (!open) return null;
