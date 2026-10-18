@@ -376,9 +376,10 @@ export async function importProfileInTx(
   tx: Tx,
   data: ProfileExport,
 ): Promise<number> {
-  // City resolution outside the transaction: keep the FK when the GeoNames
-  // row exists locally, recreate it from the export's canonical copy when it
-  // doesn't, otherwise drop the FK — coordinates and tz live on the profile.
+  // City resolution, inside the transaction like every other write: keep
+  // the FK when the GeoNames row exists locally, recreate it from the
+  // export's canonical copy when it doesn't, otherwise drop the FK —
+  // coordinates and tz live on the profile.
   let birthCityGeonameId: number | null = data.profile.birthCityGeonameId ?? null;
   if (birthCityGeonameId !== null) {
     const existing = await tx.geoCity.findUnique({
@@ -388,7 +389,7 @@ export async function importProfileInTx(
     if (!existing) {
       const city = data.birthCity;
       if (city && city.geonameId === birthCityGeonameId) {
-        await prisma.geoCity.create({
+        await tx.geoCity.create({
           data: {
             geonameId: city.geonameId,
             name: city.name,
