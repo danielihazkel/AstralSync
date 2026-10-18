@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   UnsupportedExportVersion,
+  importFingerprint,
   profileBundleSchema,
   profileExportSchema,
+  remapArchivedReadingRows,
   remapReadingRows,
   remapRelationshipRows,
+  remapSynastryReadingRows,
   upgradeExport,
 } from "./importProfile";
 
@@ -531,5 +534,111 @@ describe("upgradeExport", () => {
   it("leaves non-objects to the schemas", () => {
     expect(upgradeExport(null)).toBeNull();
     expect(upgradeExport("nope")).toBe("nope");
+  });
+});
+
+describe("AI text in the export (round 7)", () => {
+  const forecast = {
+    mode: "western",
+    kind: "week",
+    periodStart: "2026-10-18",
+    natalVersion: 2,
+    bodyMd: "A week ahead.",
+    modelName: "m",
+    contentVersion: "1",
+    createdAt: "2026-10-18T09:00:00.000Z",
+  };
+  const archived = {
+    astroSnapshotId: 15,
+    numeroSnapshotId: 15,
+    bodyMd: "A discarded reading.",
+    generator: "llm",
+    modelName: null,
+    contentVersion: null,
+    createdAt: "2026-08-12T10:00:00.000Z",
+    discardedAt: "2026-09-01T10:00:00.000Z",
+  };
+
+  it("defaults forecasts and the archive for older files", () => {
+    const parsed = profileExportSchema.parse(validExport());
+    expect(parsed.forecasts).toEqual([]);
+    expect(parsed.readingArchive).toEqual([]);
+    const b = profileBundleSchema.parse({ exportVersion: 1, bundle: true, profiles: [] });
+    expect(b.synastryReadings).toEqual([]);
+  });
+
+  it("carries forecasts and archived readings, remapping the archive's FKs", () => {
+    const parsed = profileExportSchema.parse({
+      ...validExport(),
+      forecasts: [forecast],
+      readingArchive: [archived],
+    });
+    expect(parsed.forecasts[0]).toMatchObject({ kind: "week", periodStart: "2026-10-18" });
+    const rows = remapArchivedReadingRows(
+      parsed.readingArchive,
+      new Map([[15, 101]]),
+      new Map([[15, 201]]),
+    );
+    expect(rows[0]).toMatchObject({ astroSnapshotId: 101, numeroSnapshotId: 201 });
+    expect(rows[0].discardedAt.toISOString()).toBe("2026-09-01T10:00:00.000Z");
+  });
+
+  it("rejects an archived reading pointing at a missing snapshot", () => {
+    const data = { ...validExport(), readingArchive: [{ ...archived, astroSnapshotId: 999 }] };
+    expect(profileExportSchema.safeParse(data).success).toBe(false);
+  });
+
+  it("rejects an unknown forecast mode", () => {
+    const data = { ...validExport(), forecasts: [{ ...forecast, mode: "vedic" }] };
+    expect(profileExportSchema.safeParse(data).success).toBe(false);
+  });
+});
+
+describe("remapSynastryReadingRows", () => {
+  const reading = {
+    profileAId: 1,
+    profileBId: 2,
+    aVersion: 3,
+    bVersion: 5,
+    bodyMd: "Pair.",
+    modelName: null,
+    contentVersion: null,
+    createdAt: "2026-08-12T10:00:00.000Z",
+  };
+
+  it("re-orders an inverted pair and carries each side's version with it", () => {
+    const [row] = remapSynastryReadingRows([reading], new Map([[1, 40], [2, 30]]));
+    expect(row).toMatchObject({ profileAId: 30, profileBId: 40, aVersion: 5, bVersion: 3 });
+  });
+
+  it("drops a pair missing a side, and keeps the first of a repeated pair", () => {
+    expect(remapSynastryReadingRows([reading], new Map([[1, 40]]))).toEqual([]);
+    const rows = remapSynastryReadingRows(
+      [reading, { ...reading, profileAId: 2, profileBId: 1, bodyMd: "Again." }],
+      new Map([[1, 10], [2, 20]]),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].bodyMd).toBe("Pair.");
+  });
+});
+
+describe("importFingerprint", () => {
+  const p = {
+    displayName: "Dana",
+    birthDate: "1990-02-22",
+    birthTime: "18:00",
+    birthLat: 32.08088,
+    birthLng: 34.78057,
+  };
+
+  it("matches the same person regardless of name case and float noise", () => {
+    expect(importFingerprint({ ...p, displayName: " dana " })).toBe(importFingerprint(p));
+    expect(importFingerprint({ ...p, birthLat: 32.080881 })).toBe(importFingerprint(p));
+  });
+
+  it("tells apart a different time, date or place", () => {
+    expect(importFingerprint({ ...p, birthTime: null })).not.toBe(importFingerprint(p));
+    expect(importFingerprint({ ...p, birthDate: "1990-02-23" })).not.toBe(importFingerprint(p));
+    expect(importFingerprint({ ...p, birthLng: 34.79 })).not.toBe(importFingerprint(p));
   });
 });

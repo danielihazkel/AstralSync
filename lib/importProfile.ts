@@ -196,6 +196,34 @@ const readingSchema = z.object({
   createdAt: isoDate,
 });
 
+// The AI-text tables (round 7): additive, so files written before them still
+// validate through the defaults below.
+export const forecastSchema = z.object({
+  mode: z.enum(["western", "hebrew"]),
+  kind: z.enum(["day", "week", "month"]),
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  natalVersion: z.number().int().positive(),
+  bodyMd: z.string(),
+  modelName: z.string().max(64).nullish(),
+  contentVersion: z.string().max(16).nullish(),
+  createdAt: isoDate,
+});
+
+export const archivedReadingSchema = readingSchema.extend({
+  discardedAt: isoDate,
+});
+
+export const synastryReadingSchema = z.object({
+  profileAId: z.number().int(),
+  profileBId: z.number().int(),
+  aVersion: z.number().int().positive(),
+  bVersion: z.number().int().positive(),
+  bodyMd: z.string(),
+  modelName: z.string().max(64).nullish(),
+  contentVersion: z.string().max(16).nullish(),
+  createdAt: isoDate,
+});
+
 function duplicateVersion(rows: { version: number }[]): number | null {
   const seen = new Set<number>();
   for (const r of rows) {
@@ -219,6 +247,9 @@ export const profileExportSchema = z
     journalEntries: z.array(journalEntrySchema).default([]),
     // Absent in pre-life-events exports.
     lifeEvents: z.array(lifeEventSchema).default([]),
+    // Absent before round 7.
+    forecasts: z.array(forecastSchema).default([]),
+    readingArchive: z.array(archivedReadingSchema).default([]),
   })
   .superRefine((data, ctx) => {
     for (const [path, rows] of [
@@ -237,22 +268,27 @@ export const profileExportSchema = z
     }
     const astroIds = new Set(data.astroSnapshots.map((s) => s.id));
     const numeroIds = new Set(data.numeroSnapshots.map((s) => s.id));
-    data.readings.forEach((r, i) => {
-      if (!astroIds.has(r.astroSnapshotId)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["readings", i, "astroSnapshotId"],
-          message: `no astro snapshot with id ${r.astroSnapshotId}`,
-        });
-      }
-      if (r.numeroSnapshotId != null && !numeroIds.has(r.numeroSnapshotId)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["readings", i, "numeroSnapshotId"],
-          message: `no numero snapshot with id ${r.numeroSnapshotId}`,
-        });
-      }
-    });
+    for (const [path, rows] of [
+      ["readings", data.readings],
+      ["readingArchive", data.readingArchive],
+    ] as const) {
+      rows.forEach((r, i) => {
+        if (!astroIds.has(r.astroSnapshotId)) {
+          ctx.addIssue({
+            code: "custom",
+            path: [path, i, "astroSnapshotId"],
+            message: `no astro snapshot with id ${r.astroSnapshotId}`,
+          });
+        }
+        if (r.numeroSnapshotId != null && !numeroIds.has(r.numeroSnapshotId)) {
+          ctx.addIssue({
+            code: "custom",
+            path: [path, i, "numeroSnapshotId"],
+            message: `no numero snapshot with id ${r.numeroSnapshotId}`,
+          });
+        }
+      });
+    }
   });
 
 export type ProfileExport = z.infer<typeof profileExportSchema>;
@@ -277,6 +313,8 @@ export const profileBundleSchema = z.object({
   profiles: z.array(profileExportSchema).max(500),
   // Absent in pre-relationship bundles.
   relationships: z.array(relationshipSchema).default([]),
+  // Absent before round 7.
+  synastryReadings: z.array(synastryReadingSchema).default([]),
   settings: z.unknown().optional(),
 });
 
@@ -357,13 +395,124 @@ export function remapReadingRows(
   });
 }
 
-const asJson = (v: unknown) => (v ?? Prisma.JsonNull) as Prisma.InputJsonValue;
+/** The Trash's archived readings, remapped like the live ones. */
+export function remapArchivedReadingRows(
+  archive: ProfileExport["readingArchive"],
+  astroIdMap: Map<number, number>,
+  numeroIdMap: Map<number, number>,
+) {
+  return remapReadingRows(archive, astroIdMap, numeroIdMap).map((r, i) => ({
+    ...r,
+    discardedAt: new Date(archive[i].discardedAt),
+  }));
+}
 
 /**
- * Create the profile and all its rows from a validated export. Always a new
- * profile id; importing the same file twice yields two profiles.
- * Returns the new profile id.
+ * Remap pair-level AI readings onto the imported (or, when skipped as
+ * duplicates, the already-present) profile ids — the relationship rules: both
+ * endpoints must be in the map, the pair is re-ordered to keep
+ * profileAId < profileBId (carrying each side's version with it), and the
+ * first row of a pair wins.
  */
+export function remapSynastryReadingRows(
+  readings: z.infer<typeof synastryReadingSchema>[],
+  profileIdMap: Map<number, number>,
+) {
+  const rows = [];
+  const seen = new Set<string>();
+  for (const r of readings) {
+    const a = profileIdMap.get(r.profileAId);
+    const b = profileIdMap.get(r.profileBId);
+    if (a === undefined || b === undefined || a === b) continue;
+    const key = `${Math.min(a, b)}:${Math.max(a, b)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const swap = a > b;
+    rows.push({
+      profileAId: swap ? b : a,
+      profileBId: swap ? a : b,
+      aVersion: swap ? r.bVersion : r.aVersion,
+      bVersion: swap ? r.aVersion : r.bVersion,
+      bodyMd: r.bodyMd,
+      modelName: r.modelName ?? null,
+      contentVersion: r.contentVersion ?? null,
+      createdAt: new Date(r.createdAt),
+    });
+  }
+  return rows;
+}
+
+/**
+ * What makes an imported profile "already here": the same name and birth
+ * data (date, time, place to ~10 m). Only the chart's identity counts —
+ * tags, notes and readings may differ between two copies of one person.
+ */
+export function importFingerprint(p: {
+  displayName: string;
+  birthDate: string;
+  birthTime?: string | null;
+  birthLat: number;
+  birthLng: number;
+}): string {
+  return [
+    p.displayName.trim().toLowerCase(),
+    p.birthDate,
+    p.birthTime ?? "",
+    p.birthLat.toFixed(4),
+    p.birthLng.toFixed(4),
+  ].join("|");
+}
+
+export interface ExistingMatch {
+  /** Index of the profile in the file (0 for a single-profile export). */
+  index: number;
+  existingId: number;
+  displayName: string;
+}
+
+/** Live profiles that an import would duplicate, by file index. */
+export async function findExistingProfiles(
+  exports: Pick<ProfileExport, "profile">[],
+): Promise<ExistingMatch[]> {
+  if (exports.length === 0) return [];
+  const dates = [...new Set(exports.map((e) => e.profile.birthDate))];
+  const candidates = await prisma.profile.findMany({
+    where: {
+      birthDate: {
+        in: dates.map((d) => {
+          const [y, m, day] = d.split("-").map(Number);
+          return new Date(Date.UTC(y, m - 1, day));
+        }),
+      },
+    },
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      displayName: true,
+      birthDate: true,
+      birthTime: true,
+      birthLat: true,
+      birthLng: true,
+    },
+  });
+  const byPrint = new Map<string, { id: number; displayName: string }>();
+  for (const c of candidates) {
+    const print = importFingerprint({
+      ...c,
+      birthDate: c.birthDate.toISOString().slice(0, 10),
+    });
+    if (!byPrint.has(print)) byPrint.set(print, c);
+  }
+  const matches: ExistingMatch[] = [];
+  exports.forEach((e, index) => {
+    const hit = byPrint.get(importFingerprint(e.profile));
+    if (hit) matches.push({ index, existingId: hit.id, displayName: hit.displayName });
+  });
+  return matches;
+}
+
+const asJson = (v: unknown) => (v ?? Prisma.JsonNull) as Prisma.InputJsonValue;
+
 /** Prisma transaction client — what $transaction hands its callback. */
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -371,6 +520,8 @@ type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
  * Restore one profile inside a caller-supplied transaction, so a bundle can
  * restore every profile (and their relationships) atomically instead of
  * leaving a half-imported installation behind when row 7 of 20 fails.
+ * Always a new profile id — the caller decides about duplicates first
+ * (findExistingProfiles). Returns the new profile id.
  */
 export async function importProfileInTx(
   tx: Tx,
@@ -499,6 +650,36 @@ export async function importProfileInTx(
     for (const r of readingRows) {
       await tx.reading.create({ data: r });
     }
+    const archiveRows = remapArchivedReadingRows(
+      data.readingArchive,
+      astroIdMap,
+      numeroIdMap,
+    );
+    if (archiveRows.length > 0) {
+      await tx.readingArchive.createMany({ data: archiveRows });
+    }
+
+    if (data.forecasts.length > 0) {
+      await tx.forecast.createMany({
+        data: data.forecasts.map((f) => {
+          const [fy, fm, fd] = f.periodStart.split("-").map(Number);
+          return {
+            profileId: profile.id,
+            mode: f.mode,
+            kind: f.kind,
+            // @db.Date column: UTC midnight, same as birthDate above.
+            periodStart: new Date(Date.UTC(fy, fm - 1, fd)),
+            natalVersion: f.natalVersion,
+            bodyMd: f.bodyMd,
+            modelName: f.modelName ?? null,
+            contentVersion: f.contentVersion ?? null,
+            createdAt: new Date(f.createdAt),
+          };
+        }),
+        // A hand-edited file listing one period twice keeps the first.
+        skipDuplicates: true,
+      });
+    }
 
     if (data.journalEntries.length > 0) {
       await tx.journalEntry.createMany({
@@ -560,26 +741,36 @@ export async function importProfile(data: ProfileExport): Promise<number> {
 }
 
 /**
- * Restore a whole bundle atomically: every profile and every saved
- * relationship, or nothing. Returns the new ids in the bundle's own order.
+ * Restore a whole bundle atomically: every profile, saved relationship and
+ * pair reading, or nothing. `skip` maps a file index to a profile that is
+ * already here (findExistingProfiles): that profile is not created again,
+ * but its pairings still land on the existing row — unless the pair already
+ * has one. Returns the new ids in the bundle's own order.
  */
 export async function importBundle(
-  bundle: Pick<ProfileBundle, "profiles" | "relationships">,
+  bundle: Pick<ProfileBundle, "profiles" | "relationships" | "synastryReadings">,
+  skip: Map<number, number> = new Map(),
 ): Promise<number[]> {
   return prisma.$transaction(async (tx) => {
     const ids: number[] = [];
-    // Old exported id -> newly created id, for the relationship remap.
+    // Old exported id -> new (or existing) id, for the pair remaps.
     const profileIdMap = new Map<number, number>();
-    for (const p of bundle.profiles) {
-      const id = await importProfileInTx(tx, p);
-      ids.push(id);
+    for (const [index, p] of bundle.profiles.entries()) {
+      const existing = skip.get(index);
+      const id = existing ?? (await importProfileInTx(tx, p));
+      if (existing === undefined) ids.push(id);
       // A bundle written before profile ids travelled simply has no
-      // relationships to remap.
+      // pairs to remap.
       if (p.profile.id !== undefined) profileIdMap.set(p.profile.id, id);
     }
-    const rows = remapRelationshipRows(bundle.relationships, profileIdMap);
-    for (const r of rows) {
-      await tx.relationship.create({ data: r });
+    const relationships = remapRelationshipRows(bundle.relationships, profileIdMap);
+    if (relationships.length > 0) {
+      // A skipped profile's pair may already be saved here: keep that one.
+      await tx.relationship.createMany({ data: relationships, skipDuplicates: true });
+    }
+    const readings = remapSynastryReadingRows(bundle.synastryReadings, profileIdMap);
+    if (readings.length > 0) {
+      await tx.synastryReading.createMany({ data: readings, skipDuplicates: true });
     }
     return ids;
   });

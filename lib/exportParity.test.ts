@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  archivedReadingSchema,
+  forecastSchema,
   journalEntrySchema,
   lifeEventSchema,
   profileSchema,
+  synastryReadingSchema,
 } from "./importProfile";
 import {
+  exportArchivedReading,
+  exportForecast,
   exportJournalEntry,
   exportLifeEvent,
   exportProfileColumns,
+  exportSynastryReading,
 } from "./snapshots";
 
 /**
@@ -96,6 +102,49 @@ describe("export/import field parity", () => {
       updatedAt: DATE,
     });
     expect(parityOf(emitted, lifeEventSchema)).toEqual([]);
+  });
+
+  it("every exported AI-text field is read by the importer", () => {
+    const forecast = exportForecast({
+      id: 1,
+      profileId: 2,
+      mode: "western",
+      kind: "week",
+      periodStart: DATE,
+      natalVersion: 1,
+      bodyMd: "f",
+      modelName: "m",
+      contentVersion: "1",
+      createdAt: DATE,
+    });
+    expect(parityOf(forecast, forecastSchema)).toEqual([]);
+    expect(forecastSchema.safeParse(JSON.parse(JSON.stringify(forecast))).success).toBe(true);
+
+    const archived = exportArchivedReading({
+      id: 1,
+      astroSnapshotId: 3,
+      numeroSnapshotId: null,
+      bodyMd: "r",
+      generator: "llm",
+      modelName: null,
+      contentVersion: null,
+      createdAt: DATE,
+      discardedAt: DATE,
+    });
+    expect(parityOf(archived, archivedReadingSchema)).toEqual([]);
+
+    const pair = exportSynastryReading({
+      id: 1,
+      profileAId: 1,
+      profileBId: 2,
+      aVersion: 1,
+      bVersion: 2,
+      bodyMd: "s",
+      modelName: null,
+      contentVersion: null,
+      createdAt: DATE,
+    });
+    expect(parityOf(pair, synastryReadingSchema)).toEqual([]);
   });
 
   it("the guard actually fails when a key goes unread", () => {

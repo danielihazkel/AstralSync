@@ -19,6 +19,7 @@ import {
 import {
   Prisma,
   type AstroSnapshot,
+  type Forecast,
   type GeoCity,
   type HebrewSnapshot,
   type JournalEntry,
@@ -979,6 +980,81 @@ export function exportLifeEvent(e: {
   };
 }
 
+/** A cached AI forecast. Its profile is implied by the file it rides in. */
+export function exportForecast(f: {
+  id: number;
+  profileId: number;
+  mode: Forecast["mode"];
+  kind: Forecast["kind"];
+  periodStart: Date;
+  natalVersion: number;
+  bodyMd: string;
+  modelName: string | null;
+  contentVersion: string | null;
+  createdAt: Date;
+}) {
+  return {
+    mode: f.mode,
+    kind: f.kind,
+    periodStart: dateOnly(f.periodStart),
+    natalVersion: f.natalVersion,
+    bodyMd: f.bodyMd,
+    modelName: f.modelName,
+    contentVersion: f.contentVersion,
+    createdAt: f.createdAt,
+  };
+}
+
+/** A discarded AI reading waiting in the Trash; its snapshot ids are the
+ *  exported ones, remapped on import like the live readings'. */
+export function exportArchivedReading(r: {
+  id: number;
+  astroSnapshotId: number;
+  numeroSnapshotId: number | null;
+  bodyMd: string;
+  generator: Reading["generator"];
+  modelName: string | null;
+  contentVersion: string | null;
+  createdAt: Date;
+  discardedAt: Date;
+}) {
+  return {
+    astroSnapshotId: r.astroSnapshotId,
+    numeroSnapshotId: r.numeroSnapshotId,
+    bodyMd: r.bodyMd,
+    generator: r.generator,
+    modelName: r.modelName,
+    contentVersion: r.contentVersion,
+    createdAt: r.createdAt,
+    discardedAt: r.discardedAt,
+  };
+}
+
+/** A pair's cached AI reading. Like a saved relationship it belongs to the
+ *  pair, so it lives at the bundle level; its endpoints are exported ids. */
+export function exportSynastryReading(r: {
+  id: number;
+  profileAId: number;
+  profileBId: number;
+  aVersion: number;
+  bVersion: number;
+  bodyMd: string;
+  modelName: string | null;
+  contentVersion: string | null;
+  createdAt: Date;
+}) {
+  return {
+    profileAId: r.profileAId,
+    profileBId: r.profileBId,
+    aVersion: r.aVersion,
+    bVersion: r.bVersion,
+    bodyMd: r.bodyMd,
+    modelName: r.modelName,
+    contentVersion: r.contentVersion,
+    createdAt: r.createdAt,
+  };
+}
+
 /** Full data export (PRD §4.6): every snapshot version, every reading. */
 export async function exportProfile(id: number) {
   const profile = await prisma.profile.findUnique({
@@ -987,10 +1063,14 @@ export async function exportProfile(id: number) {
       birthCity: true,
       astroSnapshots: {
         orderBy: { version: "asc" },
-        include: { readings: true },
+        include: {
+          readings: true,
+          readingArchive: { orderBy: { discardedAt: "asc" } },
+        },
       },
       numeroSnapshots: { orderBy: { version: "asc" } },
       hebrewSnapshots: { orderBy: { version: "asc" } },
+      forecasts: { orderBy: [{ periodStart: "asc" }, { id: "asc" }] },
       // Live rows only, for both: the lib/db.ts client extension narrows
       // top-level `where` but never reaches a nested `include`, so every
       // soft-deleted relation needs its Trash filter spelled out here.
@@ -1012,6 +1092,7 @@ export async function exportProfile(id: number) {
     hebrewSnapshots,
     journalEntries,
     lifeEvents,
+    forecasts,
     birthCity,
   } = profile;
   return {
@@ -1023,7 +1104,9 @@ export async function exportProfile(id: number) {
     // browser's history, not the chart.
     profile: exportProfileColumns(profile),
     birthCity,
-    astroSnapshots: astroSnapshots.map(({ readings: _r, ...s }) => s),
+    astroSnapshots: astroSnapshots.map(
+      ({ readings: _r, readingArchive: _a, ...s }) => s,
+    ),
     numeroSnapshots,
     // Additive (exportVersion stays 1); sparse for pre-feature versions.
     hebrewSnapshots,
@@ -1032,6 +1115,12 @@ export async function exportProfile(id: number) {
     journalEntries: journalEntries.map(exportJournalEntry),
     // Additive like journalEntries; live rows only.
     lifeEvents: lifeEvents.map(exportLifeEvent),
+    // Paid AI text, additive like the rest: the cached period forecasts and
+    // the discarded readings still restorable from the Trash.
+    forecasts: forecasts.map(exportForecast),
+    readingArchive: astroSnapshots.flatMap((s) =>
+      s.readingArchive.map(exportArchivedReading),
+    ),
   };
 }
 
@@ -1067,12 +1156,18 @@ export async function exportAllProfiles() {
       createdAt: true,
     },
   });
+  // A pair's cached AI reading, under the same both-sides-live rule.
+  const synastryReadings = await prisma.synastryReading.findMany({
+    where: { profileA: { deletedAt: null }, profileB: { deletedAt: null } },
+    orderBy: { id: "asc" },
+  });
   return {
     exportVersion: 1 as const,
     bundle: true as const,
     exportedAt: new Date().toISOString(),
     profiles,
     relationships,
+    synastryReadings: synastryReadings.map(exportSynastryReading),
   };
 }
 
