@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TABS, paramFromTab, tabFromParam } from "./tabParam";
+import { TABS, TAB_GROUPS, groupOf, paramFromTab, tabFromParam } from "./tabParam";
 
 describe("tabParam", () => {
   it("round-trips every tab", () => {
@@ -24,5 +24,18 @@ describe("tabParam", () => {
     expect(tabFromParam(null)).toBe("Chart");
     expect(tabFromParam("")).toBe("Chart");
     expect(tabFromParam("nonsense")).toBe("Chart");
+  });
+});
+
+describe("TAB_GROUPS", () => {
+  it("places every tab in exactly one section", () => {
+    const grouped = TAB_GROUPS.flatMap((g) => g.tabs);
+    expect([...grouped].sort()).toEqual([...TABS].sort());
+    expect(new Set(grouped).size).toBe(grouped.length);
+  });
+
+  it("finds a tab's section", () => {
+    expect(groupOf("Cycles").label).toBe("Timing");
+    expect(groupOf("Details").label).toBe("Natal");
   });
 });

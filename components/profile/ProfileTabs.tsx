@@ -63,7 +63,8 @@ const TransitsPanel = dynamic(() => import("@/components/transits/TransitsPanel"
 });
 const ReadingPanel = dynamic(() => import("./ReadingPanel"), { loading: panelLoading });
 import DetailsPanel, { type SnapshotVersionInfo } from "./DetailsPanel";
-import { TABS, paramFromTab, tabFromParam, type Tab } from "./tabParam";
+import { useState } from "react";
+import { TAB_GROUPS, groupOf, paramFromTab, tabFromParam, type Tab } from "./tabParam";
 import { useTabList } from "@/components/useTabList";
 import styles from "./profile.module.css";
 
@@ -144,18 +145,42 @@ export default function ProfileTabs({
     window.history.replaceState(null, "", `?${params.toString()}`);
   }
 
+  // Two levels: a short row of sections, then the open section's tabs
+  // (TAB_GROUPS). A section remembers the tab last open in it this visit.
+  const group = groupOf(tab);
+  const groupIndex = TAB_GROUPS.indexOf(group);
+  const [lastInGroup, setLastInGroup] = useState<Record<string, Tab>>({});
+  function openTab(t: Tab) {
+    setLastInGroup((m) => ({ ...m, [groupOf(t).label]: t }));
+    setTab(t);
+  }
   const { getTabProps, getPanelProps } = useTabList({
-    count: TABS.length,
-    selected: TABS.indexOf(tab),
-    onSelect: (i) => setTab(TABS[i]),
-    idBase: "profile-tabs",
+    count: group.tabs.length,
+    selected: group.tabs.indexOf(tab),
+    onSelect: (i) => openTab(group.tabs[i]),
+    idBase: `profile-tabs-${groupIndex}`,
   });
-  const panelProps = getPanelProps(TABS.indexOf(tab));
+  const panelProps = getPanelProps(group.tabs.indexOf(tab));
 
   return (
     <div>
-      <div role="tablist" aria-label="Profile views" className={styles.tabs}>
-        {TABS.map((t, i) => (
+      <nav aria-label="Profile sections" className={styles.tabGroups}>
+        {TAB_GROUPS.map((g) => (
+          <button
+            key={g.label}
+            type="button"
+            aria-current={g === group ? "true" : undefined}
+            className={g === group ? styles.tabGroupActive : styles.tabGroup}
+            onClick={() => {
+              if (g !== group) openTab(lastInGroup[g.label] ?? g.tabs[0]);
+            }}
+          >
+            {g.label}
+          </button>
+        ))}
+      </nav>
+      <div role="tablist" aria-label={`${group.label} views`} className={styles.tabs}>
+        {group.tabs.map((t, i) => (
           <button
             key={t}
             {...getTabProps(i)}

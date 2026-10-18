@@ -45,9 +45,40 @@
 
 /* Tabs */
 
+/* The section row above the tabs (TAB_GROUPS): four short labels that fit
+   one line on a phone. */
+.tabGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.tabGroup,
+.tabGroupActive {
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tabGroup:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.tabGroupActive {
+  color: var(--accent-bright);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
 .tabs {
   display: flex;
-  flex-wrap: wrap; /* nine tabs — keep all visible on phones instead of overflowing */
+  flex-wrap: wrap; /* at most three tabs per section, one row even on phones */
   gap: 0.25rem;
   border-bottom: 1px solid var(--border);
   margin-bottom: 1.25rem;
