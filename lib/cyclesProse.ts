@@ -25,6 +25,17 @@ export function resolveCyclesProse(
   if (progressedSun) {
     prose.progressedSun = resolve(`progressed_sun_sign/${progressedSun}`);
   }
+  const progressedMoon = view.progressions.placements.find((p) => p.planet === "moon")?.sign;
+  if (progressedMoon) {
+    prose.progressedMoon = resolve(`progressed_moon_sign/${progressedMoon}`);
+  }
+  if (view.zodiacalReleasing) {
+    const { fortune, spirit } = view.zodiacalReleasing;
+    prose.releasing = {
+      fortune: fortune.current ? resolve(`zodiacal_releasing/${fortune.current.l1.sign}`) : undefined,
+      spirit: spirit.current ? resolve(`zodiacal_releasing/${spirit.current.l1.sign}`) : undefined,
+    };
+  }
   const progressedAsc = view.progressions.chart.bigThree?.ascendant;
   if (progressedAsc) {
     prose.progressedAsc = resolve(`progressed_asc_sign/${progressedAsc}`);

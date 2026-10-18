@@ -508,6 +508,7 @@ export default function CyclesPanel({
                         " — begun by a loosing of the bond"}
                       .
                     </p>
+                    <Prose entry={data.prose?.releasing?.[zrView]} />
                     <details>
                       <summary className={styles.muted}>
                         General periods since birth ({zr.l1.length})
@@ -615,6 +616,7 @@ export default function CyclesPanel({
         </p>
 
         <Prose entry={data.prose?.progressedSun} />
+        <Prose entry={data.prose?.progressedMoon} />
         <Prose entry={data.prose?.progressedAsc} />
 
         <h4 className={styles.sectionTitle}>Progressed aspects to the natal chart</h4>

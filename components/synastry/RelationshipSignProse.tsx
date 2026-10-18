@@ -8,8 +8,10 @@ import styles from "./synastry.module.css";
 export const RELATIONSHIP_SIGN_PLANETS = [
   "sun",
   "moon",
+  "mercury",
   "venus",
   "mars",
+  "jupiter",
 ] as const;
 
 /** Canonical composite_in_sign content key — shared by the composite and
@@ -19,8 +21,8 @@ export function compositeInSignKey(planet: string, sign: string): string {
 }
 
 /**
- * Sign prose for a relationship chart's core planets (Sun, Moon, Venus,
- * Mars). The heading is rebuilt per context ("Composite Sun in Aries" /
+ * Sign prose for a relationship chart's core planets (Sun, Moon, Mercury,
+ * Venus, Mars, Jupiter). The heading is rebuilt per context ("Composite Sun in Aries" /
  * "Davison Sun in Aries") so one authored entry serves both panels;
  * unauthored keys render nothing, the standard degradation.
  */

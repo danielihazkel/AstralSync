@@ -36,6 +36,8 @@ become key segments.
 | `profection_year`    | `profection_year/<house 1-12>`   | `profection_year/5.md` |
 | `progressed_sun_sign` | `progressed_sun_sign/<sign>`    | `progressed_sun_sign/taurus.md` |
 | `progressed_asc_sign` | `progressed_asc_sign/<sign>`    | `progressed_asc_sign/virgo.md` |
+| `progressed_moon_sign` | `progressed_moon_sign/<sign>`  | `progressed_moon_sign/cancer.md` |
+| `zodiacal_releasing` | `zodiacal_releasing/<sign>`     | `zodiacal_releasing/capricorn.md` |
 | `return_overview`    | `return_overview/<solar\|lunar\|jupiter\|saturn>` | `return_overview/saturn.md` |
 | `solar_arc`          | `solar_arc/overview`             | `solar_arc/overview.md` |
 | `ascendant_sign`     | `ascendant_sign/<sign>`          | `ascendant_sign/leo.md` |
@@ -72,7 +74,7 @@ Planets, signs, elements, and modalities use the lowercase identifiers from
 `@astralsync/astro-core` and `lib/dominance.ts`. The loader supports the full
 taxonomy; unauthored keys degrade gracefully (the section is omitted).
 
-**English scope (1583 entries):** `planet_in_sign` ×120
+**English scope (1676 entries):** `planet_in_sign` ×120
 (all ten planets × 12 signs; outer-planet sign entries use generational
 framing), `planet_in_house` ×120, `aspect` ×199 (39 full pairs across all
 five types plus conjunction-only Sun–Mercury and Sun–Venus and
@@ -88,14 +90,17 @@ carry the planet's own return-cycle framing, and the fast movers are
 written to their real durations: Moon contacts in hours, Sun/Mercury/Venus
 in days, Mars in a week or two; directional keys, transiter first — never
 sorted), `transit_angle_aspect` ×50 (the five slow
-transiters × ASC/MC × five types), `synastry_aspect` ×105 (the full
-sorted-pair matrix over Sun/Moon/Mercury/Venus/Mars/Saturn, same-planet
-pairs included, across all five types), `synastry_angle_aspect` ×60 (the
-six relationship planets × the other chart's ASC/MC × five types),
+transiters × ASC/MC × five types), `synastry_aspect` ×140 (the full
+sorted-pair matrix over Sun/Moon/Mercury/Venus/Mars/Jupiter/Saturn, same-planet
+pairs included, across all five types), `synastry_angle_aspect` ×70 (the
+seven relationship planets × the other chart's ASC/MC × five types),
 `profection_year` ×12 (keyed by profected house; the profected sign and
-year lord ride in the panel's explainer), `progressed_sun_sign` and
-`progressed_asc_sign` ×12 each (developmental chapter voice, not natal
-identity), `return_overview` ×4 (solar/lunar/Jupiter/Saturn), `solar_arc`
+year lord ride in the panel's explainer), `progressed_sun_sign`,
+`progressed_asc_sign` and `progressed_moon_sign` ×12 each (developmental
+chapter voice, not natal identity; the Moon's are ~2½-year emotional
+chapters), `zodiacal_releasing` ×12 (a general period in each sign, its
+length and ruler, written to read for either lot — Fortune's
+circumstances or Spirit's actions), `return_overview` ×4 (solar/lunar/Jupiter/Saturn), `solar_arc`
 ×1 (a single directions overview — contacts echo the natal `aspect`
 archetypes rather than a per-pair matrix), `firdaria_lord` ×9 (the seven
 planets and the two nodes — the current major period's chapter on the
@@ -117,8 +122,8 @@ the source line), `point_in_sign` ×60 (north node, south node, Lilith,
 and the Lots of Fortune and Spirit × 12 signs; point segments use the
 `PointName` identifiers from `astro-core/points.ts`. The Vertex and East
 Point are deliberately unauthored — they are angles rather than points
-with sign delineations, and `resolveReading` never emits them), `composite_in_sign` ×48 (the bond's
-Sun/Moon/Venus/Mars × 12 signs — relationship-voice prose shared by the
+with sign delineations, and `resolveReading` never emits them), `composite_in_sign` ×72 (the bond's
+Sun/Moon/Mercury/Venus/Mars/Jupiter × 12 signs — relationship-voice prose shared by the
 composite and Davison panels, which re-label the heading for their own
 register), `life_path` / `destiny` / `soul_urge` ×12 each
 (1–9, 11, 22, 33), `personal_year` and `pinnacle` ×12 each (the same

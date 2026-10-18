@@ -68,7 +68,7 @@ export const CONTENT_CATEGORIES = [
   // states domicile/exaltation/detriment/fall) — emitted per dignified planet.
   "dignity",
   // Relationship-chart sign placements (composite AND Davison — both are the
-  // bond's own chart), authored for Sun/Moon/Venus/Mars.
+  // bond's own chart), authored for Sun/Moon/Mercury/Venus/Mars/Jupiter.
   "composite_in_sign",
   // Calculated points in sign: nodes, Lilith, Part of Fortune. Point-keyed
   // (not planet-keyed) on purpose — see astro-core/points.ts.
@@ -92,6 +92,11 @@ export const CONTENT_CATEGORIES = [
   "profection_year",
   "progressed_sun_sign",
   "progressed_asc_sign",
+  // The progressed Moon's ~2½-year sign chapters, and the sign of a
+  // zodiacal-releasing general period (one entry serves both lots; the
+  // section says which lot it is released from).
+  "progressed_moon_sign",
+  "zodiacal_releasing",
   "return_overview",
   // Single overview for the solar-arc directions section (contacts reuse
   // the natal `aspect` archetypes' doctrine; no per-pair matrix).

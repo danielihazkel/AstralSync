@@ -102,25 +102,26 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1583 entries", () => {
+  it("contains exactly the 1676 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
     // + 500 transit aspects (all 10 transiters x 10 natal targets) + 50
     // transit angle aspects (5 slow transiters x ASC/MC x 5 types) + 12
-    // destiny + 12 soul urge + 105 synastry aspects (21 sorted pairs over
-    // 6 planets) + 60 synastry angle aspects (6 planets x ASC/MC x 5
+    // destiny + 12 soul urge + 140 synastry aspects (28 sorted pairs over
+    // 7 planets) + 70 synastry angle aspects (7 planets x ASC/MC x 5
     // types) + 12 MC signs + 5 chart patterns + 8 natal retrogrades + 28
     // dignities (classical seven x four states) + 60 points in sign
-    // (nodes, Lilith, and the Lots of Fortune and Spirit x 12) + 48
-    // composite sign placements (Sun/Moon/Venus/Mars x 12) + 12 profection
-    // years + 12 progressed Sun signs + 12 progressed ASC signs + 4 return
+    // (nodes, Lilith, and the Lots of Fortune and Spirit x 12) + 72
+    // composite sign placements (Sun/Moon/Mercury/Venus/Mars/Jupiter x 12)
+    // + 12 profection years + 12 progressed Sun signs + 12 progressed ASC
+    // signs + 12 progressed Moon signs + 12 releasing signs + 4 return
     // overviews + 1 solar-arc overview + 12 personal years + 12 pinnacles
     // (1–9 and the three masters each) + 9 challenges (0–8) + 9 firdaria
     // lords (seven planets and the nodes) + 3 solar conditions + 1
     // out-of-bounds overview + 8 moon phases + 7 chart shapes + 4
     // hemispheres + 4 element lacks + 3 modality lacks.
-    expect(entries).toHaveLength(1583);
+    expect(entries).toHaveLength(1676);
   });
 
   it("covers every planet in every sign", () => {
@@ -236,13 +237,15 @@ describe("content library lint", () => {
   it("covers the full relationship-planet synastry matrix", () => {
     // Every sorted pair (PLANETS order, same-planet pairs included) among
     // the relationship planets — the personal four plus Mercury
-    // (communication) and Saturn (commitment) — across all five types.
+    // (communication), Jupiter (generosity, shared faith) and Saturn
+    // (commitment) — across all five types.
     const SYNASTRY_PLANETS: Planet[] = [
       "sun",
       "moon",
       "mercury",
       "venus",
       "mars",
+      "jupiter",
       "saturn",
     ];
     let expected = 0;
@@ -267,6 +270,8 @@ describe("content library lint", () => {
     for (const sign of SIGNS) {
       expect(entry(`progressed_sun_sign/${sign}`), sign).not.toBeNull();
       expect(entry(`progressed_asc_sign/${sign}`), sign).not.toBeNull();
+      expect(entry(`progressed_moon_sign/${sign}`), sign).not.toBeNull();
+      expect(entry(`zodiacal_releasing/${sign}`), sign).not.toBeNull();
     }
     for (const kind of ["solar", "lunar", "jupiter", "saturn"]) {
       expect(entry(`return_overview/${kind}`), kind).not.toBeNull();
@@ -274,6 +279,8 @@ describe("content library lint", () => {
     expect(entries.filter((e) => e.category === "profection_year")).toHaveLength(12);
     expect(entries.filter((e) => e.category === "progressed_sun_sign")).toHaveLength(12);
     expect(entries.filter((e) => e.category === "progressed_asc_sign")).toHaveLength(12);
+    expect(entries.filter((e) => e.category === "progressed_moon_sign")).toHaveLength(12);
+    expect(entries.filter((e) => e.category === "zodiacal_releasing")).toHaveLength(12);
     expect(entries.filter((e) => e.category === "return_overview")).toHaveLength(4);
     expect(entry("solar_arc/overview")).not.toBeNull();
     expect(entries.filter((e) => e.category === "solar_arc")).toHaveLength(1);
@@ -356,13 +363,14 @@ describe("content library lint", () => {
     );
   });
 
-  it("covers the synastry angle-aspect matrix (six planets, both angles)", () => {
+  it("covers the synastry angle-aspect matrix (seven planets, both angles)", () => {
     const SYNASTRY_ANGLE_PLANETS: Planet[] = [
       "sun",
       "moon",
       "mercury",
       "venus",
       "mars",
+      "jupiter",
       "saturn",
     ];
     for (const planet of SYNASTRY_ANGLE_PLANETS) {
@@ -414,7 +422,7 @@ describe("content library lint", () => {
   });
 
   it("covers composite sign placements for the relationship planets", () => {
-    const RELATIONSHIP = ["sun", "moon", "venus", "mars"];
+    const RELATIONSHIP = ["sun", "moon", "mercury", "venus", "mars", "jupiter"];
     for (const planet of RELATIONSHIP) {
       for (const sign of SIGNS) {
         expect(

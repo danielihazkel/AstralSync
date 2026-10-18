@@ -240,6 +240,7 @@ export default async function CyclesReportPage({
           {date(lunation.nextFullMoonUtc)}.
         </p>
         <PrintProse entry={prose.progressedSun} />
+        <PrintProse entry={prose.progressedMoon} />
         <PrintProse entry={prose.progressedAsc} />
         <h3 className={styles.readingTitle}>Progressed contacts to the natal chart</h3>
         <ContactList
@@ -298,6 +299,9 @@ export default async function CyclesReportPage({
                     {rel.current.l1.loosedBond && " — after a loosing of the bond"}
                     ; within it, {SIGN_NAMES[rel.current.l2.sign]} until{" "}
                     {date(rel.current.l2.endUtc)}.
+                    <PrintProse
+                      entry={prose.releasing?.[label === "Fortune" ? "fortune" : "spirit"]}
+                    />
                   </li>
                 ),
             )}

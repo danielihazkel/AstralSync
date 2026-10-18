@@ -181,6 +181,11 @@ export interface CyclesProse {
   progressedSun?: CyclesEntryProse;
   /** progressed_asc_sign/<sign> */
   progressedAsc?: CyclesEntryProse;
+  /** progressed_moon_sign/<sign> */
+  progressedMoon?: CyclesEntryProse;
+  /** zodiacal_releasing/<sign> — the current general (L1) period's sign,
+   *  released from each lot. */
+  releasing?: { fortune?: CyclesEntryProse; spirit?: CyclesEntryProse };
   /** return_overview/{solar,lunar,jupiter,saturn} */
   solarReturn?: CyclesEntryProse;
   lunarReturn?: CyclesEntryProse;
