@@ -101,7 +101,7 @@ function checkSizeBand(list: ContentEntry[]) {
 }
 
 describe("content library lint", () => {
-  it("contains exactly the 1511 entries", () => {
+  it("contains exactly the 1544 entries", () => {
     // 120 planet-in-sign + 120 planet-in-house + 12 ascendant + 12 life
     // paths + 4 elements + 3 modalities + 199 natal aspects (39 full pairs
     // + 4 partials) + 100 angle aspects (10 planets x ASC/MC x 5 types)
@@ -114,8 +114,9 @@ describe("content library lint", () => {
     // (nodes, Lilith, and the Lots of Fortune and Spirit x 12) + 48
     // composite sign placements (Sun/Moon/Venus/Mars x 12) + 12 profection
     // years + 12 progressed Sun signs + 12 progressed ASC signs + 4 return
-    // overviews + 1 solar-arc overview.
-    expect(entries).toHaveLength(1511);
+    // overviews + 1 solar-arc overview + 12 personal years + 12 pinnacles
+    // (1–9 and the three masters each) + 9 challenges (0–8).
+    expect(entries).toHaveLength(1544);
   });
 
   it("covers every planet in every sign", () => {
@@ -214,6 +215,18 @@ describe("content library lint", () => {
       expect(entry(`destiny/${n}`), `destiny/${n}`).not.toBeNull();
       expect(entry(`soul_urge/${n}`), `soul_urge/${n}`).not.toBeNull();
     }
+  });
+
+  it("covers every personal year and pinnacle including masters, and every challenge", () => {
+    for (const n of LIFE_PATHS) {
+      expect(entry(`personal_year/${n}`), `personal_year/${n}`).not.toBeNull();
+      expect(entry(`pinnacle/${n}`), `pinnacle/${n}`).not.toBeNull();
+    }
+    // A challenge is a difference of single digits: 0–8, never 9 or a master.
+    for (let n = 0; n <= 8; n++) {
+      expect(entry(`challenge/${n}`), `challenge/${n}`).not.toBeNull();
+    }
+    expect(entry("challenge/9")).toBeNull();
   });
 
   it("covers the full relationship-planet synastry matrix", () => {

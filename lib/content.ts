@@ -96,6 +96,12 @@ export const CONTENT_CATEGORIES = [
   "life_path",
   "destiny",
   "soul_urge",
+  // Numerology's time cycles (numero-core cycles.ts): the personal year
+  // (1–9 and the masters), the four pinnacles (same values) and their
+  // challenges (0–8 — differences of single digits, never masters).
+  "personal_year",
+  "pinnacle",
+  "challenge",
   // Hebrew (Mazal) categories, Phase 2c — authored under content/he.
   "mazal_month",
   "day_planet",
