@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Markdown from "@/components/Markdown";
 import { todayLocalDate } from "@/components/atDate";
+import type { ForecastSky } from "@/lib/forecastSky";
+import PeriodSky from "./PeriodSky";
 import { useStreamedGeneration } from "@/components/useStreamedGeneration";
 import discardStyles from "@/components/profiles/DeleteProfileButton.module.css";
 import styles from "./forecast.module.css";
@@ -19,6 +21,8 @@ interface CivilDate {
 interface ForecastResponse {
   period: { kind: ForecastKind; start: CivilDate; end: CivilDate; days: number };
   natalVersion: number;
+  /** The computed period summary — present whether or not AI is on. */
+  sky: ForecastSky;
   forecast: {
     bodyMd: string;
     modelName: string | null;
@@ -196,7 +200,7 @@ export default function ForecastCard({
     );
   }
 
-  const { period, natalVersion, forecast } = state.data;
+  const { period, natalVersion, sky, forecast } = state.data;
   // Stored bodies are English by design; pre-render sniffing matches
   // MazalPanel's fallback in case a model slips into Hebrew.
   const isHebrewBody = forecast ? /[֐-׿]/.test(forecast.bodyMd) : false;
@@ -205,6 +209,7 @@ export default function ForecastCard({
     <section className={styles.card} aria-label={title}>
       <h3 className={styles.cardTitle}>{title}</h3>
       <p className={styles.provenance}>{periodLabel(period)}</p>
+      <PeriodSky sky={sky} />
 
       {forecast ? (
         <>
@@ -276,11 +281,11 @@ export default function ForecastCard({
                 {generating ? "Generating…" : "Finishing up…"}
               </p>
             </div>
-          ) : (
+          ) : llmEnabled ? (
             <p className={styles.muted}>
               No AI forecast has been generated for this period yet.
             </p>
-          )}
+          ) : null}
           {llmEnabled ? (
             <div className={styles.actionRow}>
               <button onClick={generate} disabled={busy}>
@@ -294,7 +299,8 @@ export default function ForecastCard({
             </div>
           ) : (
             <p className={styles.hint}>
-              AI generation is off — configure READING_LLM to enable it.
+              Computed from the ephemeris. An AI-written forecast can be added
+              by configuring READING_LLM.
             </p>
           )}
         </>

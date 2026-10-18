@@ -223,6 +223,34 @@ describe("GET /api/profiles/[id]/forecast", () => {
     });
   });
 
+  it("always returns the computed sky — with no forecast and no model", async () => {
+    mockClientFromEnv.mockReturnValue(null);
+    const json = await (
+      await GET(
+        request("/api/profiles/1/forecast?mode=western&kind=week&date=2026-08-13"),
+        params("1"),
+      )
+    ).json();
+    expect(json.forecast).toBeNull();
+    expect(json.sky.mode).toBe("western");
+    expect(json.sky.summary.period.start).toEqual({ year: 2026, month: 8, day: 9 });
+    expect(json.sky.summary.moonBySign.length).toBeGreaterThan(0);
+    // Prose rides parallel to the aspect windows, null where unauthored.
+    expect(json.sky.prose).toHaveLength(json.sky.summary.topAspects.length);
+  });
+
+  it("returns the Hebrew period's months and days for the hebrew mode", async () => {
+    const json = await (
+      await GET(
+        request("/api/profiles/1/forecast?mode=hebrew&kind=week&date=2026-08-13"),
+        params("1"),
+      )
+    ).json();
+    expect(json.sky.mode).toBe("hebrew");
+    expect(json.sky.summary.days).toHaveLength(7);
+    expect(json.sky.summary.months.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("returns a stored forecast", async () => {
     mockGetForecast.mockResolvedValue(stored);
     const res = await GET(

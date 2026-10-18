@@ -10,6 +10,8 @@ export default defineConfig({
       "packages/**/test/**/*.test.ts",
       "lib/**/*.test.ts",
       "components/**/*.test.ts",
+      // Server-rendered with react-dom/server: plain Node, no DOM needed.
+      "components/**/*.test.tsx",
     ],
   },
 });

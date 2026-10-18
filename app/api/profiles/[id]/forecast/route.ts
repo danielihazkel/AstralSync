@@ -4,8 +4,6 @@ import {
   contentRoot,
   getEntry,
   loadContentIndex,
-  natalAspectKey,
-  transitAspectKey,
   type ContentEntry,
 } from "@/lib/content";
 import {
@@ -16,6 +14,7 @@ import {
   type AspectWindow,
   type CivilDate,
 } from "@/lib/forecast";
+import { computeForecastSky, windowEntry } from "@/lib/forecastSky";
 import {
   createForecast,
   deleteForecast,
@@ -92,7 +91,10 @@ async function parseParams(
   return parsed.data;
 }
 
-/** GET ?mode=&kind=&date?= → the stored forecast for that period, or null. */
+/**
+ * GET ?mode=&kind=&date?= → the period, its computed sky (always — the
+ * deterministic summary, AI or no AI), and the stored forecast or null.
+ */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -121,6 +123,7 @@ export async function GET(
     {
       period,
       natalVersion: natal.version,
+      sky: computeForecastSky(parsed.mode, period, natal),
       forecast: forecast ? serializeForecast(forecast) : null,
     },
     { headers: NO_STORE },
@@ -138,13 +141,12 @@ function westernEntries(windows: AspectWindow[]): ForecastAspectContext {
   const seen = new Set<string>();
   const context: ForecastAspectContext = { transit: [], natalArchetypes: [] };
   for (const w of windows) {
-    const transitKey = transitAspectKey(w.a, w.b, w.type);
-    const natalKey = natalAspectKey(w.a, w.b, w.type);
-    const transitEntry = getEntry(index, transitKey);
-    const chosen = transitEntry ?? getEntry(index, natalKey);
-    if (!chosen || seen.has(chosen.key)) continue;
-    seen.add(chosen.key);
-    (transitEntry ? context.transit : context.natalArchetypes).push(chosen);
+    const found = windowEntry(w, index);
+    if (!found || seen.has(found.entry.key)) continue;
+    seen.add(found.entry.key);
+    (found.kind === "transit" ? context.transit : context.natalArchetypes).push(
+      found.entry,
+    );
   }
   return context;
 }

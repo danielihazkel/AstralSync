@@ -11,7 +11,8 @@ const KINDS: { kind: ForecastKind; label: string }[] = [
 ];
 
 /**
- * The Forecast tab: daily/weekly/monthly AI forecasts, one card per mode —
+ * The Forecast tab: the day, week or month computed from the ephemeris,
+ * plus an optional cached AI forecast, one card per mode —
  * Western transits and the Hebrew calendar, both read against the natal
  * charts. Weeks run Sunday–Saturday in both modes; the Western month is the
  * civil month while the Hebrew month follows the Hebrew calendar, so the
@@ -32,10 +33,12 @@ export default function ForecastPanel({
     <div className={styles.panel}>
       {!llmEnabled && (
         <p className={styles.notice} role="note">
-          AI forecasts are switched off on this install. To enable them, set{" "}
-          <code>READING_LLM</code> and <code>READING_LLM_MODEL</code> in the
-          server&rsquo;s <code>.env</code> and restart (see the README).
-          Charts, transits and template readings all work without them.
+          AI forecasts are switched off on this install, so each card shows
+          the period computed from the ephemeris: the Moon&rsquo;s signs, sky
+          events and the strongest contacts to your chart. To add AI-written
+          forecasts, set <code>READING_LLM</code> and{" "}
+          <code>READING_LLM_MODEL</code> in the server&rsquo;s{" "}
+          <code>.env</code> and restart (see the README).
         </p>
       )}
       <div
