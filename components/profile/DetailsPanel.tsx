@@ -98,6 +98,15 @@ export default function DetailsPanel({
             — compute-relevant changes create a new chart version
           </span>
         </p>
+        <p className={styles.actionRow}>
+          <Link href={`/profiles/${profile.id}/birth-time`}>
+            How sure is the birth time?
+          </Link>
+          <span className={styles.hint}>
+            {" "}
+            — what changes across the window, tested against your life events
+          </span>
+        </p>
       </section>
 
       <section className={styles.detailsSection}>

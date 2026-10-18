@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LifeEventView } from "@/lib/lifeEvents";
@@ -372,6 +373,11 @@ export default function LifeEventsPanel({
                 }))}
                 periods={arcPeriods}
               />
+              <p className={styles.muted}>
+                <Link href={`/profiles/${profileId}/birth-time`}>
+                  Test the birth time against these events →
+                </Link>
+              </p>
               <ul className={styles.entryList}>
                 {events.events.map((e) => (
                   <EventRow
